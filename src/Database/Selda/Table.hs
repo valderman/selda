@@ -8,7 +8,7 @@ type TableName = String
 
 data a :*: b where
   (:*:) :: a -> b -> a :*: b
-infixr 9 :*:
+infixr 1 :*:
 
 -- | A database table.
 --   Tables are parameterized over their column types. For instance, a table
@@ -22,7 +22,7 @@ data Table (a :: k) = Table
 
 (¤) :: Table a -> Table b -> Table (a :*: b)
 a ¤ b = b {tableCols = tableCols a ++ tableCols b}
-infixr 9 ¤
+infixr 1 ¤
 
 -- | Determines whether a column is primary key, required or nullable.
 data Qualifier = Primary | Required | Nullable
