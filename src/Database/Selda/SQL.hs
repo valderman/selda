@@ -45,15 +45,16 @@ ppSql (SQL cs src r gs) = do
   gs' <- ppGroups gs
   pure $ concat
     [ "SELECT ", intercalate "," cs'
-    , " FROM ", src'
+    , src'
     , r'
     , gs'
     ]
   where
     ppSrc (Left n)     = pure n
+    ppSrc (Right [])   = pure ""
     ppSrc (Right sqls) = do
       srcs <- mapM ppSql (reverse sqls)
-      pure $ intercalate "," ["(" ++ s ++ ")" | s <- srcs]
+      pure $ " FROM " ++ intercalate "," ["(" ++ s ++ ")" | s <- srcs]
 
     ppRestricts [] = pure ""
     ppRestricts rs = ppCols rs >>= \rs' -> pure $ " WHERE " ++ rs'
