@@ -138,6 +138,8 @@ ppBinOp op a b = do
     ppOp Gte  = ">="
     ppOp Lte  = "<="
     ppOp Eq   = "="
+    ppOp And  = "AND"
+    ppOp Or   = "OR"
     ppOp Add  = "+"
     ppOp Sub  = "-"
     ppOp Mul  = "*"

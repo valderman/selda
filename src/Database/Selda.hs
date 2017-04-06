@@ -11,8 +11,9 @@ module Database.Selda
   , Inner, Order (..)
   , (:*:)(..)
   , select, restrict, limit, order, ascending, descending
-  , (.==), (./=), (.>), (.<), (.>=), (.<=), like
-  , not_, literal, round, roundTo, length
+    -- * Expressions over columns
+  , (.==), (./=), (.>), (.<), (.>=), (.<=), (.&&), (.||), like
+  , literal, int, float, text, true, false, not_, round, roundTo, length
     -- * Aggregation functions
   , Aggr, Aggregates, AggrCols
   , aggregate, groupBy
@@ -43,6 +44,29 @@ infixl 4 .>
 infixl 4 .<
 infixl 4 .>=
 infixl 4 .<=
+
+(.&&), (.||) :: Col s Bool -> Col s Bool -> Col s Bool
+(.&&) = liftC2 $ BinOp And
+(.||) = liftC2 $ BinOp Or
+infixr 3 .&&
+infixr 2 .||
+
+-- | Specialization of 'literal' for integers.
+int :: Int -> Col s Int
+int = literal
+
+-- | Specialization of 'literal' for doubles.
+float :: Double -> Col s Double
+float = literal
+
+-- | Specialization of 'literal' for text.
+text :: Text -> Col s Text
+text = literal
+
+-- | True and false boolean literals.
+true, false :: Col s Bool
+true = literal True
+false = literal False
 
 -- | The SQL @LIKE@ operator; matches strings with wildcards.
 like :: Col s Text -> Col s Text -> Col s Bool

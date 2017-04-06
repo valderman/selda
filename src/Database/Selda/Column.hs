@@ -73,6 +73,8 @@ data BinOp a b where
   Gte  :: BinOp a Bool
   Lte  :: BinOp a Bool
   Eq   :: BinOp a Bool
+  And  :: BinOp Bool Bool
+  Or   :: BinOp Bool Bool
   Add  :: BinOp a a
   Sub  :: BinOp a a
   Mul  :: BinOp a a
