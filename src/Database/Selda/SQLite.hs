@@ -13,7 +13,7 @@ withSQLite file m = do
   db <- liftIO $ open (pack file)
   runSeldaT m (querySQLite db) `finally` liftIO (close db)
 
-querySQLite :: forall a. Result a => Database -> Query a -> IO [Res a]
+querySQLite :: forall s a. Result a => Database -> Query s a -> IO [Res a]
 querySQLite db q = do
     stm <- prepare db (pack query)
     bind stm [toSqlData p | Param p <- params]

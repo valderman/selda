@@ -10,6 +10,9 @@ data a :*: b where
   (:*:) :: a -> b -> a :*: b
 infixr 1 :*:
 
+instance (Show a, Show b) => Show (a :*: b) where
+  show (a :*: b) = show a ++ " :*: " ++ show b
+
 -- | A database table.
 --   Tables are parameterized over their column types. For instance, a table
 --   containing one string and one integer, in that order, would have the type

@@ -1,5 +1,5 @@
 -- | Dead column elimination for Selda.
-module Database.Selda.DeadCols (colNames, removeDeadCols) where
+module Database.Selda.DeadCols (allColNames, colNames, removeDeadCols) where
 import Database.Selda.Column
 import Database.Selda.SQL
 import Database.Selda.Table
@@ -18,7 +18,11 @@ removeDeadCols cns sql =
 -- | Return the names of all columns in the given top-level query.
 --   Subqueries are not traversed.
 allColNames :: SQL -> [ColName]
-allColNames sql = colNames (map Some (restricts sql)) ++ colNames (cols sql)
+allColNames sql = concat
+  [ colNames (map Some (restricts sql))
+  , colNames (cols sql)
+  , colNames (groups sql)
+  ]
 
 -- | Get all column names appearing in the given list of (possibly complex)
 --   columns.
@@ -29,7 +33,7 @@ colNames cols = concat
   , [n | Named n _ <- cols]
   ]
 
--- | Remove all columns but the given, named ones.
+-- | Remove all columns but the given, named ones and aggregates.
 --   If we want to refer to a column in an outer query, it must have a name.
 --   If it doesn't, then it's either not referred to by an outer query, or
 --   the outer query duplicates the expression, thereby referring directly
@@ -39,8 +43,10 @@ keepCols cns sql = sql {cols = filtered}
   where
     filtered =
       case filter (`oneOf` cns) (cols sql) of
-        [] -> [Some (literal True)]
+        [] -> [Some (unC $ literal True)]
         cs -> cs
-    oneOf (Some (Col n)) ns = n `elem` ns
-    oneOf (Named n _) ns    = n `elem` ns
-    oneOf _ _               = False
+    oneOf (Some (AggrEx _ _)) _    = True
+    oneOf (Named _ (AggrEx _ _)) _ = True
+    oneOf (Some (Col n)) ns        = n `elem` ns
+    oneOf (Named n _) ns           = n `elem` ns
+    oneOf _ _                      = False

@@ -18,7 +18,7 @@ import Control.Monad.Reader
 
 -- | A function which executes a query and gives back a list of extensible
 --   tuples; one tuple per result row, and one tuple element per column.
-type QueryRunner = forall a. Result a => Query.Query a -> IO [Res a]
+type QueryRunner = forall s a. Result a => Query.Query s a -> IO [Res a]
 
 -- Impredicative polymorphism workaround
 newtype QR = QR {run :: QueryRunner}
@@ -57,16 +57,16 @@ class Query.Result r => Result r where
   --   contain exactly three values, for instance.
   toRes :: Proxy r -> [SqlValue] -> Res r
 
-instance (SqlData a, Result b) => Result (Col a :*: b) where
-  type Res (Col a :*: b) = a :*: Res b
+instance (SqlData a, Result b) => Result (Col s a :*: b) where
+  type Res (Col s a :*: b) = a :*: Res b
   toRes _ (x:xs) = fromSql x :*: toRes (Proxy :: Proxy b) xs
 
-instance SqlData a => Result (Col a) where
-  type Res (Col a) = a
+instance SqlData a => Result (Col s a) where
+  type Res (Col s a) = a
   toRes _ [x] = fromSql x
 
 -- | Run a query within a Selda transformer.
 --   Selda transformers are entered using backend-specific @withX@ functions,
 --   such as 'withSQLite' from the SQLite backend.
-query :: (MonadIO m, Result a) => Query.Query a -> SeldaT m [Res a]
+query :: (MonadIO m, Result a) => Query.Query s a -> SeldaT m [Res a]
 query q = S $ ask >>= \runner -> liftIO $ run runner q
