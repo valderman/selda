@@ -46,6 +46,7 @@ fun2 f = liftC2 (Fun2 f)
 data Exp a where
   Col    :: ColName -> Exp a
   Lit    :: Lit a -> Exp a
+  Null   :: Exp (Maybe a)
   BinOp  :: BinOp a b -> Exp a -> Exp a -> Exp b
   UnOp   :: UnOp a b -> Exp a -> Exp b
   Fun2   :: Text -> Exp a -> Exp b -> Exp c
@@ -55,6 +56,7 @@ data Exp a where
 -- | Get all column names in the given expression.
 allNamesIn :: Exp a -> [ColName]
 allNamesIn (Col n)       = [n]
+allNamesIn (Null)        = []
 allNamesIn (Lit _)       = []
 allNamesIn (BinOp _ a b) = allNamesIn a ++ allNamesIn b
 allNamesIn (UnOp _ a)    = allNamesIn a
@@ -70,18 +72,21 @@ data UnOp a b where
   Fun :: Text -> UnOp a b
 
 data BinOp a b where
-  Gt   :: BinOp a Bool
-  Lt   :: BinOp a Bool
-  Gte  :: BinOp a Bool
-  Lte  :: BinOp a Bool
-  Eq   :: BinOp a Bool
-  And  :: BinOp Bool Bool
-  Or   :: BinOp Bool Bool
-  Add  :: BinOp a a
-  Sub  :: BinOp a a
-  Mul  :: BinOp a a
-  Div  :: BinOp a a
-  Like :: BinOp Text Bool
+  Gt    :: BinOp a Bool
+  Lt    :: BinOp a Bool
+  Gte   :: BinOp a Bool
+  Lte   :: BinOp a Bool
+  Eq    :: BinOp a Bool
+  Neq   :: BinOp a Bool
+  Is    :: BinOp a Bool
+  IsNot :: BinOp a Bool
+  And   :: BinOp Bool Bool
+  Or    :: BinOp Bool Bool
+  Add   :: BinOp a a
+  Sub   :: BinOp a a
+  Mul   :: BinOp a a
+  Div   :: BinOp a a
+  Like  :: BinOp Text Bool
 
 data Lit a where
   LitS :: Text   -> Lit Text

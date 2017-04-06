@@ -85,6 +85,7 @@ ppCols cs = do
 ppCol :: Exp a -> PP Text
 ppCol (Col name)     = pure name
 ppCol (Lit l)        = ppLit l
+ppCol (Null)         = pure "NULL"
 ppCol (BinOp op a b) = ppBinOp op a b
 ppCol (UnOp op a)    = ppUnOp op a
 ppCol (Fun2 f a b)   = do
@@ -116,15 +117,18 @@ ppBinOp op a b = do
     paren _ c       = "(" <> c <> ")"
 
     ppOp :: BinOp a b -> Text
-    ppOp Gt   = ">"
-    ppOp Lt   = "<"
-    ppOp Gte  = ">="
-    ppOp Lte  = "<="
-    ppOp Eq   = "="
-    ppOp And  = "AND"
-    ppOp Or   = "OR"
-    ppOp Add  = "+"
-    ppOp Sub  = "-"
-    ppOp Mul  = "*"
-    ppOp Div  = "/"
-    ppOp Like = "LIKE"
+    ppOp Gt    = ">"
+    ppOp Lt    = "<"
+    ppOp Gte   = ">="
+    ppOp Lte   = "<="
+    ppOp Eq    = "="
+    ppOp Neq   = "!="
+    ppOp Is    = "IS"
+    ppOp IsNot = "IS NOT"
+    ppOp And   = "AND"
+    ppOp Or    = "OR"
+    ppOp Add   = "+"
+    ppOp Sub   = "-"
+    ppOp Mul   = "*"
+    ppOp Div   = "/"
+    ppOp Like  = "LIKE"

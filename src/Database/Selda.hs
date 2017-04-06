@@ -12,9 +12,9 @@ module Database.Selda
   , (:*:)(..)
   , select, restrict, limit, order, ascending, descending
     -- * Expressions over columns
-  , (.==), (./=), (.>), (.<), (.>=), (.<=), (.&&), (.||), like
+  , (.==), (./=), (.>), (.<), (.>=), (.<=), (.&&), (.||), is, isn't, like
   , literal, int, float, text, true, false, not_, round_, roundTo, length_
-  , nullable
+  , nullable, null_
     -- * Aggregation functions
   , Aggr, Aggregates, AggrCols
   , aggregate, groupBy
@@ -37,18 +37,22 @@ import Database.Selda.Compile
 import Database.Selda.SQL (Order (..))
 import Data.Text (Text)
 
-(.==), (./=), (.>), (.<), (.>=), (.<=) :: Col s a -> Col s a -> Col s Bool
+(.==), (./=), (.>), (.<), (.>=), (.<=), is, isn't :: Col s a -> Col s a -> Col s Bool
 (.==) = liftC2 $ BinOp Eq
-a ./= b = not_ (a .== b)
+(./=) = liftC2 $ BinOp Neq
 (.>)  = liftC2 $ BinOp Gt
 (.<)  = liftC2 $ BinOp Lt
 (.>=) = liftC2 $ BinOp Gte
 (.<=) = liftC2 $ BinOp Lte
+is    = liftC2 $ BinOp Is
+isn't = liftC2 $ BinOp IsNot
 infixl 4 .==
 infixl 4 .>
 infixl 4 .<
 infixl 4 .>=
 infixl 4 .<=
+infixl 4 `is`
+infixl 4 `isn't`
 
 (.&&), (.||) :: Col s Bool -> Col s Bool -> Col s Bool
 (.&&) = liftC2 $ BinOp And
@@ -73,6 +77,10 @@ descending = Desc
 -- >   return name
 nullable :: Col s a -> Col s (Maybe a)
 nullable = cast
+
+-- | SQL NULL, at any type you like.
+null_ :: Col s (Maybe a)
+null_ = C Null
 
 -- | Specialization of 'literal' for integers.
 int :: Int -> Col s Int
