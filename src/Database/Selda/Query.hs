@@ -1,42 +1,15 @@
-{-# LANGUAGE GADTs, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, TypeOperators, RankNTypes, OverloadedStrings #-}
+{-# LANGUAGE FlexibleContexts, OverloadedStrings #-}
 -- | Query monad and primitive operations.
 module Database.Selda.Query where
 import Database.Selda.Table
-import Database.Selda.Column hiding (Result)
+import Database.Selda.Column
 import Database.Selda.SQL
-import Database.Selda.DeadCols
 import Database.Selda.Aggregates
+import Database.Selda.Query.Type
+import Database.Selda.Transform
 import Control.Monad.State
 import Data.Text (Text, pack)
 import Data.Monoid
-
--- | An SQL query.
-newtype Query s a = Query {unQ :: State GenState a}
-  deriving (Functor, Applicative, Monad)
-
-ascending, descending :: Order
-ascending = Asc
-descending = Desc
-
--- | SQL generation internal state.
---   Contains the subqueries and static (i.e. not dependent on any subqueries)
---   restrictions of the query currently being built, as well as a name supply
---   for column renaming.
-data GenState = GenState
-  { sources         :: [SQL]
-  , staticRestricts :: [Exp Bool]
-  , groupCols       :: [SomeCol]
-  , nameSupply      :: Int
-  }
-
--- | Initial state: no subqueries, no restrictions.
-initState :: GenState
-initState = GenState
-  { sources = []
-  , staticRestricts = []
-  , groupCols = []
-  , nameSupply = 0
-  }
 
 -- | Query the given table. Result is returned as an inductive tuple, i.e.
 --   @first :*: second :*: third <- query tableOfThree@.
@@ -140,47 +113,3 @@ rename (Some col) = do
         _     -> "tmp_" <> pack (show ns)
 rename col@(Named _ _) = do
   return col
-
--- | Get all columns from a list of SQL ASTs.
-allCols :: [SQL] -> [SomeCol]
-allCols sqls = [outCol col | sql <- sqls, col <- cols sql]
-  where
-    outCol (Named n _) = Some (Col n)
-    outCol c           = c
-
--- | Run a query computation from an initial state.
-runQueryM :: Int -> Query s a -> (a, GenState)
-runQueryM n = flip runState (initState {nameSupply = n}) . unQ
-
--- | Compile a query into a parameterised SQL statement.
-compile :: Result a => Query s a -> (Text, [Param])
-compile = compSql . snd . compQuery 0
-
--- | Compile a query to an SQL AST.
---   Groups are ignored, as they are only used by 'aggregate'.
-compQuery :: Result a => Int -> Query s a -> (Int, SQL)
-compQuery ns q =
-    (nameSupply st, SQL final (Right [srcs]) [] [] [] Nothing)
-  where
-    (cs, st) = runQueryM ns q
-    final = finalCols cs
-    sql = state2sql st
-    live = colNames $ final ++ map Some (restricts sql)
-    srcs = removeDeadCols live sql
-
--- | Build the outermost query from the SQL generation state.
---   Groups are ignored, as they are only used by 'aggregate'.
-state2sql :: GenState -> SQL
-state2sql (GenState [sql] srs _ _) =
-  sql {restricts = restricts sql ++ srs}
-state2sql (GenState ss srs _ _) =
-  SQL (allCols ss) (Right ss) srs [] [] Nothing
-
-class Result a where
-  finalCols :: a -> [SomeCol]
-
-instance Result (Col s a) where
-  finalCols (C c) = [Some c]
-
-instance (Result a, Result b) => Result (a :*: b) where
-  finalCols (a :*: b) = finalCols a ++ finalCols b

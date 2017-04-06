@@ -40,4 +40,4 @@ toSqlData (LitB b) = SQLInteger $ if b then 1 else 0
 fromSqlData :: SQLData -> SqlValue
 fromSqlData (SQLInteger i) = SqlInt $ fromIntegral i
 fromSqlData (SQLFloat f)   = SqlFloat f
-fromSqlData (SQLText s)    = SqlString $ unpack s
+fromSqlData (SQLText s)    = SqlString s

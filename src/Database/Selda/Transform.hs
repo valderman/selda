@@ -1,7 +1,8 @@
--- | Dead column elimination for Selda.
-module Database.Selda.DeadCols (allColNames, colNames, removeDeadCols) where
+-- | Analysis and transformation of SQL queries.
+module Database.Selda.Transform where
 import Database.Selda.Column
 import Database.Selda.SQL
+import Database.Selda.Query.Type
 import Database.Selda.Table
 
 -- | Remove all dead columns recursively, assuming that the given list of
@@ -50,3 +51,18 @@ keepCols cns sql = sql {cols = filtered}
     oneOf (Some (Col n)) ns        = n `elem` ns
     oneOf (Named n _) ns           = n `elem` ns
     oneOf _ _                      = False
+
+-- | Build the outermost query from the SQL generation state.
+--   Groups are ignored, as they are only used by 'aggregate'.
+state2sql :: GenState -> SQL
+state2sql (GenState [sql] srs _ _) =
+  sql {restricts = restricts sql ++ srs}
+state2sql (GenState ss srs _ _) =
+  SQL (allCols ss) (Right ss) srs [] [] Nothing
+
+-- | Get all columns from a list of SQL ASTs.
+allCols :: [SQL] -> [SomeCol]
+allCols sqls = [outCol col | sql <- sqls, col <- cols sql]
+  where
+    outCol (Named n _) = Some (Col n)
+    outCol c           = c

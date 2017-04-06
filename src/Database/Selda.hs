@@ -4,7 +4,7 @@
 --   Selda is a high-level EDSL for interacting with relational databases.
 module Database.Selda
   ( -- * Running queries
-    SeldaT, Table, Query, Col, MonadIO (..), MonadTrans (..)
+    SeldaT, Table, Query, Col, Res, MonadIO (..), MonadTrans (..), Result
   , query
     -- * Constructing queries
   , Text, Cols, Columns
@@ -23,13 +23,17 @@ module Database.Selda
     -- * Constructing tables
   , TableName, ColName
   , table, (¤), primary, required, nullable
+    -- * Compiling and inspecting queries
+  , compile
   ) where
 import Database.Selda.Table
 import Database.Selda.Column
 import Database.Selda.Query
+import Database.Selda.Query.Type
 import Database.Selda.Backend
 import Database.Selda.Aggregates
-import Database.Selda.SQL (Order)
+import Database.Selda.Compile
+import Database.Selda.SQL (Order (..))
 import Data.Text (Text)
 
 (.==), (./=), (.>), (.<), (.>=), (.<=) :: Col s a -> Col s a -> Col s Bool
@@ -50,6 +54,11 @@ infixl 4 .<=
 (.||) = liftC2 $ BinOp Or
 infixr 3 .&&
 infixr 2 .||
+
+-- | Ordering for 'order'.
+ascending, descending :: Order
+ascending = Asc
+descending = Desc
 
 -- | Specialization of 'literal' for integers.
 int :: Int -> Col s Int
