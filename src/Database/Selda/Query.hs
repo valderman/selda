@@ -8,7 +8,7 @@ import Database.Selda.Aggregates
 import Database.Selda.Query.Type
 import Database.Selda.Transform
 import Control.Monad.State
-import Data.Text (Text, pack)
+import Data.Text (pack)
 import Data.Monoid
 
 -- | Query the given table. Result is returned as an inductive tuple, i.e.
@@ -24,15 +24,15 @@ select (Table name cs) = Query $ do
 
 -- | Restrict the query somehow. Roughly equivalent to @WHERE@.
 restrict :: Col s Bool -> Query s ()
-restrict (C pred) = Query $ do
+restrict (C p) = Query $ do
     st <- get
     put $ case sources st of
       [] ->
-        st {staticRestricts = pred : staticRestricts st}
+        st {staticRestricts = p : staticRestricts st}
       [SQL cs s ps gs os lim] ->
-        st {sources = [SQL cs s (pred : ps) gs os lim]}
+        st {sources = [SQL cs s (p : ps) gs os lim]}
       ss ->
-        st {sources = [SQL (allCols ss) (Right ss) [pred] [] [] Nothing]}
+        st {sources = [SQL (allCols ss) (Right ss) [p] [] [] Nothing]}
 
 -- | Execute a query, returning an aggregation of its results.
 --   The query must return an inductive tuple of 'Aggregate' columns.

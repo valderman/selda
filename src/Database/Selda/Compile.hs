@@ -7,7 +7,6 @@ import Database.Selda.Column
 import Database.Selda.Backend
 import Database.Selda.Transform
 import Data.Text (Text)
-import Control.Monad.State
 
 -- | Compile a query into a parameterised SQL statement.
 compile :: Result a => Query s a -> (Text, [Param])

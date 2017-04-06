@@ -13,7 +13,7 @@ module Database.Selda
   , select, restrict, limit, order, ascending, descending
     -- * Expressions over columns
   , (.==), (./=), (.>), (.<), (.>=), (.<=), (.&&), (.||), like
-  , literal, int, float, text, true, false, not_, round, roundTo, length
+  , literal, int, float, text, true, false, not_, round_, roundTo, length_
     -- * Aggregation functions
   , Aggr, Aggregates, AggrCols
   , aggregate, groupBy

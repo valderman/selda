@@ -3,7 +3,6 @@
 module Database.Selda.Column where
 import Database.Selda.Table
 import Data.String
-import Data.Int
 import Data.Text (Text)
 
 type family Cols s a where
@@ -15,9 +14,12 @@ class Columns a where
 
 instance Columns b => Columns (Col s a :*: b) where
   toTup (x:xs) = C (Col x) :*: toTup xs
+  toTup _      = error "too few elements to toTup"
 
 instance Columns (Col s a) where
   toTup [x] = C (Col x)
+  toTup []  = error "too few elements to toTup"
+  toTup _   = error "too many elements to toTup"
 
 -- | A type-erased column, which may also be renamed.
 --   Only for internal use.
@@ -128,5 +130,5 @@ instance Fractional (Col s Double) where
   (/) = liftC2 $ BinOp Div  
 
 instance Fractional (Col s Int) where
-  fromRational = literal . truncate . fromRational
+  fromRational = literal . (truncate :: Double -> Int) . fromRational
   (/) = liftC2 $ BinOp Div

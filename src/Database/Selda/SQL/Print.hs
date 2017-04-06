@@ -54,9 +54,9 @@ ppSql (SQL cs src r gs ord lim) = do
     ppRestricts rs = ppCols rs >>= \rs' -> pure $ " WHERE " <> rs'
 
     ppGroups [] = pure ""
-    ppGroups gs = do
-      cs <- sequence [ppCol c | Some c <- gs]
-      pure $ " GROUP BY " <> Text.intercalate ", " cs
+    ppGroups grps = do
+      cls <- sequence [ppCol c | Some c <- grps]
+      pure $ " GROUP BY " <> Text.intercalate ", " cls
 
     ppOrder [] = pure ""
     ppOrder os = do
@@ -74,8 +74,8 @@ ppSql (SQL cs src r gs ord lim) = do
 ppSomeCol :: SomeCol -> PP Text
 ppSomeCol (Some c)    = ppCol c
 ppSomeCol (Named n c) = do
-  c <- ppCol c
-  pure $ c <> " AS " <> n
+  c' <- ppCol c
+  pure $ c' <> " AS " <> n
 
 ppCols :: [Exp Bool] -> PP Text
 ppCols cs = do
@@ -92,6 +92,7 @@ ppCol (Fun2 f a b)   = do
   b' <- ppCol b
   pure $ mconcat [f, "(", a', ", ", b', ")"]
 ppCol (AggrEx f x)   = ppUnOp (Fun f) x
+ppCol (Cast x)       = ppCol x
 
 ppUnOp :: UnOp a b -> Exp a -> PP Text
 ppUnOp op c = do

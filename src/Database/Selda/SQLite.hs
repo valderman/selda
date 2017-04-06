@@ -4,7 +4,7 @@ module Database.Selda.SQLite (withSQLite, querySQLite) where
 import Database.Selda
 import Database.Selda.Backend
 import Database.SQLite3
-import Data.Text (Text, pack, unpack)
+import Data.Text (pack)
 import Data.Proxy
 import Control.Monad.Catch
 
@@ -15,13 +15,13 @@ withSQLite file m = do
 
 querySQLite :: forall s a. Result a => Database -> Query s a -> IO [Res a]
 querySQLite db q = do
-    stm <- prepare db query
+    stm <- prepare db qry
     bind stm [toSqlData p | Param p <- params]
     rows <- getRows stm []
     finalize stm
     return [toRes (Proxy :: Proxy a) (map fromSqlData r) | r <- rows]
   where
-    (query, params) = compile q
+    (qry, params) = compile q
     getRows s acc = do
       res <- step s
       case res of
@@ -41,3 +41,5 @@ fromSqlData :: SQLData -> SqlValue
 fromSqlData (SQLInteger i) = SqlInt $ fromIntegral i
 fromSqlData (SQLFloat f)   = SqlFloat f
 fromSqlData (SQLText s)    = SqlString s
+fromSqlData (SQLBlob _)    = error "Selda doesn't support blobs"
+fromSqlData SQLNull        = error "TODO: null handling"

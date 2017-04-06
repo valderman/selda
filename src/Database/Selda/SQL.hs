@@ -3,9 +3,6 @@
 module Database.Selda.SQL where
 import Database.Selda.Table
 import Database.Selda.Column
-import Control.Monad.State
-import Data.Text (Text)
-import qualified Data.Text as Text
 import Data.Monoid
 
 -- | AST for SQL queries.

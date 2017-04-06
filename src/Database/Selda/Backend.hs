@@ -43,11 +43,20 @@ data SqlValue where
   SqlBool   :: Bool   -> SqlValue
 
 -- | Any SQL result data type.
-class SqlData a where fromSql :: SqlValue -> a
-instance SqlData Int    where fromSql (SqlInt x) = x
-instance SqlData Double where fromSql (SqlFloat x) = x
-instance SqlData Text   where fromSql (SqlString x) = x
-instance SqlData Bool   where fromSql (SqlBool x) = x
+class SqlData a where
+  fromSql :: SqlValue -> a
+instance SqlData Int where
+  fromSql (SqlInt x) = x
+  fromSql _          = error "fromSql: int column with non-int value"
+instance SqlData Double where
+  fromSql (SqlFloat x) = x
+  fromSql _            = error "fromSql: float column with non-float value"
+instance SqlData Text where
+  fromSql (SqlString x) = x
+  fromSql _             = error "fromSql: text column with non-text value"
+instance SqlData Bool where
+  fromSql (SqlBool x) = x
+  fromSql _           = error "fromSql: bool column with non-bool value"
 
 -- | An acceptable query result type; one or more columns stitched together
 --   with @:*:@.
@@ -67,11 +76,14 @@ class Result r where
 instance (SqlData a, Result b) => Result (Col s a :*: b) where
   type Res (Col s a :*: b) = a :*: Res b
   toRes _ (x:xs) = fromSql x :*: toRes (Proxy :: Proxy b) xs
+  toRes _ _      = error "backend bug: too few result columns to toRes"
   finalCols (a :*: b) = finalCols a ++ finalCols b
 
 instance SqlData a => Result (Col s a) where
   type Res (Col s a) = a
   toRes _ [x] = fromSql x
+  toRes _ []  = error "backend bug: too few result columns to toRes"
+  toRes _ _   = error "backend bug: too many result columns to toRes"
   finalCols (C c) = [Some c]
 
 -- | Run a query within a Selda transformer.

@@ -1,7 +1,6 @@
 {-# LANGUAGE GADTs, TypeOperators, OverloadedStrings, PolyKinds #-}
 -- | Selda table definition language.
 module Database.Selda.Table where
-import Data.Proxy
 import Data.Text (Text)
 
 type ColName = Text

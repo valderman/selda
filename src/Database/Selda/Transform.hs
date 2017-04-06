@@ -10,7 +10,7 @@ import Database.Selda.Table
 removeDeadCols :: [ColName] -> SQL -> SQL
 removeDeadCols cns sql =
     case source sql' of
-      Left t   -> sql'
+      Left _   -> sql'
       Right qs -> sql' {source = Right $ map (removeDeadCols live') qs}
   where
     sql' = keepCols cns sql
@@ -28,10 +28,10 @@ allColNames sql = concat
 -- | Get all column names appearing in the given list of (possibly complex)
 --   columns.
 colNames :: [SomeCol] -> [ColName]
-colNames cols = concat
-  [ [n | Some c <- cols, n <- allNamesIn c]
-  , [n | Named _ c <- cols, n <- allNamesIn c]
-  , [n | Named n _ <- cols]
+colNames cs = concat
+  [ [n | Some c <- cs, n <- allNamesIn c]
+  , [n | Named _ c <- cs, n <- allNamesIn c]
+  , [n | Named n _ <- cs]
   ]
 
 -- | Remove all columns but the given, named ones and aggregates.
