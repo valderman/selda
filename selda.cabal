@@ -32,7 +32,8 @@ library
     OverloadedStrings
     GADTs
     TypeOperators
-    PolyKinds
+    MultiParamTypeClasses
+    UndecidableInstances
     ScopedTypeVariables
     RankNTypes
     TypeFamilies

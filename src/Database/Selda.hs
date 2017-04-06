@@ -21,9 +21,11 @@ module Database.Selda
   , some, count, avg, sum_, max_, min_
     -- * Unsafe functions for dialect-specific extensions
   , fun, fun2, cast
-    -- * Constructing tables
-  , TableName, ColName
+    -- * Defining schemas
+  , ColSpec, TableName, ColName
   , table, (¤), primary, required, optional
+    -- * Combining schemas
+  , ComposeSpec, (:+++:), (+++)
     -- * Compiling and inspecting queries
   , compile
   ) where
