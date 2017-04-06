@@ -42,4 +42,4 @@ fromSqlData (SQLInteger i) = SqlInt $ fromIntegral i
 fromSqlData (SQLFloat f)   = SqlFloat f
 fromSqlData (SQLText s)    = SqlString s
 fromSqlData (SQLBlob _)    = error "Selda doesn't support blobs"
-fromSqlData SQLNull        = error "TODO: null handling"
+fromSqlData SQLNull        = SqlNull

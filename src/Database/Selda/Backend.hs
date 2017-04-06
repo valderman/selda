@@ -41,6 +41,7 @@ data SqlValue where
   SqlFloat  :: Double -> SqlValue
   SqlString :: Text   -> SqlValue
   SqlBool   :: Bool   -> SqlValue
+  SqlNull   :: SqlValue
 
 -- | Any SQL result data type.
 class SqlData a where
@@ -57,6 +58,9 @@ instance SqlData Text where
 instance SqlData Bool where
   fromSql (SqlBool x) = x
   fromSql _           = error "fromSql: bool column with non-bool value"
+instance SqlData a => SqlData (Maybe a) where
+  fromSql SqlNull = Nothing
+  fromSql x       = Just (fromSql x)
 
 -- | An acceptable query result type; one or more columns stitched together
 --   with @:*:@.

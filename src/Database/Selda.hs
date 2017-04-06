@@ -14,6 +14,7 @@ module Database.Selda
     -- * Expressions over columns
   , (.==), (./=), (.>), (.<), (.>=), (.<=), (.&&), (.||), like
   , literal, int, float, text, true, false, not_, round_, roundTo, length_
+  , nullable
     -- * Aggregation functions
   , Aggr, Aggregates, AggrCols
   , aggregate, groupBy
@@ -59,6 +60,19 @@ infixr 2 .||
 ascending, descending :: Order
 ascending = Asc
 descending = Desc
+
+-- | Lift a non-nullable column to a nullable one.
+--   Useful for creating expressions over optional columns:
+--
+-- > people :: Table (Text :*: Int :*: Maybe Text)
+-- > people = table "people" $ required "name" ¤ required "age" ¤ optional "pet"
+-- >
+-- > peopleWithCats = do
+-- >   name :*: _ :*: pet <- select people
+-- >   restrict (pet .== nullable "cat")
+-- >   return name
+nullable :: Col s a -> Col s (Maybe a)
+nullable = cast
 
 -- | Specialization of 'literal' for integers.
 int :: Int -> Col s Int
