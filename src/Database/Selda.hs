@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 -- | Selda is not LINQ, but they're definitely related.
 --
 --   Selda is a high-level EDSL for interacting with relational databases.
@@ -6,7 +7,7 @@ module Database.Selda
     SeldaT, Table, Query, Col, MonadIO (..), MonadTrans (..)
   , query
     -- * Constructing queries
-  , Cols, Columns
+  , Text, Cols, Columns
   , Inner, Order (..)
   , (:*:)(..)
   , select, restrict, limit, order, ascending, descending
@@ -19,7 +20,7 @@ module Database.Selda
     -- * Unsafe functions for dialect-specific extensions
   , fun, fun2, cast
     -- * Constructing tables
-  , TableName, ColName, Proxy (..)
+  , TableName, ColName
   , table, (¤), primary, required, nullable
   ) where
 import Database.Selda.Table
@@ -28,7 +29,7 @@ import Database.Selda.Query
 import Database.Selda.Backend
 import Database.Selda.Aggregates
 import Database.Selda.SQL (Order)
-import Data.Proxy
+import Data.Text (Text)
 
 (.==), (./=), (.>), (.<), (.>=), (.<=) :: Col s a -> Col s a -> Col s Bool
 (.==) = liftC2 $ BinOp Eq
@@ -44,7 +45,7 @@ infixl 4 .>=
 infixl 4 .<=
 
 -- | The SQL @LIKE@ operator; matches strings with wildcards.
-like :: Col s String -> Col s String -> Col s Bool
+like :: Col s Text -> Col s Text -> Col s Bool
 like = liftC2 $ BinOp Like
 infixl 4 `like`
 
@@ -69,11 +70,11 @@ some = aggr ""
 avg :: Num a => Col s a -> Aggr s a
 avg = aggr "AVG"
 
--- | The greatest value in the given column. Strings are compared lexically.
+-- | The greatest value in the given column. Texts are compared lexically.
 max_ :: Col s a -> Aggr s a
 max_ = aggr "MAX"
 
--- | The smallest value in the given column. Strings are compared lexically.
+-- | The smallest value in the given column. Texts are compared lexically.
 min_  :: Col s a -> Aggr s a
 min_ = aggr "MIN"
 
@@ -90,7 +91,7 @@ roundTo :: Num a => Col s Int -> Col s a -> Col s a
 roundTo = flip $ fun2 "ROUND"
 
 -- | Calculate the length of a string column.
-length_ :: Col s String -> Col s Int
+length_ :: Col s Text -> Col s Int
 length_ = fun "LENGTH"
 
 -- | Boolean negation.

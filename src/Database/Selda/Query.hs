@@ -1,4 +1,4 @@
-{-# LANGUAGE GADTs, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, TypeOperators, RankNTypes #-}
+{-# LANGUAGE GADTs, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, TypeOperators, RankNTypes, OverloadedStrings #-}
 -- | Query monad and primitive operations.
 module Database.Selda.Query where
 import Database.Selda.Table
@@ -7,6 +7,8 @@ import Database.Selda.SQL
 import Database.Selda.DeadCols
 import Database.Selda.Aggregates
 import Control.Monad.State
+import Data.Text (Text, pack)
+import Data.Monoid
 
 -- | An SQL query.
 newtype Query s a = Query {unQ :: State GenState a}
@@ -134,8 +136,8 @@ rename (Some col) = do
   where
     newName ns =
       case col of
-        Col n -> n ++ "_" ++ show ns
-        _     -> "tmp_" ++ show ns
+        Col n -> n <> "_" <> pack (show ns)
+        _     -> "tmp_" <> pack (show ns)
 rename col@(Named _ _) = do
   return col
 
@@ -151,7 +153,7 @@ runQueryM :: Int -> Query s a -> (a, GenState)
 runQueryM n = flip runState (initState {nameSupply = n}) . unQ
 
 -- | Compile a query into a parameterised SQL statement.
-compile :: Result a => Query s a -> (String, [Param])
+compile :: Result a => Query s a -> (Text, [Param])
 compile = compSql . snd . compQuery 0
 
 -- | Compile a query to an SQL AST.

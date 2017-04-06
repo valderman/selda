@@ -4,6 +4,7 @@ module Database.Selda.Column where
 import Database.Selda.Table
 import Data.String
 import Data.Int
+import Data.Text (Text)
 
 type family Cols s a where
   Cols s (a :*: b) = Col s a :*: Cols s b
@@ -32,11 +33,11 @@ newtype Col s a = C {unC :: Exp a}
 --   directly into the resulting SQL query. Thus, this function should ONLY
 --   be used to implement well-defined functions that are missing from Selda's
 --   standard library, and NOT in an ad hoc manner during queries.
-fun :: String -> Col s a -> Col s b
+fun :: Text -> Col s a -> Col s b
 fun f = liftC $ UnOp (Fun f)
 
 -- | Like 'fun', but with two arguments.
-fun2 :: String -> Col s a -> Col s b -> Col s c
+fun2 :: Text -> Col s a -> Col s b -> Col s c
 fun2 f = liftC2 (Fun2 f)
 
 -- | Underlying column expression type, not tied to any particular query.
@@ -45,9 +46,9 @@ data Exp a where
   Lit    :: Lit a -> Exp a
   BinOp  :: BinOp a b -> Exp a -> Exp a -> Exp b
   UnOp   :: UnOp a b -> Exp a -> Exp b
-  Fun2   :: String -> Exp a -> Exp b -> Exp c
+  Fun2   :: Text -> Exp a -> Exp b -> Exp c
   Cast   :: Exp a -> Exp b
-  AggrEx :: String -> Exp a -> Exp b
+  AggrEx :: Text -> Exp a -> Exp b
 
 -- | Get all column names in the given expression.
 allNamesIn :: Exp a -> [ColName]
@@ -64,7 +65,7 @@ data UnOp a b where
   Not :: UnOp Bool Bool
   Neg :: UnOp a a
   Sgn :: UnOp a a
-  Fun :: String -> UnOp a b
+  Fun :: Text -> UnOp a b
 
 data BinOp a b where
   Gt   :: BinOp a Bool
@@ -76,10 +77,10 @@ data BinOp a b where
   Sub  :: BinOp a a
   Mul  :: BinOp a a
   Div  :: BinOp a a
-  Like :: BinOp String Bool
+  Like :: BinOp Text Bool
 
 data Lit a where
-  LitS :: String -> Lit String
+  LitS :: Text   -> Lit Text
   LitI :: Int    -> Lit Int
   LitD :: Double -> Lit Double
   LitB :: Bool   -> Lit Bool
@@ -97,13 +98,13 @@ instance SqlType Int where
   literal = C . Lit . LitI
 instance SqlType Double where
   literal = C . Lit . LitD
-instance SqlType String where
+instance SqlType Text where
   literal = C . Lit . LitS
 instance SqlType Bool where
   literal = C . Lit . LitB
 
-instance IsString (Col s String) where
-  fromString = literal
+instance IsString (Col s Text) where
+  fromString = literal . fromString
 
 liftC2 :: (Exp a -> Exp b -> Exp c) -> Col s a -> Col s b -> Col s c
 liftC2 f (C a) (C b) = C (f a b)

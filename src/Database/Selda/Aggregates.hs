@@ -2,6 +2,7 @@
 module Database.Selda.Aggregates where
 import Database.Selda.Column
 import Database.Selda.Table
+import Data.Text (Text)
 
 -- | A single aggregate column.
 --   Aggregate columns may not be used to restrict queries.
@@ -25,7 +26,7 @@ data Inner s
 -- | Create a named aggregate function.
 --   Like 'fun', this function is generally unsafe and should ONLY be used
 --   to implement missing backend-specific functionality.
-aggr :: String -> Col s a -> Aggr s b
+aggr :: Text -> Col s a -> Aggr s b
 aggr f = Aggr . AggrEx f . unC
 
 -- | Convert one or more aggregate column to equivalent non-aggregate columns

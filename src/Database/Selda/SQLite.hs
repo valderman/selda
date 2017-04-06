@@ -15,7 +15,7 @@ withSQLite file m = do
 
 querySQLite :: forall s a. Result a => Database -> Query s a -> IO [Res a]
 querySQLite db q = do
-    stm <- prepare db (pack query)
+    stm <- prepare db query
     bind stm [toSqlData p | Param p <- params]
     rows <- getRows stm []
     finalize stm
@@ -34,7 +34,7 @@ querySQLite db q = do
 toSqlData :: Lit a -> SQLData
 toSqlData (LitI i) = SQLInteger $ fromIntegral i
 toSqlData (LitD d) = SQLFloat d
-toSqlData (LitS s) = SQLText $ pack s
+toSqlData (LitS s) = SQLText s
 toSqlData (LitB b) = SQLInteger $ if b then 1 else 0
 
 fromSqlData :: SQLData -> SqlValue

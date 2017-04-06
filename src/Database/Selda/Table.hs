@@ -1,10 +1,11 @@
-{-# LANGUAGE GADTs, TypeOperators, PolyKinds, KindSignatures #-}
+{-# LANGUAGE GADTs, TypeOperators, OverloadedStrings, PolyKinds #-}
 -- | Selda table definition language.
 module Database.Selda.Table where
 import Data.Proxy
+import Data.Text (Text)
 
-type ColName = String
-type TableName = String
+type ColName = Text
+type TableName = Text
 
 data a :*: b where
   (:*:) :: a -> b -> a :*: b
