@@ -12,6 +12,7 @@ data SQL = SQL
   , source    :: Either TableName [SQL]
   , restricts :: [Exp Bool]
   , groups    :: [SomeCol]
+  , limits    :: Maybe (Int, Int)
   }
 
 data Param where
@@ -38,19 +39,21 @@ ppLit l = do
 
 -- | Pretty-print an SQL AST.
 ppSql :: SQL -> PP String
-ppSql (SQL cs src r gs) = do
+ppSql (SQL cs src r gs lim) = do
   cs' <- mapM ppSomeCol cs
   src' <- ppSrc src
   r' <- ppRestricts r
   gs' <- ppGroups gs
+  lim' <- ppLimit lim
   pure $ concat
     [ "SELECT ", intercalate "," cs'
     , src'
     , r'
     , gs'
+    , lim'
     ]
   where
-    ppSrc (Left n)     = pure n
+    ppSrc (Left n)     = pure $ " FROM " ++ n
     ppSrc (Right [])   = pure ""
     ppSrc (Right sqls) = do
       srcs <- mapM ppSql (reverse sqls)
@@ -63,6 +66,9 @@ ppSql (SQL cs src r gs) = do
     ppGroups gs = do
       cs <- sequence [ppCol c | Some c <- gs]
       pure $ " GROUP BY " ++ intercalate ", " cs
+
+    ppLimit Nothing = pure ""
+    ppLimit (Just (from, to)) = pure $ " LIMIT " ++ show from ++ "," ++ show to
 
 ppSomeCol :: SomeCol -> PP String
 ppSomeCol (Some c)    = ppCol c

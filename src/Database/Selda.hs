@@ -9,7 +9,7 @@ module Database.Selda
   , Cols, Columns
   , Inner
   , (:*:)(..)
-  , select, restrict
+  , select, restrict, limit
   , (.==), (./=), (.>), (.<), (.>=), (.<=), like
   , not_, literal, round, roundTo, length
     -- * Aggregation functions
