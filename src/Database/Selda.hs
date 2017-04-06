@@ -22,7 +22,7 @@ module Database.Selda
   , fun, fun2, cast
     -- * Constructing tables
   , TableName, ColName
-  , table, (¤), primary, required, nullable
+  , table, (¤), primary, required, optional
     -- * Compiling and inspecting queries
   , compile
   ) where

@@ -36,8 +36,8 @@ required :: ColName -> Table a
 required name = Table "" [(Required, name)]
 
 -- | A nullable column with the given name.
-nullable :: ColName -> Table a
-nullable name = Table "" [(Nullable, name)]
+optional :: ColName -> Table a
+optional name = Table "" [(Nullable, name)]
 
 -- | Marks the given column as the table's primary key.
 primary :: ColName -> Table a
