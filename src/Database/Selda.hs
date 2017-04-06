@@ -7,9 +7,9 @@ module Database.Selda
   , query
     -- * Constructing queries
   , Cols, Columns
-  , Inner
+  , Inner, Order (..)
   , (:*:)(..)
-  , select, restrict, limit
+  , select, restrict, limit, order, ascending, descending
   , (.==), (./=), (.>), (.<), (.>=), (.<=), like
   , not_, literal, round, roundTo, length
     -- * Aggregation functions
@@ -27,6 +27,7 @@ import Database.Selda.Column
 import Database.Selda.Query
 import Database.Selda.Backend
 import Database.Selda.Aggregates
+import Database.Selda.SQL (Order)
 import Data.Proxy
 
 (.==), (./=), (.>), (.<), (.>=), (.<=) :: Col s a -> Col s a -> Col s Bool

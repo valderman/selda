@@ -12,8 +12,17 @@ data SQL = SQL
   , source    :: Either TableName [SQL]
   , restricts :: [Exp Bool]
   , groups    :: [SomeCol]
+  , ordering  :: [(Order, SomeCol)]
   , limits    :: Maybe (Int, Int)
   }
+
+-- | The order in which to sort result rows.
+data Order = Asc | Desc
+  deriving (Ord, Eq)
+
+instance Show Order where
+  show Asc = "ASC"
+  show Desc = "DESC"
 
 data Param where
   Param :: Lit a -> Param
@@ -39,17 +48,19 @@ ppLit l = do
 
 -- | Pretty-print an SQL AST.
 ppSql :: SQL -> PP String
-ppSql (SQL cs src r gs lim) = do
+ppSql (SQL cs src r gs ord lim) = do
   cs' <- mapM ppSomeCol cs
   src' <- ppSrc src
   r' <- ppRestricts r
   gs' <- ppGroups gs
+  ord' <- ppOrder ord
   lim' <- ppLimit lim
   pure $ concat
     [ "SELECT ", intercalate "," cs'
     , src'
     , r'
     , gs'
+    , ord'
     , lim'
     ]
   where
@@ -66,6 +77,11 @@ ppSql (SQL cs src r gs lim) = do
     ppGroups gs = do
       cs <- sequence [ppCol c | Some c <- gs]
       pure $ " GROUP BY " ++ intercalate ", " cs
+
+    ppOrder [] = pure ""
+    ppOrder os = do
+      os' <- sequence [(++ (" " ++ show o)) <$> ppCol c | (o, Some c) <- os]
+      pure $ " ORDER BY " ++ intercalate ", " os'
 
     ppLimit Nothing = pure ""
     ppLimit (Just (from, to)) = pure $ " LIMIT " ++ show from ++ "," ++ show to

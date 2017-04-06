@@ -12,6 +12,10 @@ import Control.Monad.State
 newtype Query s a = Query {unQ :: State GenState a}
   deriving (Functor, Applicative, Monad)
 
+ascending, descending :: Order
+ascending = Asc
+descending = Desc
+
 -- | SQL generation internal state.
 --   Contains the subqueries and static (i.e. not dependent on any subqueries)
 --   restrictions of the query currently being built, as well as a name supply
@@ -38,7 +42,7 @@ select :: Columns (Cols s a) => Table a -> Query s (Cols s a)
 select (Table name cs) = Query $ do
     rns <- mapM (rename . Some . Col) cs'
     st <- get
-    put $ st {sources = SQL rns (Left name) [] [] Nothing : sources st}
+    put $ st {sources = SQL rns (Left name) [] [] [] Nothing : sources st}
     return $ toTup [n | Named n _ <- rns]
   where
     cs' = map snd cs
@@ -50,10 +54,10 @@ restrict (C pred) = Query $ do
     put $ case sources st of
       [] ->
         st {staticRestricts = pred : staticRestricts st}
-      [SQL cs s ps gs lim] ->
-        st {sources = [SQL cs s (pred : ps) gs lim]}
+      [SQL cs s ps gs os lim] ->
+        st {sources = [SQL cs s (pred : ps) gs os lim]}
       ss ->
-        st {sources = [SQL (allCols ss) (Right ss) [pred] [] Nothing]}
+        st {sources = [SQL (allCols ss) (Right ss) [pred] [] [] Nothing]}
 
 -- | Execute a query, returning an aggregation of its results.
 --   The query must return an inductive tuple of 'Aggregate' columns.
@@ -89,7 +93,7 @@ aggregate q = Query $ do
   cs <- mapM rename $ unAggrs aggrs
   let ns' = nameSupply gst
       sql = state2sql gst
-      sql' = SQL cs (Right [sql]) [] (groupCols gst) Nothing
+      sql' = SQL cs (Right [sql]) [] (groupCols gst) [] Nothing
   put $ st {sources = sql' : sources st, nameSupply = ns'}
   pure $ toTup [n | Named n _ <- cs]
 
@@ -105,10 +109,20 @@ limit :: Int -> Int -> Query s ()
 limit from to = Query $ do
   st <- get
   put $ case sources st of
-    [SQL cs s ps gs Nothing] ->
-      st {sources = [SQL cs s ps gs (Just (from, to))]}
+    [SQL cs s ps gs os Nothing] ->
+      st {sources = [SQL cs s ps gs os (Just (from, to))]}
     ss ->
-      st {sources = [SQL (allCols ss) (Right ss) [] [] (Just (from, to))]}
+      st {sources = [SQL (allCols ss) (Right ss) [] [] [] (Just (from, to))]}
+
+-- | Sort the result rows in ascending or descending order on the given row.
+order :: Col s a -> Order -> Query s ()
+order (C c) o = Query $ do
+  st <- get
+  put $ case sources st of
+    [SQL cs s ps gs os lim] ->
+      st {sources = [SQL cs s ps gs ((o, Some c):os) lim]}
+    ss ->
+      st {sources = [SQL (allCols ss) (Right ss) [] [] [(o, Some c)] Nothing]}
 
 -- | Generate a unique name for the given column.
 --   Not for public consumption.
@@ -143,18 +157,22 @@ compile = compSql . snd . compQuery 0
 -- | Compile a query to an SQL AST.
 --   Groups are ignored, as they are only used by 'aggregate'.
 compQuery :: Result a => Int -> Query s a -> (Int, SQL)
-compQuery ns q = (nameSupply st, SQL final (Right [removeDeadCols live sql]) [] [] Nothing)
+compQuery ns q =
+    (nameSupply st, SQL final (Right [srcs]) [] [] [] Nothing)
   where
     (cs, st) = runQueryM ns q
     final = finalCols cs
     sql = state2sql st
     live = colNames $ final ++ map Some (restricts sql)
+    srcs = removeDeadCols live sql
 
 -- | Build the outermost query from the SQL generation state.
 --   Groups are ignored, as they are only used by 'aggregate'.
 state2sql :: GenState -> SQL
-state2sql (GenState [sql] srs _ _) = sql {restricts = restricts sql ++ srs}
-state2sql (GenState ss srs _ _)    = SQL (allCols ss) (Right ss) srs [] Nothing
+state2sql (GenState [sql] srs _ _) =
+  sql {restricts = restricts sql ++ srs}
+state2sql (GenState ss srs _ _) =
+  SQL (allCols ss) (Right ss) srs [] [] Nothing
 
 class Result a where
   finalCols :: a -> [SomeCol]
