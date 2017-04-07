@@ -1,27 +1,31 @@
-{-# LANGUAGE GADTs, ScopedTypeVariables #-}
+{-# LANGUAGE GADTs #-}
 -- | SQLite3 backend for Selda.
-module Database.Selda.SQLite (withSQLite, querySQLite) where
+module Database.Selda.SQLite
+  ( Database
+  , open, close
+  , withSQLite, querySQLite
+  ) where
 import Database.Selda
 import Database.Selda.Backend
 import Database.SQLite3
 import Data.Text (pack)
-import Data.Proxy
 import Control.Monad.Catch
 
+-- | Perform the given computation over an SQLite database.
+--   The database is guaranteed to be closed when the computation terminates.
 withSQLite :: (MonadIO m, MonadMask m) => FilePath -> SeldaT m a -> m a
 withSQLite file m = do
   db <- liftIO $ open (pack file)
-  runSeldaT m (querySQLite db) `finally` liftIO (close db)
+  runSeldaT m (sqliteQueryRunner db) `finally` liftIO (close db)
 
-querySQLite :: forall s a. Result a => Database -> Query s a -> IO [Res a]
-querySQLite db q = do
+sqliteQueryRunner :: Database -> QueryRunner
+sqliteQueryRunner db qry params = do
     stm <- prepare db qry
     bind stm [toSqlData p | Param p <- params]
     rows <- getRows stm []
     finalize stm
-    return [toRes (Proxy :: Proxy a) (map fromSqlData r) | r <- rows]
+    return [map fromSqlData r | r <- rows]
   where
-    (qry, params) = compile q
     getRows s acc = do
       res <- step s
       case res of
@@ -30,6 +34,10 @@ querySQLite db q = do
           getRows s (cs : acc)
         _ -> do
           return $ reverse acc
+
+-- | Perform an SQLite query with a previously opened database.
+querySQLite :: Result a => Database -> Query s a -> IO [Res a]
+querySQLite db = queryWith (sqliteQueryRunner db)
 
 toSqlData :: Lit a -> SQLData
 toSqlData (LitI i) = SQLInteger $ fromIntegral i

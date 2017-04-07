@@ -1,15 +1,14 @@
-{-# LANGUAGE GADTs, RankNTypes, TypeOperators, TypeFamilies, FlexibleInstances,
-             ScopedTypeVariables, GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE ScopedTypeVariables, GeneralizedNewtypeDeriving #-}
 -- | API for executing queries and building backends.
 module Database.Selda.Backend
   ( Result, Res, MonadIO (..), MonadTrans (..), MonadThrow (..), MonadCatch (..)
-  , QueryRunner, SeldaT, Param (..), Lit (..), SqlValue (..)
-  , query, runSeldaT, toRes, finalCols
+  , QueryRunner, SeldaT, Param (..), Lit (..), SqlValue (..), Proxy (..)
+  , query, queryWith, runSeldaT
   ) where
 import Database.Selda.Column
-import Database.Selda.Table
 import Database.Selda.SQL (Param (..))
 import Database.Selda.Query.Type
+import Database.Selda.Compile
 import Data.Proxy
 import Control.Monad.IO.Class
 import Control.Monad.Trans
@@ -19,13 +18,10 @@ import Data.Text (Text)
 
 -- | A function which executes a query and gives back a list of extensible
 --   tuples; one tuple per result row, and one tuple element per column.
-type QueryRunner = forall s a. Result a => Query s a -> IO [Res a]
-
--- | Impredicative polymorphism workaround; not for public consumption.
-newtype QR = QR {run :: QueryRunner}
+type QueryRunner = Text -> [Param] -> IO [[SqlValue]]
 
 -- | Monad transformer adding Selda SQL capabilities.
-newtype SeldaT m a = S {unS :: ReaderT QR m a}
+newtype SeldaT m a = S {unS :: ReaderT QueryRunner m a}
   deriving ( Functor, Applicative, Monad, MonadIO
            , MonadThrow, MonadCatch, MonadMask, MonadTrans
            )
@@ -33,65 +29,22 @@ newtype SeldaT m a = S {unS :: ReaderT QR m a}
 -- | Run a Selda transformer. Backends should use this to implement their
 --   @withX@ functions.
 runSeldaT :: SeldaT m a -> QueryRunner -> m a
-runSeldaT m r = runReaderT (unS m) (QR r)
-
--- | Some value that is representable in SQL.
-data SqlValue where
-  SqlInt    :: Int    -> SqlValue
-  SqlFloat  :: Double -> SqlValue
-  SqlString :: Text   -> SqlValue
-  SqlBool   :: Bool   -> SqlValue
-  SqlNull   :: SqlValue
-
--- | Any SQL result data type.
-class SqlData a where
-  fromSql :: SqlValue -> a
-instance SqlData Int where
-  fromSql (SqlInt x) = x
-  fromSql _          = error "fromSql: int column with non-int value"
-instance SqlData Double where
-  fromSql (SqlFloat x) = x
-  fromSql _            = error "fromSql: float column with non-float value"
-instance SqlData Text where
-  fromSql (SqlString x) = x
-  fromSql _             = error "fromSql: text column with non-text value"
-instance SqlData Bool where
-  fromSql (SqlBool x) = x
-  fromSql _           = error "fromSql: bool column with non-bool value"
-instance SqlData a => SqlData (Maybe a) where
-  fromSql SqlNull = Nothing
-  fromSql x       = Just (fromSql x)
-
--- | An acceptable query result type; one or more columns stitched together
---   with @:*:@.
-class Result r where
-  type Res r
-  -- | Converts the given list of @SqlValue@s into an tuple of well-typed
-  --   results.
-  --   See 'querySQLite' for example usage.
-  --   The given list must contain exactly as many elements as dictated by
-  --   the @Res r@. If the result is @a :*: b :*: c@, then the list must
-  --   contain exactly three values, for instance.
-  toRes :: Proxy r -> [SqlValue] -> Res r
-
-  -- | Produce a list of all columns present in the result.
-  finalCols :: r -> [SomeCol]
-
-instance (SqlData a, Result b) => Result (Col s a :*: b) where
-  type Res (Col s a :*: b) = a :*: Res b
-  toRes _ (x:xs) = fromSql x :*: toRes (Proxy :: Proxy b) xs
-  toRes _ _      = error "backend bug: too few result columns to toRes"
-  finalCols (a :*: b) = finalCols a ++ finalCols b
-
-instance SqlData a => Result (Col s a) where
-  type Res (Col s a) = a
-  toRes _ [x] = fromSql x
-  toRes _ []  = error "backend bug: too few result columns to toRes"
-  toRes _ _   = error "backend bug: too many result columns to toRes"
-  finalCols (C c) = [Some c]
+runSeldaT m = runReaderT (unS m)
 
 -- | Run a query within a Selda transformer.
 --   Selda transformers are entered using backend-specific @withX@ functions,
 --   such as 'withSQLite' from the SQLite backend.
-query :: (MonadIO m, Result a) => Query s a -> SeldaT m [Res a]
-query q = S $ ask >>= \runner -> liftIO $ run runner q
+query :: forall s m a. (MonadIO m, Result a) => Query s a -> SeldaT m [Res a]
+query q = S $ do
+  runner <- ask
+  queryWith runner q
+
+-- | Build the final result from a list of result columns.
+queryWith :: forall s m a. (MonadIO m, Result a)
+          => QueryRunner -> Query s a -> m [Res a]
+queryWith qr =
+  liftIO . fmap (mkResults (Proxy :: Proxy a)) . uncurry qr . compile
+
+-- | Generate the final result of a query from a list of untyped result rows.
+mkResults :: Result a => Proxy a -> [[SqlValue]] -> [Res a]
+mkResults p = map (toRes p)
