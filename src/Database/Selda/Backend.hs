@@ -3,7 +3,7 @@
 module Database.Selda.Backend
   ( -- * High-level API
     Result, Res, MonadIO (..), SeldaT
-  , query, insert
+  , query, insert, insert_
   , createTable, tryCreateTable
   , dropTable, tryDropTable
     -- * Low-level API for creating backends and custom queries.
@@ -26,7 +26,7 @@ import Control.Monad.Reader
 
 -- | A function which executes a query and gives back a list of extensible
 --   tuples; one tuple per result row, and one tuple element per column.
-type QueryRunner = Text -> [Param] -> IO [[SqlValue]]
+type QueryRunner = Text -> [Param] -> IO (Int, [[SqlValue]])
 
 -- | Monad transformer adding Selda SQL capabilities.
 newtype SeldaT m a = S {unS :: ReaderT QueryRunner m a}
@@ -48,39 +48,44 @@ query q = S $ do
   queryWith runner q
 
 -- | Insert the given values into the given table. All fields of the table must
---   be present.
-insert :: (MonadIO m, Insert a) => Table a -> [a] -> SeldaT m ()
-insert _ [] = return ()
+--   be present. Returns the number of rows that were inserted.
+insert :: (MonadIO m, Insert a) => Table a -> [a] -> SeldaT m Int
+insert _ [] = return 0
 insert t cs = uncurry exec $ compileInsert t cs
+
+-- | Like 'insert', but does not return anything.
+--   Use this when you really don't care about how many rows were inserted.
+insert_ :: (MonadIO m, Insert a) => Table a -> [a] -> SeldaT m ()
+insert_ t cs = void $ insert t cs
 
 -- | Create a table from the given schema.
 createTable :: MonadIO m => Table a -> SeldaT m ()
-createTable = flip exec [] . compileCreateTable Fail
+createTable = void . flip exec [] . compileCreateTable Fail
 
 -- | Create a table from the given schema, unless it already exists.
 tryCreateTable :: MonadIO m => Table a -> SeldaT m ()
-tryCreateTable = flip exec [] . compileCreateTable Ignore
+tryCreateTable = void . flip exec [] . compileCreateTable Ignore
 
 -- | Drop the given table.
 dropTable :: MonadIO m => Table a -> SeldaT m ()
-dropTable = flip exec [] . compileDropTable Fail
+dropTable = void . flip exec [] . compileDropTable Fail
 
 -- | Drop the given table, if it exists.
 tryDropTable :: MonadIO m => Table a -> SeldaT m ()
-tryDropTable = flip exec [] . compileDropTable Ignore
+tryDropTable = void . flip exec [] . compileDropTable Ignore
 
 -- | Build the final result from a list of result columns.
 queryWith :: forall s m a. (MonadIO m, Result a)
           => QueryRunner -> Query s a -> m [Res a]
 queryWith qr =
-  liftIO . fmap (mkResults (Proxy :: Proxy a)) . uncurry qr . compile
+  liftIO . fmap (mkResults (Proxy :: Proxy a) . snd) . uncurry qr . compile
 
 -- | Generate the final result of a query from a list of untyped result rows.
 mkResults :: Result a => Proxy a -> [[SqlValue]] -> [Res a]
 mkResults p = map (toRes p)
 
 -- | Execute a statement without a result.
-exec :: MonadIO m => Text -> [Param] -> SeldaT m ()
+exec :: MonadIO m => Text -> [Param] -> SeldaT m Int
 exec q ps = S $ do
   runner <- ask
-  void . liftIO $ runner q ps
+  fmap fst . liftIO $ runner q ps

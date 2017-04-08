@@ -21,11 +21,14 @@ withSQLite file m = do
 sqliteQueryRunner :: Database -> QueryRunner
 sqliteQueryRunner db qry params = do
     stm <- prepare db qry
-    bind stm [toSqlData p | Param p <- params]
-    rows <- getRows stm []
-    finalize stm
-    return [map fromSqlData r | r <- rows]
+    go stm `finally` finalize stm
   where
+    go stm = do
+      bind stm [toSqlData p | Param p <- params]
+      rows <- getRows stm []
+      cs <- changes db
+      return (cs, [map fromSqlData r | r <- rows])
+
     getRows s acc = do
       res <- step s
       case res of

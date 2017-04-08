@@ -24,7 +24,7 @@ module Database.Selda
   , fun, fun2, cast
     -- * Inserting and updating values
   , Insert
-  , insert
+  , insert, insert_
     -- * Defining schemas
   , ColSpec, TableName, ColName
   , table, (¤), required, optional
