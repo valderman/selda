@@ -62,7 +62,7 @@ insert_ t cs = void $ insert t cs
 
 -- | Update the given table using the given update function, for all rows
 --   matching the given predicate. Returns the number of updated rows.
-update :: forall m s a. (MonadIO m, Columns (Cols s a), Result (Cols s a))
+update :: (MonadIO m, Columns (Cols s a), Result (Cols s a))
        => Table a                  -- ^ The table to update.
        -> (Cols s a -> Cols s a)   -- ^ Update function.
        -> (Cols s a -> Col s Bool) -- ^ Predicate.
@@ -70,7 +70,7 @@ update :: forall m s a. (MonadIO m, Columns (Cols s a), Result (Cols s a))
 update tbl upd check = uncurry exec $ compileUpdate tbl upd check
 
 -- | Like 'update', but doesn't return the number of updated rows.
-update_ :: forall m s a. (MonadIO m, Columns (Cols s a), Result (Cols s a))
+update_ :: (MonadIO m, Columns (Cols s a), Result (Cols s a))
        => Table a
        -> (Cols s a -> Cols s a)
        -> (Cols s a -> Col s Bool)
