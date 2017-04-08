@@ -88,10 +88,10 @@ Optional values are encoded as `Maybe` values.
 populate :: SeldaT m ()
 populate = do
   insert_ people
-    [ "Link"      :*: 25 :*: Just "horse"
-    , "Velvet"    :*: 19 :*: Nothing
-    , "Kobayashi" :*: 23 :*: Just "dragon"
-    , "Miyu"      :*: 10 :*: Nothing
+    [ "Link"      :*: 125 :*: Just "horse"
+    , "Velvet"    :*: 19  :*: Nothing
+    , "Kobayashi" :*: 23  :*: Just "dragon"
+    , "Miyu"      :*: 10  :*: Nothing
     ]
   insert_ addresses
     [ "Link"      :*: "Kakariko"
