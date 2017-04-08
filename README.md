@@ -21,6 +21,8 @@ To work productively with Selda, you will need to enable the `TypeOperators` and
 
 Tables are defined as the product of one or more columns, expressed using
 *extensible tuples*, or heterogeneous lists.
+An extensible tuple is simply a list of values joined together by
+the `:*:` operator.
 
 ```
 people :: Table (Text :*: Int :*: Maybe Text)
@@ -39,14 +41,19 @@ Running queries
 ---------------
 
 Selda queries are run in the `SeldaT` monad transformer. Any `MonadIO` can be
-extended with database capabilities.
+extended with database capabilities. Throughout this tutorial, we will simply
+use `SeldaT` on top of the plain `IO` monad.
 `SeldaT` is entered using a backend-specific `withX` function. For instance,
 the SQLite backend uses the `withSQLite` function:
 
 ```
 main :: IO ()
 main = withSQLite "my_database.sqlite" $ do
-  ...
+  people <- getAllPeople
+  liftIO (print people)
+
+getAllPeople :: SeldaT IO [Text :*: Int :*: Maybe Text]
+getAllPeople = query (select people)
 ```
 
 This will open the `my_database.sqlite` database for the duration of the
@@ -61,12 +68,12 @@ You can use a table definition to create the corresponding table in your
 database backend, as well as delete it.
 
 ```
-setup :: SeldaT m ()
+setup :: SeldaT IO ()
 setup = do
   createTable people
   createTable addresses
 
-teardown :: SeldaT m ()
+teardown :: SeldaT IO ()
 teardown = do
   tryDropTable people
   tryDropTable addresses
@@ -85,7 +92,7 @@ rows where each row is an extensible tuple matching the type of the table.
 Optional values are encoded as `Maybe` values.
 
 ```
-populate :: SeldaT m ()
+populate :: SeldaT IO ()
 populate = do
   insert_ people
     [ "Link"      :*: 125 :*: Just "horse"
@@ -114,7 +121,7 @@ The second is a predicate over table columns.
 Only rows satisfying the predicate are updated.
 
 ```
-age10Years :: SeldaT m ()
+age10Years :: SeldaT IO ()
 age10Years = do
   update_ people (\(name :*: age :*: pet) -> name :*: age + 10 :*: pet)
                  (\(name :*: _ :*: _) -> name ./= "Link")
@@ -136,7 +143,7 @@ to delete.
 The following example deletes all minors from the `people` table:
 
 ```
-byeMinors :: SeldaT m ()
+byeMinors :: SeldaT IO ()
 byeMinors = delete_ people (\(_ :*: age :*: _) -> age .< 20)
 ```
 
@@ -162,7 +169,7 @@ grownups = do
   restrict (age .> 20)
   return name
 
-printGrownups :: MonadIO m => SeldaT m ()
+printGrownups :: SeldaT IO ()
 printGrownups = do
   names <- query grownups
   liftIO (print names)
@@ -196,7 +203,7 @@ grownupsIn city = do
   restrict (home .== text city .&& name .== name')
   return name
 
-printGrownupsInTokyo :: MonadIO m => SeldaT m ()
+printGrownupsInTokyo :: SeldaT IO ()
 printGrownupsInTokyo = do
   names <- query (grownupsIn "Tokyo")
   liftIO (print names)
