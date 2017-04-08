@@ -1,9 +1,12 @@
 What is Selda?
 ==============
 
-Selda is an SQL EDSL that was inspired by LINQ.
-After defining a type-safe database schema, Selda supports creating, deleting,
-updating and querying tables.
+Selda is an SQL EDSL that was inspired by LINQ and
+[Opaleye](http://hackage.haskell.org/package/opaleye).
+After defining a database schema, Selda supports creating, deleting, updating
+and querying tables.
+All operations are type-safe, and should be reasonably performant.
+
 Presently, SQLite is the only supported backend.
 
 
@@ -284,3 +287,6 @@ The following is a non-exhaustive list of tasks that need to be done before a
 * If/else.
 * PostgreSQL backend.
 * Tests.
+* Examples.
+* Split backends into separate packages.
+* Stack support.
