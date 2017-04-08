@@ -63,13 +63,13 @@ database backend, as well as delete it.
 ```
 setup :: SeldaT m ()
 setup = do
-  createTable pepole
+  createTable people
   createTable addresses
 
 teardown :: SeldaT m ()
 teardown = do
-  tryDropTable ppl
-  tryDropTable addrs
+  tryDropTable people
+  tryDropTable addresses
 ```
 
 Both creating and deleting tables comes in two variants: the `try` version
