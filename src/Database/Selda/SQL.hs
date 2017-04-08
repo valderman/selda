@@ -3,7 +3,6 @@
 module Database.Selda.SQL where
 import Database.Selda.Column
 import Database.Selda.SqlType
-import Database.Selda.Table
 import Database.Selda.Types (TableName)
 import Data.Monoid
 

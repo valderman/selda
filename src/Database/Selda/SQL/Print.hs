@@ -1,14 +1,13 @@
 {-# LANGUAGE GADTs, OverloadedStrings #-}
 -- | Pretty-printing for SQL queries. For some values of pretty.
 module Database.Selda.SQL.Print where
-import Control.Monad.State
-import Data.Text (Text)
-import qualified Data.Text as Text
-import Data.Monoid
 import Database.Selda.Column
 import Database.Selda.SQL
 import Database.Selda.SqlType
-import Database.Selda.Types (TableName)
+import Control.Monad.State
+import Data.Monoid
+import Data.Text (Text)
+import qualified Data.Text as Text
 
 -- | SQL pretty-printer. The state is the list of SQL parameters to the
 --   prepared statement.
