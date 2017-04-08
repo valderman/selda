@@ -4,7 +4,7 @@
 module Database.Selda.Backend
   ( -- * High-level API
     Result, Res, MonadIO (..), SeldaT
-  , query, insert, insert_, update, update_
+  , query, insert, insert_, update, update_, deleteFrom, deleteFrom_
   , createTable, tryCreateTable
   , dropTable, tryDropTable
     -- * Low-level API for creating backends and custom queries.
@@ -76,6 +76,17 @@ update_ :: forall m s a. (MonadIO m, Columns (Cols s a), Result (Cols s a))
        -> (Cols s a -> Col s Bool)
        -> SeldaT m ()
 update_ tbl upd check = void $ update tbl upd check
+
+-- | From the given table, delete all rows matching the given predicate.
+--   Returns the number of deleted rows.
+deleteFrom :: (MonadIO m, Columns (Cols s a))
+           => Table a -> (Cols s a -> Col s Bool) -> SeldaT m Int
+deleteFrom tbl f = uncurry exec $ compileDelete tbl f
+
+-- | Like 'deleteFrom', but does not return the number of deleted rows.
+deleteFrom_ :: (MonadIO m, Columns (Cols s a))
+            => Table a -> (Cols s a -> Col s Bool) -> SeldaT m ()
+deleteFrom_ tbl f = void . uncurry exec $ compileDelete tbl f
 
 -- | Create a table from the given schema.
 createTable :: MonadIO m => Table a -> SeldaT m ()

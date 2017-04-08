@@ -22,10 +22,11 @@ module Database.Selda
   , some, count, avg, sum_, max_, min_
     -- * Unsafe functions for dialect-specific extensions
   , fun, fun2, cast
-    -- * Inserting and updating values
+    -- * Modifying tables
   , Insert
   , insert, insert_
   , update, update_
+  , deleteFrom, deleteFrom_
     -- * Defining schemas
   , ColSpec, TableName, ColName
   , table, (¤), required, optional

@@ -26,8 +26,8 @@ compExp e =
   case runState (ppCol e) [] of
     (q, ps) -> (q, reverse ps)
 
--- | Compile an @UPATE@ query.
-compUpdate :: TableName -> Exp a -> [(ColName, SomeCol)] -> (Text, [Param])
+-- | Compile an @UPATE@ statement.
+compUpdate :: TableName -> Exp Bool -> [(ColName, SomeCol)] -> (Text, [Param])
 compUpdate tbl p cs =
     case runState ppUpd [] of
       (q, ps) -> (q <> ";", reverse ps)
@@ -45,6 +45,16 @@ compUpdate tbl p cs =
       if n == c'
         then pure ""
         else pure $ Text.unwords [n, "=", c']
+
+-- | Compile a @DELETE@ statement.
+compDelete :: TableName -> Exp Bool -> (Text, [Param])
+compDelete tbl p =
+    case runState ppDelete [] of
+      (q, ps) -> (q <> ";", reverse ps)
+  where
+    ppDelete = do
+      c' <- ppCol p
+      pure $ Text.unwords ["DELETE FROM", tbl, "WHERE", c']
 
 -- | Pretty-print a literal as a named parameter and save the
 --   name-value binding in the environment.

@@ -40,6 +40,12 @@ compileUpdate tbl upd check =
     updated = zip names (finalCols (upd cs))
     C predicate = check cs
 
+-- | Compile a @DELETE FROM@ query.
+compileDelete :: Columns (Cols s a)
+              => Table a -> (Cols s a -> Col s Bool) -> (Text, [Param])
+compileDelete tbl check = compDelete (tableName tbl) predicate
+  where C predicate = check $ toTup $ map colName $ tableCols tbl
+
 -- | Compile a query to an SQL AST.
 --   Groups are ignored, as they are only used by 'aggregate'.
 compQuery :: Result a => Int -> Query s a -> (Int, SQL)
