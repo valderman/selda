@@ -1,9 +1,10 @@
 {-# LANGUAGE ScopedTypeVariables, GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE FlexibleContexts #-}
 -- | API for executing queries and building backends.
 module Database.Selda.Backend
   ( -- * High-level API
     Result, Res, MonadIO (..), SeldaT
-  , query, insert, insert_
+  , query, insert, insert_, update, update_
   , createTable, tryCreateTable
   , dropTable, tryDropTable
     -- * Low-level API for creating backends and custom queries.
@@ -11,6 +12,7 @@ module Database.Selda.Backend
   , QueryRunner, Param (..), Lit (..), Proxy (..), SqlValue (..)
   , exec, queryWith, runSeldaT
   ) where
+import Database.Selda.Column
 import Database.Selda.Compile
 import Database.Selda.Query.Type
 import Database.Selda.SQL (Param (..))
@@ -57,6 +59,23 @@ insert t cs = uncurry exec $ compileInsert t cs
 --   Use this when you really don't care about how many rows were inserted.
 insert_ :: (MonadIO m, Insert a) => Table a -> [a] -> SeldaT m ()
 insert_ t cs = void $ insert t cs
+
+-- | Update the given table using the given update function, for all rows
+--   matching the given predicate. Returns the number of updated rows.
+update :: forall m s a. (MonadIO m, Columns (Cols s a), Result (Cols s a))
+       => Table a                  -- ^ The table to update.
+       -> (Cols s a -> Cols s a)   -- ^ Update function.
+       -> (Cols s a -> Col s Bool) -- ^ Predicate.
+       -> SeldaT m Int
+update tbl upd check = uncurry exec $ compileUpdate tbl upd check
+
+-- | Like 'update', but doesn't return the number of updated rows.
+update_ :: forall m s a. (MonadIO m, Columns (Cols s a), Result (Cols s a))
+       => Table a
+       -> (Cols s a -> Cols s a)
+       -> (Cols s a -> Col s Bool)
+       -> SeldaT m ()
+update_ tbl upd check = void $ update tbl upd check
 
 -- | Create a table from the given schema.
 createTable :: MonadIO m => Table a -> SeldaT m ()

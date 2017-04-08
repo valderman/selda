@@ -25,6 +25,7 @@ module Database.Selda
     -- * Inserting and updating values
   , Insert
   , insert, insert_
+  , update, update_
     -- * Defining schemas
   , ColSpec, TableName, ColName
   , table, (¤), required, optional
@@ -36,7 +37,9 @@ module Database.Selda
   , dropTable, tryDropTable
     -- * Compiling and inspecting queries
   , OnError (..)
-  , compile, compileCreateTable, compileDropTable, compileInsert
+  , compile
+  , compileCreateTable, compileDropTable
+  , compileInsert, compileUpdate
   ) where
 import Data.Text (Text)
 import Database.Selda.Aggregates

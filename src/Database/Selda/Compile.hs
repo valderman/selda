@@ -26,6 +26,20 @@ compileInsert tbl rows = (compInsert (tableName tbl) nrows ncols, concat ps)
         nrows = length rows
         ncols = length (head ps)
 
+-- | Compile an @UPDATE@ query.
+compileUpdate :: forall s a. (Columns (Cols s a), Result (Cols s a))
+              => Table a                  -- ^ The table to update.
+              -> (Cols s a -> Cols s a)   -- ^ Update function.
+              -> (Cols s a -> Col s Bool) -- ^ Predicate: update only when true.
+              -> (Text, [Param])
+compileUpdate tbl upd check =
+    compUpdate (tableName tbl) predicate updated
+  where
+    names = map colName (tableCols tbl)
+    cs = toTup names
+    updated = zip names (finalCols (upd cs))
+    C predicate = check cs
+
 -- | Compile a query to an SQL AST.
 --   Groups are ignored, as they are only used by 'aggregate'.
 compQuery :: Result a => Int -> Query s a -> (Int, SQL)

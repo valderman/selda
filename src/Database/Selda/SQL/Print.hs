@@ -4,6 +4,7 @@ module Database.Selda.SQL.Print where
 import Database.Selda.Column
 import Database.Selda.SQL
 import Database.Selda.SqlType
+import Database.Selda.Types
 import Control.Monad.State
 import Data.Monoid
 import Data.Text (Text)
@@ -18,6 +19,32 @@ compSql :: SQL -> (Text, [Param])
 compSql sql =
   case runState (ppSql sql) [] of
     (q, ps) -> (q <> ";", reverse ps)
+
+-- | Compile a single column expression.
+compExp :: Exp a -> (Text, [Param])
+compExp e =
+  case runState (ppCol e) [] of
+    (q, ps) -> (q, reverse ps)
+
+-- | Compile an @UPATE@ query.
+compUpdate :: TableName -> Exp a -> [(ColName, SomeCol)] -> (Text, [Param])
+compUpdate tbl p cs =
+    case runState ppUpd [] of
+      (q, ps) -> (q <> ";", reverse ps)
+  where
+    ppUpd = do
+      updates <- mapM ppUpdate cs
+      check <- ppCol p
+      pure $ Text.unwords
+        [ "UPDATE", tbl
+        , "SET", Text.intercalate ", " $ filter (not . Text.null) updates
+        , "WHERE", check
+        ]
+    ppUpdate (n, c) = do
+      c' <- ppSomeCol c
+      if n == c'
+        then pure ""
+        else pure $ Text.unwords [n, "=", c']
 
 -- | Pretty-print a literal as a named parameter and save the
 --   name-value binding in the environment.

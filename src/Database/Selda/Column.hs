@@ -12,18 +12,15 @@ type family Cols s a where
 
 class Columns a where
   toTup :: [ColName] -> a
-  fromTup :: a -> [SomeCol]
 
 instance Columns b => Columns (Col s a :*: b) where
   toTup (x:xs) = C (Col x) :*: toTup xs
   toTup _      = error "too few elements to toTup"
-  fromTup (C a :*: b) = Some a : fromTup b
 
 instance Columns (Col s a) where
   toTup [x] = C (Col x)
   toTup []  = error "too few elements to toTup"
   toTup _   = error "too many elements to toTup"
-  fromTup (C a) = [Some a]
 
 -- | A type-erased column, which may also be renamed.
 --   Only for internal use.
