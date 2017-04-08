@@ -3,6 +3,7 @@
 module Database.Selda.Table.Compile where
 import Database.Selda.Table
 import Database.Selda.Types
+import Data.Monoid
 import Data.Text (Text, intercalate)
 import qualified Data.Text as Text
 
@@ -33,10 +34,12 @@ compileDropTable :: OnError -> Table a -> Text
 compileDropTable Fail t = Text.unwords ["DROP TABLE",tableName t,";"]
 compileDropTable _ t    = Text.unwords ["DROP TABLE IF EXISTS",tableName t,";"]
 
--- | Compile an @INSERT INTO@ query with @n@ parameters.
-compInsert :: TableName -> Int -> Text
-compInsert tbl args = Text.unwords ["INSERT INTO", tbl, "VALUES (", cs', ");"]
-  where cs' = Text.intercalate ", " (replicate args "?")
+-- | Compile an @INSERT INTO@ query inserting @m@ rows with @n@ cols each.
+compInsert :: TableName -> Int -> Int -> Text
+compInsert tbl mrows ncols = Text.unwords ["INSERT INTO", tbl, "VALUES", vals]
+  where
+    cols = "(" <> Text.intercalate ", " (replicate ncols "?") <> ")"
+    vals = Text.intercalate ", " (replicate mrows cols)
 
 -- | Compile a column attribute.
 --   TODO: at least @AutoIncrement@ is implementation-specific; parameterise

@@ -11,7 +11,7 @@ import Database.Selda.Table
 import Database.Selda.Table.Compile
 import Database.Selda.Transform
 import Database.Selda.Types
-import Data.Text (Text)
+import Data.Text (Text, empty)
 import Data.Proxy
 
 -- | Compile a query into a parameterised SQL statement.
@@ -19,9 +19,12 @@ compile :: Result a => Query s a -> (Text, [Param])
 compile = compSql . snd . compQuery 0
 
 -- | Compile an @INSERT@ query.
-compileInsert :: Insert a => Table a -> a -> (Text, [Param])
-compileInsert tbl cs = (compInsert (tableName tbl) (length ps), ps)
-  where ps = params cs
+compileInsert :: Insert a => Table a -> [a] -> (Text, [Param])
+compileInsert _ []     = (empty, [])
+compileInsert tbl rows = (compInsert (tableName tbl) nrows ncols, concat ps)
+  where ps = map params rows
+        nrows = length rows
+        ncols = length (head ps)
 
 -- | Compile a query to an SQL AST.
 --   Groups are ignored, as they are only used by 'aggregate'.

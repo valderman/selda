@@ -2,7 +2,6 @@
 -- | Basic Selda types.
 module Database.Selda.Types where
 import Data.Text (Text)
-import Data.Proxy
 
 -- | Name of a database column.
 type ColName = Text

@@ -49,7 +49,8 @@ query q = S $ do
 
 -- | Insert the given values into the given table. All fields of the table must
 --   be present.
-insert :: (MonadIO m, Insert a) => Table a -> a -> SeldaT m ()
+insert :: (MonadIO m, Insert a) => Table a -> [a] -> SeldaT m ()
+insert _ [] = return ()
 insert t cs = uncurry exec $ compileInsert t cs
 
 -- | Create a table from the given schema.
