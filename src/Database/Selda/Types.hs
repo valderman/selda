@@ -1,10 +1,14 @@
-{-# LANGUAGE GADTs, TypeOperators #-}
+{-# LANGUAGE GADTs, TypeOperators, TypeFamilies, FlexibleInstances #-}
 -- | Basic Selda types.
 module Database.Selda.Types where
 import Data.Text (Text)
+import Data.Proxy
 
--- | Name of a database colmn.
+-- | Name of a database column.
 type ColName = Text
+
+-- | Name of a database table.
+type TableName = Text
 
 -- | An extensible "tuple", or heterogeneous, non-empty list.
 data a :*: b where

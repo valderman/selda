@@ -3,7 +3,7 @@
 module Database.Selda.Backend
   ( -- * High-level API
     Result, Res, MonadIO (..), SeldaT
-  , query
+  , query, insert
   , createTable, tryCreateTable
   , dropTable, tryDropTable
     -- * Low-level API for creating backends and custom queries.
@@ -47,27 +47,26 @@ query q = S $ do
   runner <- ask
   queryWith runner q
 
--- | Execute a statement without a result.
-exec :: MonadIO m => Text -> SeldaT m ()
-exec q = S $ do
-  runner <- ask
-  void . liftIO $ runner q []
+-- | Insert the given values into the given table. All fields of the table must
+--   be present.
+insert :: (MonadIO m, Insert a) => Table a -> a -> SeldaT m ()
+insert t cs = uncurry exec $ compileInsert t cs
 
 -- | Create a table from the given schema.
 createTable :: MonadIO m => Table a -> SeldaT m ()
-createTable = exec . compileCreateTable Fail
+createTable = flip exec [] . compileCreateTable Fail
 
 -- | Create a table from the given schema, unless it already exists.
 tryCreateTable :: MonadIO m => Table a -> SeldaT m ()
-tryCreateTable = exec . compileCreateTable Ignore
+tryCreateTable = flip exec [] . compileCreateTable Ignore
 
 -- | Drop the given table.
 dropTable :: MonadIO m => Table a -> SeldaT m ()
-dropTable = exec . compileDropTable Fail
+dropTable = flip exec [] . compileDropTable Fail
 
 -- | Drop the given table, if it exists.
 tryDropTable :: MonadIO m => Table a -> SeldaT m ()
-tryDropTable = exec . compileDropTable Ignore
+tryDropTable = flip exec [] . compileDropTable Ignore
 
 -- | Build the final result from a list of result columns.
 queryWith :: forall s m a. (MonadIO m, Result a)
@@ -78,3 +77,9 @@ queryWith qr =
 -- | Generate the final result of a query from a list of untyped result rows.
 mkResults :: Result a => Proxy a -> [[SqlValue]] -> [Res a]
 mkResults p = map (toRes p)
+
+-- | Execute a statement without a result.
+exec :: MonadIO m => Text -> [Param] -> SeldaT m ()
+exec q ps = S $ do
+  runner <- ask
+  void . liftIO $ runner q ps

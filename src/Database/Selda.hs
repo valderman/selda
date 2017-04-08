@@ -22,6 +22,9 @@ module Database.Selda
   , some, count, avg, sum_, max_, min_
     -- * Unsafe functions for dialect-specific extensions
   , fun, fun2, cast
+    -- * Inserting and updating values
+  , Insert
+  , insert
     -- * Defining schemas
   , ColSpec, TableName, ColName
   , table, (¤), required, optional
@@ -32,7 +35,8 @@ module Database.Selda
   , createTable, tryCreateTable
   , dropTable, tryDropTable
     -- * Compiling and inspecting queries
-  , compile, compileCreateTable, compileDropTable
+  , OnError (..)
+  , compile, compileCreateTable, compileDropTable, compileInsert
   ) where
 import Data.Text (Text)
 import Database.Selda.Aggregates

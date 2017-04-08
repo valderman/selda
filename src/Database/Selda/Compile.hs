@@ -1,19 +1,27 @@
-{-# LANGUAGE GADTs, TypeOperators, TypeFamilies, FlexibleInstances, ScopedTypeVariables #-}
+{-# LANGUAGE GADTs, TypeOperators, TypeFamilies, ScopedTypeVariables #-}
+{-# LANGUAGE FlexibleInstances, FlexibleContexts, UndecidableInstances #-}
 -- | Selda SQL compilation.
 module Database.Selda.Compile where
-import Database.Selda.Types
-import Database.Selda.SqlType
+import Database.Selda.Column
 import Database.Selda.Query.Type
 import Database.Selda.SQL
 import Database.Selda.SQL.Print
-import Database.Selda.Column
+import Database.Selda.SqlType
+import Database.Selda.Table
+import Database.Selda.Table.Compile
 import Database.Selda.Transform
+import Database.Selda.Types
 import Data.Text (Text)
 import Data.Proxy
 
 -- | Compile a query into a parameterised SQL statement.
 compile :: Result a => Query s a -> (Text, [Param])
 compile = compSql . snd . compQuery 0
+
+-- | Compile an @INSERT@ query.
+compileInsert :: Insert a => Table a -> a -> (Text, [Param])
+compileInsert tbl cs = (compInsert (tableName tbl) (length ps), ps)
+  where ps = params cs
 
 -- | Compile a query to an SQL AST.
 --   Groups are ignored, as they are only used by 'aggregate'.
@@ -26,6 +34,15 @@ compQuery ns q =
     sql = state2sql st
     live = colNames $ final ++ map Some (restricts sql)
     srcs = removeDeadCols live sql
+
+-- | An extensible tuple of Haskell-level values (i.e. @Int :*: Maybe Text@)
+--   which can be inserted into a table.
+class Insert a where
+  params :: a -> [Param]
+instance (SqlType a, Insert b) => Insert (a :*: b) where
+  params (a :*: b) = Param (mkLit a) : params b
+instance {-# OVERLAPPABLE #-} SqlType a => Insert a where
+  params a = [Param (mkLit a) ]
 
 -- | An acceptable query result type; one or more columns stitched together
 --   with @:*:@.

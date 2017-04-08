@@ -5,9 +5,10 @@ import Control.Monad.State
 import Data.Text (Text)
 import qualified Data.Text as Text
 import Data.Monoid
-import Database.Selda.SQL
 import Database.Selda.Column
+import Database.Selda.SQL
 import Database.Selda.SqlType
+import Database.Selda.Types (TableName)
 
 -- | SQL pretty-printer. The state is the list of SQL parameters to the
 --   prepared statement.

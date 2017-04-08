@@ -10,8 +10,6 @@ import Data.Proxy
 import Data.List (sort, group)
 import Data.Monoid
 
-type TableName = Text
-
 type family a :+++: b where
   (a :*: b) :+++: c = a :*: (b :+++: c)
   a :+++: b         = a :*: b

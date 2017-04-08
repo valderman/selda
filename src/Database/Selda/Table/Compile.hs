@@ -1,15 +1,16 @@
 {-# LANGUAGE OverloadedStrings #-}
--- | Compiling queries for creating and deleting tables.
+-- | Generating SQL for creating and deleting tables.
 module Database.Selda.Table.Compile where
 import Database.Selda.Table
+import Database.Selda.Types
 import Data.Text (Text, intercalate)
 import qualified Data.Text as Text
 
-data IfExists = Fail | Ignore
+data OnError = Fail | Ignore
   deriving (Eq, Ord, Show)
 
--- | Compie a @CREATAE TABLE@ query from a table definition.
-compileCreateTable :: IfExists -> Table a -> Text
+-- | Compile a @CREATAE TABLE@ query from a table definition.
+compileCreateTable :: OnError -> Table a -> Text
 compileCreateTable ifex tbl = mconcat
   [ "CREATE TABLE ", ifNotExists ifex, tableName tbl, "("
   , intercalate ", " (map compileTableCol (tableCols tbl))
@@ -28,9 +29,14 @@ compileTableCol ci = Text.unwords
   ]
 
 -- | Compile a @DROP TABLE@ query.
-compileDropTable :: IfExists -> Table a -> Text
+compileDropTable :: OnError -> Table a -> Text
 compileDropTable Fail t = Text.unwords ["DROP TABLE",tableName t,";"]
 compileDropTable _ t    = Text.unwords ["DROP TABLE IF EXISTS",tableName t,";"]
+
+-- | Compile an @INSERT INTO@ query with @n@ parameters.
+compInsert :: TableName -> Int -> Text
+compInsert tbl args = Text.unwords ["INSERT INTO", tbl, "VALUES (", cs', ");"]
+  where cs' = Text.intercalate ", " (replicate args "?")
 
 -- | Compile a column attribute.
 --   TODO: at least @AutoIncrement@ is implementation-specific; parameterise
