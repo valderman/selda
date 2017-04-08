@@ -1,7 +1,8 @@
 {-# LANGUAGE GADTs, TypeOperators, TypeFamilies, FlexibleInstances, ScopedTypeVariables #-}
 -- | Selda SQL compilation.
 module Database.Selda.Compile where
-import Database.Selda.Table
+import Database.Selda.Types
+import Database.Selda.SqlType
 import Database.Selda.Query.Type
 import Database.Selda.SQL
 import Database.Selda.SQL.Print
@@ -41,40 +42,13 @@ class Result r where
   -- | Produce a list of all columns present in the result.
   finalCols :: r -> [SomeCol]
 
--- | Some value that is representable in SQL.
-data SqlValue where
-  SqlInt    :: Int    -> SqlValue
-  SqlFloat  :: Double -> SqlValue
-  SqlString :: Text   -> SqlValue
-  SqlBool   :: Bool   -> SqlValue
-  SqlNull   :: SqlValue
-
--- | Any SQL result data type.
-class SqlData a where
-  fromSql :: SqlValue -> a
-instance SqlData Int where
-  fromSql (SqlInt x) = x
-  fromSql _          = error "fromSql: int column with non-int value"
-instance SqlData Double where
-  fromSql (SqlFloat x) = x
-  fromSql _            = error "fromSql: float column with non-float value"
-instance SqlData Text where
-  fromSql (SqlString x) = x
-  fromSql _             = error "fromSql: text column with non-text value"
-instance SqlData Bool where
-  fromSql (SqlBool x) = x
-  fromSql _           = error "fromSql: bool column with non-bool value"
-instance SqlData a => SqlData (Maybe a) where
-  fromSql SqlNull = Nothing
-  fromSql x       = Just (fromSql x)
-
-instance (SqlData a, Result b) => Result (Col s a :*: b) where
+instance (SqlType a, Result b) => Result (Col s a :*: b) where
   type Res (Col s a :*: b) = a :*: Res b
   toRes _ (x:xs) = fromSql x :*: toRes (Proxy :: Proxy b) xs
   toRes _ _      = error "backend bug: too few result columns to toRes"
   finalCols (a :*: b) = finalCols a ++ finalCols b
 
-instance SqlData a => Result (Col s a) where
+instance SqlType a => Result (Col s a) where
   type Res (Col s a) = a
   toRes _ [x] = fromSql x
   toRes _ []  = error "backend bug: too few result columns to toRes"

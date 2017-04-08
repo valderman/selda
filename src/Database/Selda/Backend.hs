@@ -1,20 +1,28 @@
 {-# LANGUAGE ScopedTypeVariables, GeneralizedNewtypeDeriving #-}
 -- | API for executing queries and building backends.
 module Database.Selda.Backend
-  ( Result, Res, MonadIO (..), MonadTrans (..), MonadThrow (..), MonadCatch (..)
-  , QueryRunner, SeldaT, Param (..), Lit (..), SqlValue (..), Proxy (..)
-  , query, queryWith, runSeldaT
+  ( -- * High-level API
+    Result, Res, MonadIO (..), SeldaT
+  , query
+  , createTable, tryCreateTable
+  , dropTable, tryDropTable
+    -- * Low-level API for creating backends and custom queries.
+  , MonadTrans (..), MonadThrow (..), MonadCatch (..)
+  , QueryRunner, Param (..), Lit (..), Proxy (..), SqlValue (..)
+  , exec, queryWith, runSeldaT
   ) where
-import Database.Selda.Column
-import Database.Selda.SQL (Param (..))
-import Database.Selda.Query.Type
 import Database.Selda.Compile
+import Database.Selda.Query.Type
+import Database.Selda.SQL (Param (..))
+import Database.Selda.SqlType
+import Database.Selda.Table
+import Database.Selda.Table.Compile
 import Data.Proxy
-import Control.Monad.IO.Class
-import Control.Monad.Trans
-import Control.Monad.Catch
-import Control.Monad.Reader
 import Data.Text (Text)
+import Control.Monad
+import Control.Monad.Catch
+import Control.Monad.IO.Class
+import Control.Monad.Reader
 
 -- | A function which executes a query and gives back a list of extensible
 --   tuples; one tuple per result row, and one tuple element per column.
@@ -38,6 +46,28 @@ query :: forall s m a. (MonadIO m, Result a) => Query s a -> SeldaT m [Res a]
 query q = S $ do
   runner <- ask
   queryWith runner q
+
+-- | Execute a statement without a result.
+exec :: MonadIO m => Text -> SeldaT m ()
+exec q = S $ do
+  runner <- ask
+  void . liftIO $ runner q []
+
+-- | Create a table from the given schema.
+createTable :: MonadIO m => Table a -> SeldaT m ()
+createTable = exec . compileCreateTable Fail
+
+-- | Create a table from the given schema, unless it already exists.
+tryCreateTable :: MonadIO m => Table a -> SeldaT m ()
+tryCreateTable = exec . compileCreateTable Ignore
+
+-- | Drop the given table.
+dropTable :: MonadIO m => Table a -> SeldaT m ()
+dropTable = exec . compileDropTable Fail
+
+-- | Drop the given table, if it exists.
+tryDropTable :: MonadIO m => Table a -> SeldaT m ()
+tryDropTable = exec . compileDropTable Ignore
 
 -- | Build the final result from a list of result columns.
 queryWith :: forall s m a. (MonadIO m, Result a)

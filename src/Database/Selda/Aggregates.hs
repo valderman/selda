@@ -1,7 +1,7 @@
 {-# LANGUAGE TypeOperators, TypeFamilies, FlexibleInstances #-}
 module Database.Selda.Aggregates where
 import Database.Selda.Column
-import Database.Selda.Table
+import Database.Selda.Types
 import Data.Text (Text)
 
 -- | A single aggregate column.

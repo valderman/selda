@@ -7,6 +7,7 @@ import qualified Data.Text as Text
 import Data.Monoid
 import Database.Selda.SQL
 import Database.Selda.Column
+import Database.Selda.SqlType
 
 -- | SQL pretty-printer. The state is the list of SQL parameters to the
 --   prepared statement.
@@ -21,7 +22,9 @@ compSql sql =
 -- | Pretty-print a literal as a named parameter and save the
 --   name-value binding in the environment.
 ppLit :: Lit a -> PP Text
-ppLit l = do
+ppLit LitNull     = pure "NULL"
+ppLit (LitJust l) = ppLit l
+ppLit l           = do
   ps <- get
   put (Param l : ps)
   return "?"
@@ -85,7 +88,6 @@ ppCols cs = do
 ppCol :: Exp a -> PP Text
 ppCol (Col name)     = pure name
 ppCol (Lit l)        = ppLit l
-ppCol (Null)         = pure "NULL"
 ppCol (BinOp op a b) = ppBinOp op a b
 ppCol (UnOp op a)    = ppUnOp op a
 ppCol (Fun2 f a b)   = do

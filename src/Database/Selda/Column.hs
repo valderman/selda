@@ -1,7 +1,8 @@
 {-# LANGUAGE GADTs, TypeFamilies, TypeOperators, PolyKinds, FlexibleInstances #-}
 -- | Columns and associated utility functions.
 module Database.Selda.Column where
-import Database.Selda.Table
+import Database.Selda.SqlType
+import Database.Selda.Types
 import Data.String
 import Data.Text (Text)
 
@@ -31,6 +32,10 @@ data SomeCol where
 --   be an expression over such a column or a constant expression.
 newtype Col s a = C {unC :: Exp a}
 
+-- | A literal expression.
+literal :: SqlType a => a -> Col s a
+literal = C . Lit . mkLit
+
 -- | A unary operation. Note that the provided function name is spliced
 --   directly into the resulting SQL query. Thus, this function should ONLY
 --   be used to implement well-defined functions that are missing from Selda's
@@ -46,7 +51,6 @@ fun2 f = liftC2 (Fun2 f)
 data Exp a where
   Col    :: ColName -> Exp a
   Lit    :: Lit a -> Exp a
-  Null   :: Exp (Maybe a)
   BinOp  :: BinOp a b -> Exp a -> Exp a -> Exp b
   UnOp   :: UnOp a b -> Exp a -> Exp b
   Fun2   :: Text -> Exp a -> Exp b -> Exp c
@@ -56,7 +60,6 @@ data Exp a where
 -- | Get all column names in the given expression.
 allNamesIn :: Exp a -> [ColName]
 allNamesIn (Col n)       = [n]
-allNamesIn (Null)        = []
 allNamesIn (Lit _)       = []
 allNamesIn (BinOp _ a b) = allNamesIn a ++ allNamesIn b
 allNamesIn (UnOp _ a)    = allNamesIn a
@@ -87,30 +90,6 @@ data BinOp a b where
   Mul   :: BinOp a a
   Div   :: BinOp a a
   Like  :: BinOp Text Bool
-
-data Lit a where
-  LitS :: Text   -> Lit Text
-  LitI :: Int    -> Lit Int
-  LitD :: Double -> Lit Double
-  LitB :: Bool   -> Lit Bool
-
-instance Show (Lit a) where
-  show (LitS s) = show s
-  show (LitI i) = show i
-  show (LitD d) = show d
-  show (LitB b) = show b
-
-class SqlType a where
-  literal :: a -> Col s a
-
-instance SqlType Int where
-  literal = C . Lit . LitI
-instance SqlType Double where
-  literal = C . Lit . LitD
-instance SqlType Text where
-  literal = C . Lit . LitS
-instance SqlType Bool where
-  literal = C . Lit . LitB
 
 instance IsString (Col s Text) where
   fromString = literal . fromString

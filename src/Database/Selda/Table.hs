@@ -1,19 +1,16 @@
 {-# LANGUAGE GADTs, TypeOperators, OverloadedStrings #-}
-{-# LANGUAGE MultiParamTypeClasses, TypeFamilies #-}
-{-# LANGUAGE UndecidableInstances, FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses, TypeFamilies, RankNTypes #-}
+{-# LANGUAGE UndecidableInstances, FlexibleInstances, ScopedTypeVariables #-}
 -- | Selda table definition language.
 module Database.Selda.Table where
-import Data.Text (Text)
+import Database.Selda.Types
+import Database.Selda.SqlType
+import Data.Text (Text, unpack, intercalate)
+import Data.Proxy
+import Data.List (sort, group)
+import Data.Monoid
 
-type ColName = Text
 type TableName = Text
-
-data a :*: b where
-  (:*:) :: a -> b -> a :*: b
-infixr 1 :*:
-
-instance (Show a, Show b) => Show (a :*: b) where
-  show (a :*: b) = show a ++ " :*: " ++ show b
 
 type family a :+++: b where
   (a :*: b) :+++: c = a :*: (b :+++: c)
@@ -53,12 +50,29 @@ instance {-# OVERLAPPABLE #-} ((a :+++: b) ~ (a :*: b)) =>
 --   @Table (Text :*: Int)@, and a table containing only a single string column
 --   would have the type @Table Text@.
 data Table a = Table
-  { tableName :: TableName
-  , tableCols :: [(Qualifier, ColName)]
+  { -- | Name of the table. NOT guaranteed to be a valid SQL name.
+    tableName :: TableName
+    -- | All table columns.
+    --   Invariant: the 'colAttrs' list of each column is sorted and contains
+    --   no duplicates.
+  , tableCols :: [ColInfo]
   }
 
+data ColInfo = ColInfo
+  { colName  :: ColName
+  , colType  :: Text
+  , colAttrs :: [ColAttr]
+  }
+
+newCol :: forall a. SqlType a => ColName -> ColSpec a
+newCol name = ColSpec [ColInfo
+  { colName  = name
+  , colType  = sqlType (Proxy :: Proxy a)
+  , colAttrs = []
+  }]
+
 -- | A table column specification.
-newtype ColSpec a = ColSpec [(Qualifier, ColName)]
+newtype ColSpec a = ColSpec [ColInfo]
 
 -- | Combine two column specifications.
 --   Table descriptions are built by chaining columns using this operator:
@@ -72,22 +86,68 @@ newtype ColSpec a = ColSpec [(Qualifier, ColName)]
 ColSpec a ¤ ColSpec b = ColSpec (a ++ b)
 infixr 1 ¤
 
--- | Determines whether a column is primary key, required or nullable.
-data Qualifier = Primary | Required | Nullable
+-- | Column attributes such as nullability, auto increment, etc.
+--   When adding elements, make sure that they are added in the order
+--   required by SQL syntax, as this list is only sorted before being
+--   pretty-printed.
+data ColAttr = Primary | AutoIncrement | Required | Optional
   deriving (Show, Eq, Ord)
 
 -- | A non-nullable column with the given name.
-required :: ColName -> ColSpec a
-required name = ColSpec [(Required, name)]
+required :: SqlType a => ColName -> ColSpec a
+required = addAttr Required . newCol
 
 -- | A nullable column with the given name.
-optional :: ColName -> ColSpec (Maybe a)
-optional name = ColSpec [(Nullable, name)]
+optional :: SqlType a => ColName -> ColSpec (Maybe a)
+optional = addAttr Optional . newCol
 
 -- | Marks the given column as the table's primary key.
-primary :: ColName -> ColSpec a
-primary name = ColSpec [(Primary, name)]
+--   A table may only have one primary key; marking more than one key as
+--   primary will result in a run-time error.
+primary :: SqlType a => ColName -> ColSpec a
+primary = addAttr Primary . required
+
+-- | Automatically increment the given attribute if not specified during insert.
+--   Also adds the @PRIMARY KEY@ attribute on the column.
+autoIncrement :: ColSpec Int -> ColSpec Int
+autoIncrement = addAttr AutoIncrement
+
+-- | Add an attribute to a column. Not for public consumption.
+addAttr :: SqlType a => ColAttr -> ColSpec a -> ColSpec a
+addAttr attr (ColSpec [ci]) = ColSpec [ci {colAttrs = attr : colAttrs ci}]
+addAttr _ _                 = error "impossible: SqlType ColSpec with several columns"
 
 -- | A table with the given name and columns.
 table :: TableName -> ColSpec a -> Table a
-table name (ColSpec cs) = Table {tableName = name, tableCols = cs}
+table name (ColSpec cs) = Table
+  { tableName = name
+  , tableCols = validate name $ map tidy cs
+  }
+
+-- | Remove duplicate attributes.
+tidy :: ColInfo -> ColInfo
+tidy ci = ci {colAttrs = snub $ colAttrs ci}
+
+-- | Sort a list and remove all duplicates from it.
+snub :: (Ord a, Eq a) => [a] -> [a]
+snub = map head . soup
+
+-- | Sort a list, then group all identical elements.
+soup :: Ord a => [a] -> [[a]]
+soup = group . sort
+
+-- | Ensure that there are no duplicate column names or primary keys.
+validate :: TableName -> [ColInfo] -> [ColInfo]
+validate name cis
+  | null errs = cis
+  | otherwise = error $ concat
+      [ "validation of table ", unpack name, " failed:"
+      , "\n  "
+      , unpack $ intercalate "\n  " errs
+      ]
+  where
+    dupes =
+      ["duplicate column: " <> x | (x:_:_) <- soup $ map colName cis]
+    pkDupes =
+      ["multiple primary keys" | (Primary:_:_) <- soup $ concatMap colAttrs cis]
+    errs = dupes ++ pkDupes

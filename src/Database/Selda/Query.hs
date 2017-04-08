@@ -20,7 +20,7 @@ select (Table name cs) = Query $ do
     put $ st {sources = SQL rns (Left name) [] [] [] Nothing : sources st}
     return $ toTup [n | Named n _ <- rns]
   where
-    cs' = map snd cs
+    cs' = map colName cs
 
 -- | Restrict the query somehow. Roughly equivalent to @WHERE@.
 restrict :: Col s Bool -> Query s ()

@@ -26,8 +26,11 @@ library
     Database.Selda.Query.Type
     Database.Selda.SQL
     Database.Selda.SQL.Print
+    Database.Selda.SqlType
     Database.Selda.Table
+    Database.Selda.Table.Compile
     Database.Selda.Transform
+    Database.Selda.Types
   other-extensions:
     OverloadedStrings
     GADTs

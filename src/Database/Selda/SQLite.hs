@@ -40,10 +40,12 @@ querySQLite :: Result a => Database -> Query s a -> IO [Res a]
 querySQLite db = queryWith (sqliteQueryRunner db)
 
 toSqlData :: Lit a -> SQLData
-toSqlData (LitI i) = SQLInteger $ fromIntegral i
-toSqlData (LitD d) = SQLFloat d
-toSqlData (LitS s) = SQLText s
-toSqlData (LitB b) = SQLInteger $ if b then 1 else 0
+toSqlData (LitI i)    = SQLInteger $ fromIntegral i
+toSqlData (LitD d)    = SQLFloat d
+toSqlData (LitS s)    = SQLText s
+toSqlData (LitB b)    = SQLInteger $ if b then 1 else 0
+toSqlData (LitNull)   = SQLNull
+toSqlData (LitJust x) = toSqlData x
 
 fromSqlData :: SQLData -> SqlValue
 fromSqlData (SQLInteger i) = SqlInt $ fromIntegral i

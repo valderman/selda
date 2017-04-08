@@ -3,6 +3,7 @@
 module Database.Selda.SQL where
 import Database.Selda.Table
 import Database.Selda.Column
+import Database.Selda.SqlType
 import Data.Monoid
 
 -- | AST for SQL queries.

@@ -7,6 +7,7 @@ module Database.Selda
     SeldaT, Table, Query, Col, Res, MonadIO (..), MonadTrans (..), Result
   , query
     -- * Constructing queries
+  , SqlType
   , Text, Cols, Columns
   , Inner, Order (..)
   , (:*:)(..)
@@ -23,21 +24,28 @@ module Database.Selda
   , fun, fun2, cast
     -- * Defining schemas
   , ColSpec, TableName, ColName
-  , table, (¤), primary, required, optional
+  , table, (¤), required, optional
+  , primary, autoIncrement
     -- * Combining schemas
   , ComposeSpec, (:+++:), (+++)
+    -- * Creating and dropping tables
+  , createTable, tryCreateTable
+  , dropTable, tryDropTable
     -- * Compiling and inspecting queries
-  , compile
+  , compile, compileCreateTable, compileDropTable
   ) where
-import Database.Selda.Table
+import Data.Text (Text)
+import Database.Selda.Aggregates
+import Database.Selda.Backend
 import Database.Selda.Column
+import Database.Selda.Compile
 import Database.Selda.Query
 import Database.Selda.Query.Type
-import Database.Selda.Backend
-import Database.Selda.Aggregates
-import Database.Selda.Compile
 import Database.Selda.SQL (Order (..))
-import Data.Text (Text)
+import Database.Selda.SqlType
+import Database.Selda.Table
+import Database.Selda.Table.Compile
+import Database.Selda.Types
 
 (.==), (./=), (.>), (.<), (.>=), (.<=), is, isn't :: Col s a -> Col s a -> Col s Bool
 (.==) = liftC2 $ BinOp Eq
@@ -81,8 +89,8 @@ nullable :: Col s a -> Col s (Maybe a)
 nullable = cast
 
 -- | SQL NULL, at any type you like.
-null_ :: Col s (Maybe a)
-null_ = C Null
+null_ :: SqlType a => Col s (Maybe a)
+null_ = literal Nothing
 
 -- | Specialization of 'literal' for integers.
 int :: Int -> Col s Int

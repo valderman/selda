@@ -3,7 +3,7 @@ module Database.Selda.Transform where
 import Database.Selda.Column
 import Database.Selda.SQL
 import Database.Selda.Query.Type
-import Database.Selda.Table
+import Database.Selda.Types
 
 -- | Remove all dead columns recursively, assuming that the given list of
 --   column names contains all names present in the final result.
