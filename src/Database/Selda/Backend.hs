@@ -64,18 +64,18 @@ insert_ t cs = void $ insert t cs
 --   matching the given predicate. Returns the number of updated rows.
 update :: (MonadIO m, Columns (Cols s a), Result (Cols s a))
        => Table a                  -- ^ The table to update.
-       -> (Cols s a -> Cols s a)   -- ^ Update function.
        -> (Cols s a -> Col s Bool) -- ^ Predicate.
+       -> (Cols s a -> Cols s a)   -- ^ Update function.
        -> SeldaT m Int
-update tbl upd check = uncurry exec $ compileUpdate tbl upd check
+update tbl check upd = uncurry exec $ compileUpdate tbl upd check
 
 -- | Like 'update', but doesn't return the number of updated rows.
 update_ :: (MonadIO m, Columns (Cols s a), Result (Cols s a))
        => Table a
-       -> (Cols s a -> Cols s a)
        -> (Cols s a -> Col s Bool)
+       -> (Cols s a -> Cols s a)
        -> SeldaT m ()
-update_ tbl upd check = void $ update tbl upd check
+update_ tbl check upd = void $ update tbl check upd
 
 -- | From the given table, delete all rows matching the given predicate.
 --   Returns the number of deleted rows.
