@@ -23,15 +23,16 @@ module Database.Selda
   , aggregate, groupBy
   , some, count, avg, sum_, max_, min_
     -- * Modifying tables
-  , Insert
+  , Insert, InsertCols
   , insert, insert_
   , update, update_
   , deleteFrom, deleteFrom_
     -- * Defining schemas
   , ColSpec, TableName, ColName
   , NonNull, IsNullable, Nullable, NotNullable
+  , Auto
   , table, (¤), required, optional
-  , primary, autoIncrement
+  , primary, autoPrimary
     -- * Combining schemas
   , ComposeSpec, (:+++:), (+++)
     -- * Creating and dropping tables

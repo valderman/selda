@@ -19,12 +19,12 @@ compile :: Result a => Query s a -> (Text, [Param])
 compile = compSql . snd . compQuery 0
 
 -- | Compile an @INSERT@ query.
-compileInsert :: Insert a => Table a -> [a] -> (Text, [Param])
+compileInsert :: Insert (InsertCols a)
+              => Table a -> [InsertCols a] -> (Text, [Param])
 compileInsert _ []     = (empty, [])
-compileInsert tbl rows = (compInsert (tableName tbl) nrows ncols, concat ps)
+compileInsert tbl rows = (compInsert tbl nrows, concat ps)
   where ps = map params rows
         nrows = length rows
-        ncols = length (head ps)
 
 -- | Compile an @UPDATE@ query.
 compileUpdate :: forall s a. (Columns (Cols s a), Result (Cols s a))

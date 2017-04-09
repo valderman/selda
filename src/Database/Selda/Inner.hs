@@ -4,7 +4,6 @@ module Database.Selda.Inner where
 import Database.Selda.Column
 import Database.Selda.Types
 import Data.Text (Text)
-import Unsafe.Coerce
 
 -- | A single aggregate column.
 --   Aggregate columns may not be used to restrict queries.

@@ -42,6 +42,14 @@ instance {-# OVERLAPPABLE #-} ((a :+++: b) ~ (a :*: b)) =>
          ComposeSpec ColSpec a b where
   ColSpec a +++ ColSpec b = ColSpec $ a ++ b
 
+-- | Insertion over all non-autoincrementing required columns.
+--   Autoincrementing primary keys are automatically assigned their value.
+type family InsertCols a where
+  InsertCols (Auto a :*: b)  = InsertCols b
+  InsertCols (a :*: Auto b)  = a
+  InsertCols (a :*: b)       = a :*: InsertCols b
+  InsertCols a               = a
+
 -- | A database table.
 --   Tables are parameterized over their column types. For instance, a table
 --   containing one string and one integer, in that order, would have the type
@@ -84,6 +92,10 @@ newtype ColSpec a = ColSpec [ColInfo]
 ColSpec a ¤ ColSpec b = ColSpec (a ++ b)
 infixr 1 ¤
 
+-- | Indicates an automatically incrementing column.
+--   Auto columns are usually not touched in @INSERT@ queries.
+data Auto a
+
 -- | Used by 'IsNullable' to indicate a nullable type.
 data Nullable
 
@@ -122,8 +134,9 @@ primary = addAttr Primary . required
 
 -- | Automatically increment the given attribute if not specified during insert.
 --   Also adds the @PRIMARY KEY@ attribute on the column.
-autoIncrement :: ColSpec Int -> ColSpec Int
-autoIncrement = addAttr AutoIncrement
+autoPrimary :: ColName -> ColSpec (Auto Int)
+autoPrimary n = ColSpec [c {colAttrs = [Primary, AutoIncrement, Required]}]
+  where ColSpec [c] = newCol n :: ColSpec Int
 
 -- | Add an attribute to a column. Not for public consumption.
 addAttr :: SqlType a => ColAttr -> ColSpec a -> ColSpec a

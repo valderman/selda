@@ -49,15 +49,39 @@ query q = S $ do
   runner <- ask
   queryWith runner q
 
--- | Insert the given values into the given table. All fields of the table must
---   be present. Returns the number of rows that were inserted.
-insert :: (MonadIO m, Insert a) => Table a -> [a] -> SeldaT m Int
+-- | Insert the given values into the given table. All columns of the table
+--   must be present, EXCEPT any auto-incrementing primary keys ('autoPrimary'
+--   columns), which are always assigned their default value.
+--   Returns the number of rows that were inserted.
+--
+--   To insert a list of tuples into a table with auto-incrementing primary key:
+--
+-- > people :: Table (Auto Int :*: Text :*: Int :*: Maybe Text)
+-- > people = table "ppl"
+-- >        $ autoPrimary "id"
+-- >        ¤ required "name"
+-- >        ¤ required "age"
+-- >        ¤ optional "pet"
+-- >
+-- > main = withSQLite "my_database.sqlite" $ do
+-- >   insert_ people
+-- >     [ "Link"  :*: 125 :*: Just "horse"
+-- >     , "Zelda" :*: 119 :*: Nothing
+-- >     , ...
+-- >     ]
+--
+--   Again, note that ALL non-auto-incrementing fields must be present in the
+--   tuples to be inserted, including primary keys without the auto-increment
+--   attribute.
+insert :: (MonadIO m, Insert (InsertCols a))
+       => Table a -> [InsertCols a] -> SeldaT m Int
 insert _ [] = return 0
 insert t cs = uncurry exec $ compileInsert t cs
 
 -- | Like 'insert', but does not return anything.
 --   Use this when you really don't care about how many rows were inserted.
-insert_ :: (MonadIO m, Insert a) => Table a -> [a] -> SeldaT m ()
+insert_ :: (MonadIO m, Insert (InsertCols a))
+        => Table a -> [InsertCols a] -> SeldaT m ()
 insert_ t cs = void $ insert t cs
 
 -- | Update the given table using the given update function, for all rows
