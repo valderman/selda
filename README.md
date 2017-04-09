@@ -210,8 +210,8 @@ printGrownupsInTokyo = do
 ```
 
 Also note that this is slightly different from an SQL join. If, for instance,
-you wanted to get a list of all people and their addresses *if they have one*,
-you might do something like this:
+you wanted to get a list of all people and their addresses, you might do
+something like this:
 
 ```
 allPeople :: Query s (Col s Text :*: Col s Text)
@@ -237,7 +237,8 @@ Note the absence of Velvet in this result set. Since there is no entry for
 Velvet in the `addresses` table, there can be no entry in the product table
 `people × addresses` where both `people_name` and `addresses_name` are equal
 to `"Velvet"`. To produce a table like the above but with a `NULL` column for
-Velvet's address, you would have to use a join:
+Velvet's address (or for anyone else who does not have an entry in the
+`addresses` table), you would have to use a join:
 
 ```
 allPeople' :: Query s (Col s Text :*: Col s Maybe Text)
