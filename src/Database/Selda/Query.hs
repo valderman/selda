@@ -11,8 +11,6 @@ import Control.Monad.State
 import Data.Text (pack)
 import Data.Monoid hiding (Product)
 
-import Debug.Trace
-
 -- | Query the given table. Result is returned as an inductive tuple, i.e.
 --   @first :*: second :*: third <- query tableOfThree@.
 select :: Columns (Cols s a) => Table a -> Query s (Cols s a)
@@ -139,11 +137,10 @@ order (C c) o = Query $ do
 --   Not for public consumption.
 rename :: SomeCol -> State GenState SomeCol
 rename (Some col) = do
-  st <- get
-  put $ st {nameSupply = succ $ nameSupply st}
-  return $ Named (newName $ nameSupply st) col
+    st <- get
+    put $ st {nameSupply = succ $ nameSupply st}
+    return $ Named (newName $ nameSupply st) col
   where
-    col' = case col of {Col n -> show n ; _ -> "dunno lol"}
     newName ns =
       case col of
         Col n -> n <> "_" <> pack (show ns)
