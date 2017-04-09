@@ -2,6 +2,7 @@
 -- | Selda is not LINQ, but they're definitely related.
 --
 --   Selda is a high-level EDSL for interacting with relational databases.
+--   Please see <https://github.com/valderman/selda/> for a brief tutorial.
 module Database.Selda
   ( -- * Running queries
     SeldaT, Table, Query, Col, Res, MonadIO (..), MonadTrans (..), Result
