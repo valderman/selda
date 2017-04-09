@@ -159,8 +159,19 @@ validate name cis
       , unpack $ intercalate "\n  " errs
       ]
   where
+    errs = concat
+      [ dupes
+      , pkDupes
+      , optionalRequiredMutex
+      ]
     dupes =
       ["duplicate column: " <> x | (x:_:_) <- soup $ map colName cis]
     pkDupes =
       ["multiple primary keys" | (Primary:_:_) <- soup $ concatMap colAttrs cis]
-    errs = dupes ++ pkDupes
+
+    -- This should be impossible, but...
+    optionalRequiredMutex =
+      [ "BUG: column " <> colName ci <> " is both optional and required"
+      | ci <- cis
+      , Optional `elem` colAttrs ci && Required `elem` colAttrs ci
+      ]
