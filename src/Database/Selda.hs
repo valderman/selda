@@ -24,8 +24,8 @@ module Database.Selda
   , aggregate, groupBy
   , some, count, avg, sum_, max_, min_
     -- * Modifying tables
-  , Insert, InsertCols
-  , insert, insert_
+  , Insert, InsertCols, HasAutoPrimary
+  , insert, insert_, insertWithPK
   , update, update_
   , deleteFrom, deleteFrom_
     -- * Defining schemas

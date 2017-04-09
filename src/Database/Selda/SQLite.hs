@@ -18,8 +18,8 @@ withSQLite file m = do
 
 sqliteBackend :: MVar () -> Database -> SeldaBackend
 sqliteBackend lock db = SeldaBackend
-  { runStmt          = \q ps -> snd <$> sqliteQueryRunner lock db q ps
-  , runStmtWithRowId = \q ps -> fst <$> sqliteQueryRunner lock db q ps
+  { runStmt       = \q ps -> snd <$> sqliteQueryRunner lock db q ps
+  , runStmtWithPK = \q ps -> fst <$> sqliteQueryRunner lock db q ps
   }
 
 sqliteQueryRunner :: MVar () -> Database -> QueryRunner (Int, (Int, [[SqlValue]]))
@@ -29,12 +29,13 @@ sqliteQueryRunner lock db qry params = do
   where
     go stm = do
       takeMVar lock
-      rid <- flip finally (putMVar lock ()) $ do
+      (rows, rid) <- flip finally (putMVar lock ()) $ do
         bind stm [toSqlData p | Param p <- params]
-        lastInsertRowId db
-      rows <- getRows stm []
+        rows <- getRows stm []
+        rid <- lastInsertRowId db
+        return (rows, fromIntegral rid)
       cs <- changes db
-      return (fromIntegral rid, (cs, [map fromSqlData r | r <- rows]))
+      return (rid, (cs, [map fromSqlData r | r <- rows]))
 
     getRows s acc = do
       res <- step s

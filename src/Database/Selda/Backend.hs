@@ -4,7 +4,10 @@
 module Database.Selda.Backend
   ( -- * High-level API
     Result, Res, MonadIO (..), SeldaT
-  , query, insert, insert_, update, update_, deleteFrom, deleteFrom_
+  , query
+  , insert, insert_, insertWithPK
+  , update, update_
+  , deleteFrom, deleteFrom_
   , createTable, tryCreateTable
   , dropTable, tryDropTable
     -- * Low-level API for creating backends and custom queries.
@@ -34,11 +37,12 @@ type QueryRunner a = Text -> [Param] -> IO a
 -- | A collection of functions making up a Selda backend.
 data SeldaBackend = SeldaBackend
   { -- | Execute an SQL statement.
-    runStmt          :: QueryRunner (Int, [[SqlValue]])
+    runStmt       :: QueryRunner (Int, [[SqlValue]])
 
-    -- | Execute an SQL statement and return the last inserted row identifier.
+    -- | Execute an SQL statement and return the last inserted primary key,
+    --   where the primary key is auto-incrementing.
     --   Backends must take special care to make this thread-safe.
-  , runStmtWithRowId :: QueryRunner Int
+  , runStmtWithPK :: QueryRunner Int
   }
 
 -- | Monad transformer adding Selda SQL capabilities.
@@ -94,6 +98,14 @@ insert t cs = uncurry exec $ compileInsert t cs
 insert_ :: (MonadIO m, Insert (InsertCols a))
         => Table a -> [InsertCols a] -> SeldaT m ()
 insert_ t cs = void $ insert t cs
+
+-- | Like 'insert', but returns the primary key of the last inserted row.
+--   Attempting 
+insertWithPK :: (MonadIO m, HasAutoPrimary a, Insert (InsertCols a))
+                => Table a -> [InsertCols a] -> SeldaT m Int
+insertWithPK t cs = S $ do
+  backend <- ask
+  liftIO . uncurry (runStmtWithPK backend) $ compileInsert t cs
 
 -- | Update the given table using the given update function, for all rows
 --   matching the given predicate. Returns the number of updated rows.

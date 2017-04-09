@@ -356,7 +356,6 @@ TODOs
 The following is a non-exhaustive list of tasks that need to be done before a
 "proper" release.
 
-* Insertions returning the last inserted primary key.
 * Foreign keys.
 * Constraints other than primary key.
 * If/else.
