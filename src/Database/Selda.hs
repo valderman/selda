@@ -46,6 +46,9 @@ module Database.Selda
   , compileInsert, compileUpdate
     -- * Unsafe functions for dialect-specific extensions
   , fun, fun2, cast
+    -- * Tuple convenience functions
+  , Tup, Head
+  , first, second, third, fourth, fifth, sixth, seventh, eighth, ninth, tenth
   ) where
 import Data.Text (Text)
 import Database.Selda.Backend
