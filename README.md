@@ -19,10 +19,11 @@ Defining a schema
 To work productively with Selda, you will need to enable the `TypeOperators` and
 `OverloadedStrings` extensions.
 
-Tables are defined as the product of one or more columns, expressed using
-*extensible tuples*, or heterogeneous lists.
-An extensible tuple is simply a list of values joined together by
-the `:*:` operator.
+Table schemas are defined as the product of one or more columns, stitched
+together using the `¤` operator.
+A table is parameterized over the types of its columns, with the column types
+separated by the `:*:` operator. This, by the way, is why you need
+`TypeOperators`.
 
 ```
 people :: Table (Text :*: Int :*: Maybe Text)
@@ -60,6 +61,33 @@ This will open the `my_database.sqlite` database for the duration of the
 computation. If the computation terminates normally, or if it raises an
 exception, the database is automatically closed.
 
+Note the somewhat weird return type of `getAllPeople`. In Selda, queries are
+represented using *inductive tuples*: a list of values, separated
+by the `:*:` operator, but where each element can have a different type.
+You can think of them as tuples with a slightly different syntax.
+In this example, `getAllPeople` having a return type of
+`[Text :*: Int :*: Maybe Text]` means that it returns a list of "3-tuples",
+where the three elements have the types `Text`, `Int` and `Maybe Text`
+respectively.
+
+You can pattern match on these values as you would on normal tuples:
+
+```
+firstOfThree :: (a :*: b :*: c) -> a
+firstOfThree (a :*: b :*: c) = a
+```
+
+Since inductive tuples are inductively defined, you may also choose to pattern
+match on just the first few elements:
+
+```
+firstOfN :: (a :*: rest) -> a
+firstOfN (a :*: _) = a
+```
+
+Throughout the rest of this tutorial, we will simply use inductive tuples as if
+they were "normal" tuples.
+
 
 Creating and deleting databases
 -------------------------------
@@ -88,7 +116,7 @@ Inserting data
 --------------
 
 Data insertion is done in batches. To insert a batch of rows, pass a list of
-rows where each row is an extensible tuple matching the type of the table.
+rows where each row is an inductive tuple matching the type of the table.
 Optional values are encoded as `Maybe` values.
 
 ```
