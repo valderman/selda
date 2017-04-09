@@ -29,6 +29,7 @@ module Database.Selda
   , deleteFrom, deleteFrom_
     -- * Defining schemas
   , ColSpec, TableName, ColName
+  , NonNull, IsNullable, Nullable, NotNullable
   , table, (¤), required, optional
   , primary, autoIncrement
     -- * Combining schemas

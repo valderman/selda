@@ -84,6 +84,21 @@ newtype ColSpec a = ColSpec [ColInfo]
 ColSpec a ¤ ColSpec b = ColSpec (a ++ b)
 infixr 1 ¤
 
+-- | Used by 'IsNullable' to indicate a nullable type.
+data Nullable
+
+-- | Used by 'IsNullable' to indicate a nullable type.
+data NotNullable
+
+-- | Is the given type nullable?
+type family IsNullable a where
+  IsNullable (Maybe a) = Nullable
+  IsNullable a         = NotNullable
+
+-- | Any SQL type which is NOT nullable.
+class SqlType a => NonNull a
+instance (SqlType a, IsNullable a ~ NotNullable) => NonNull a
+
 -- | Column attributes such as nullability, auto increment, etc.
 --   When adding elements, make sure that they are added in the order
 --   required by SQL syntax, as this list is only sorted before being
@@ -92,7 +107,7 @@ data ColAttr = Primary | AutoIncrement | Required | Optional
   deriving (Show, Eq, Ord)
 
 -- | A non-nullable column with the given name.
-required :: SqlType a => ColName -> ColSpec a
+required :: NonNull a => ColName -> ColSpec a
 required = addAttr Required . newCol
 
 -- | A nullable column with the given name.
@@ -102,7 +117,7 @@ optional = addAttr Optional . newCol
 -- | Marks the given column as the table's primary key.
 --   A table may only have one primary key; marking more than one key as
 --   primary will result in a run-time error.
-primary :: SqlType a => ColName -> ColSpec a
+primary :: NonNull a => ColName -> ColSpec a
 primary = addAttr Primary . required
 
 -- | Automatically increment the given attribute if not specified during insert.
