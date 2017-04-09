@@ -9,19 +9,19 @@ module Database.Selda
     -- * Constructing queries
   , SqlType
   , Text, Cols, Columns
-  , Inner, Order (..)
+  , Order (..)
   , (:*:)(..)
-  , select, restrict, limit, order, ascending, descending
+  , select, restrict, limit, order
+  , ascending, descending
     -- * Expressions over columns
   , (.==), (./=), (.>), (.<), (.>=), (.<=), (.&&), (.||), is, isn't, like
   , literal, int, float, text, true, false, not_, round_, roundTo, length_
-  , nullable, null_
-    -- * Aggregation functions
-  , Aggr, Aggregates, AggrCols
+  , just, null_
+    -- * Inner queries
+  , Aggr, Aggregates, OuterCols, JoinCols, Inner
+  , leftJoin
   , aggregate, groupBy
   , some, count, avg, sum_, max_, min_
-    -- * Unsafe functions for dialect-specific extensions
-  , fun, fun2, cast
     -- * Modifying tables
   , Insert
   , insert, insert_
@@ -41,6 +41,8 @@ module Database.Selda
   , compile
   , compileCreateTable, compileDropTable
   , compileInsert, compileUpdate
+    -- * Unsafe functions for dialect-specific extensions
+  , fun, fun2, cast
   ) where
 import Data.Text (Text)
 import Database.Selda.Aggregates
@@ -91,10 +93,10 @@ descending = Desc
 -- >
 -- > peopleWithCats = do
 -- >   name :*: _ :*: pet <- select people
--- >   restrict (pet .== nullable "cat")
+-- >   restrict (pet .== just "cat")
 -- >   return name
-nullable :: Col s a -> Col s (Maybe a)
-nullable = cast
+just :: Col s a -> Col s (Maybe a)
+just = cast
 
 -- | SQL NULL, at any type you like.
 null_ :: SqlType a => Col s (Maybe a)

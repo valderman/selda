@@ -11,6 +11,8 @@ import Control.Monad.State
 import Data.Text (pack)
 import Data.Monoid hiding (Product)
 
+import Debug.Trace
+
 -- | Query the given table. Result is returned as an inductive tuple, i.e.
 --   @first :*: second :*: third <- query tableOfThree@.
 select :: Columns (Cols s a) => Table a -> Query s (Cols s a)
@@ -57,9 +59,9 @@ restrict (C p) = Query $ do
 -- >     return (count address :*: some address)
 -- >  restrict (num_tenants .> 1)
 -- >  return (num_tenants :*: address)
-aggregate :: (Columns (AggrCols a), Aggregates a)
+aggregate :: (Columns (OuterCols a), Aggregates a)
           => Query (Inner s) a
-          -> Query s (AggrCols a)
+          -> Query s (OuterCols a)
 aggregate q = Query $ do
   -- Run query in isolation, then rename the remaining vars and generate outer
   -- query.
@@ -71,6 +73,40 @@ aggregate q = Query $ do
       sql' = SQL cs (Product [sql]) [] (groupCols gst) [] Nothing
   put $ st {sources = sql' : sources st, nameSupply = ns'}
   pure $ toTup [n | Named n _ <- cs]
+
+-- | Perform a @LEFT JOIN@ with the current result set (i.e. the outer query)
+--   as the left hand side, and the given query as the right hand side.
+--   Like with 'aggregate', the inner (or right) query must not depend on the
+--   outer (or right) one.
+--
+--   For instance, the following will list everyone in the @people@ table
+--   together with their address if they have one; if they don't, the address
+--   field will be @NULL@.
+--
+-- > getAddresses :: Query s (Col s Text :*: Col s (Maybe Text))
+-- > getAddresses = do
+-- >   name :*: _ <- select people
+-- >   _ :*: address <- leftJoin (\(n :*: _) -> n .== name)
+-- >                             (select addresses)
+-- >   return (name :*: address)
+leftJoin :: (Columns a, Columns (OuterCols a), Columns (JoinCols a))
+            -- | Predicate determining which lines to join.
+         => (OuterCols a -> Col s Bool)
+            -- | Right-hand query to join.
+         -> Query (Inner s) a
+         -> Query s (JoinCols a)
+leftJoin check q = Query $ do
+  st <- get
+  let (res, join_st) = runQueryM (nameSupply st) q
+  cs <- mapM rename $ fromTup res
+  let ns' = nameSupply join_st
+      nameds = [n | Named n _ <- cs]
+      left = state2sql st
+      right = state2sql join_st
+      C on = check $ toTup nameds
+      sql = SQL (cs ++ allCols [left]) (LeftJoin on left right) [] [] [] Nothing
+  put $ st {sources = [sql], nameSupply = ns'}
+  pure $ toTup nameds
 
 -- | Group an aggregate query by a column.
 --   Attempting to group a non-aggregate query is a type error.
@@ -107,6 +143,7 @@ rename (Some col) = do
   put $ st {nameSupply = succ $ nameSupply st}
   return $ Named (newName $ nameSupply st) col
   where
+    col' = case col of {Col n -> show n ; _ -> "dunno lol"}
     newName ns =
       case col of
         Col n -> n <> "_" <> pack (show ns)

@@ -55,7 +55,7 @@ compQuery ns q =
     (cs, st) = runQueryM ns q
     final = finalCols cs
     sql = state2sql st
-    live = colNames $ final ++ map Some (restricts sql)
+    live = colNames final ++ allNonOutputColNames sql
     srcs = removeDeadCols live sql
 
 -- | An extensible tuple of Haskell-level values (i.e. @Int :*: Maybe Text@)

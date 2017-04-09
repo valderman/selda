@@ -219,7 +219,7 @@ allPeople = do
   people_name :*: _ :*: _ <- select people
   addresses_name :*: city <- select addresses
   restrict (people_name == addresses_name)
-  return (name :*: city)
+  return (people_name :*: city)
 ```
 
 This will give you the list of everyone who has an address, resulting in the
@@ -237,8 +237,35 @@ Note the absence of Velvet in this result set. Since there is no entry for
 Velvet in the `addresses` table, there can be no entry in the product table
 `people × addresses` where both `people_name` and `addresses_name` are equal
 to `"Velvet"`. To produce a table like the above but with a `NULL` column for
-Velvet's address, you would have to use a join.
-Unfortunately, joins are not yet supported by Selda.
+Velvet's address, you would have to use a join:
+
+```
+allPeople' :: Query s (Col s Text :*: Col s Maybe Text)
+allPeople' = do
+  name :*: _ :*: _ <- select people
+  _ :*: city <- leftJoin (\(name' :*: _) -> name .== name')
+                         (select addresses)
+  return (name :*: city)
+```
+
+This gives us the result table we want:
+
+```
+name      | city
+---------------------
+Link      | Kakariko
+Velvet    |
+Kobayashi | Tokyo
+Miyu      | Fuyukishi
+
+```
+
+The `leftJoin` function left joins its query argument to the current result set
+for all rows matching its predicate argument.
+Note that all columns returned from the inner (or right) query are converted by
+`leftJoin` into nullable columns. As there may not be a right counter part for
+every element in the result set, SQL and Selda alike set any missing joined
+columns to `NULL`.
 
 
 Aggregate queries, grouping and sorting
@@ -290,7 +317,6 @@ The following is a non-exhaustive list of tasks that need to be done before a
 * Insertions returning the last inserted primary key.
 * Foreign keys.
 * Constraints other than primary key.
-* Joins.
 * If/else.
 * PostgreSQL backend.
 * Tests.

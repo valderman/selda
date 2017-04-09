@@ -8,23 +8,28 @@ import Database.Selda.Types
 -- | Remove all dead columns recursively, assuming that the given list of
 --   column names contains all names present in the final result.
 removeDeadCols :: [ColName] -> SQL -> SQL
-removeDeadCols cns sql =
+removeDeadCols live sql =
     case source sql' of
       TableName _     -> sql'
       Product qs      -> sql' {source = Product $ map noDead qs}
       LeftJoin on l r -> sql' {source = LeftJoin on (noDead l) (noDead r)}
   where
     noDead = removeDeadCols live'
-    sql' = keepCols cns sql
+    sql' = keepCols live sql
     live' = allColNames sql'
 
 -- | Return the names of all columns in the given top-level query.
 --   Subqueries are not traversed.
 allColNames :: SQL -> [ColName]
-allColNames sql = concat
-  [ colNames (map Some (restricts sql))
-  , colNames (cols sql)
+allColNames sql = colNames (cols sql) ++ allNonOutputColNames sql
+
+-- | Return the names of all non-output (i.e. 'cols') columns in the given
+--   top-level query. Subqueries are not traversed.
+allNonOutputColNames :: SQL -> [ColName]
+allNonOutputColNames sql = concat
+  [ concatMap allNamesIn (restricts sql)
   , colNames (groups sql)
+  , colNames (map snd $ ordering sql)
   , case source sql of
       LeftJoin on _ _ -> allNamesIn on
       _               -> []
@@ -39,18 +44,16 @@ colNames cs = concat
   , [n | Named n _ <- cs]
   ]
 
--- | Remove all columns but the given, named ones and aggregates.
+-- | Remove all columns but the given, named ones and aggregates, from a query's
+--   list of outputs.
 --   If we want to refer to a column in an outer query, it must have a name.
 --   If it doesn't, then it's either not referred to by an outer query, or
 --   the outer query duplicates the expression, thereby referring directly
 --   to the names of its components.
 keepCols :: [ColName] -> SQL -> SQL
-keepCols cns sql = sql {cols = filtered}
+keepCols live sql = sql {cols = filtered}
   where
-    filtered =
-      case filter (`oneOf` cns) (cols sql) of
-        [] -> [Some (unC $ literal True)]
-        cs -> cs
+    filtered = filter (`oneOf` live) (cols sql)
     oneOf (Some (AggrEx _ _)) _    = True
     oneOf (Named _ (AggrEx _ _)) _ = True
     oneOf (Some (Col n)) ns        = n `elem` ns
@@ -65,7 +68,7 @@ state2sql (GenState [sql] srs _ _) =
 state2sql (GenState ss srs _ _) =
   SQL (allCols ss) (Product ss) srs [] [] Nothing
 
--- | Get all columns from a list of SQL ASTs.
+-- | Get all output columns from a list of SQL ASTs.
 allCols :: [SQL] -> [SomeCol]
 allCols sqls = [outCol col | sql <- sqls, col <- cols sql]
   where

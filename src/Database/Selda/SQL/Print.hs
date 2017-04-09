@@ -76,7 +76,7 @@ ppSql (SQL cs src r gs ord lim) = do
   ord' <- ppOrder ord
   lim' <- ppLimit lim
   pure $ mconcat
-    [ "SELECT ", Text.intercalate "," cs'
+    [ "SELECT ", result cs'
     , src'
     , r'
     , gs'
@@ -84,14 +84,17 @@ ppSql (SQL cs src r gs ord lim) = do
     , lim'
     ]
   where
+    result []  = "1"
+    result cs' = Text.intercalate "," cs'
+
     ppSrc (TableName n)  = pure $ " FROM " <> n
     ppSrc (Product [])   = pure ""
     ppSrc (Product sqls) = do
       srcs <- mapM ppSql (reverse sqls)
       pure $ " FROM " <> Text.intercalate "," ["(" <> s <> ")" | s <- srcs]
-    ppSrc (LeftJoin on l r) = do
-      l' <- ppSql l
-      r' <- ppSql r
+    ppSrc (LeftJoin on left right) = do
+      l' <- ppSql left
+      r' <- ppSql right
       on' <- ppCol on
       pure $ mconcat [" FROM (", l', ") LEFT JOIN (", r', ") ON ", on']
 

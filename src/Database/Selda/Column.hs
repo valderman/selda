@@ -6,21 +6,26 @@ import Database.Selda.Types
 import Data.String
 import Data.Text (Text)
 
+-- | Convert a tuple of Haskell types to a tuple of column types.
 type family Cols s a where
   Cols s (a :*: b) = Col s a :*: Cols s b
   Cols s a         = Col s a
 
+-- | Any column tuple.
 class Columns a where
   toTup :: [ColName] -> a
+  fromTup :: a -> [SomeCol]
 
 instance Columns b => Columns (Col s a :*: b) where
   toTup (x:xs) = C (Col x) :*: toTup xs
   toTup _      = error "too few elements to toTup"
+  fromTup (C x :*: xs) = Some x : fromTup xs
 
 instance Columns (Col s a) where
   toTup [x] = C (Col x)
   toTup []  = error "too few elements to toTup"
   toTup _   = error "too many elements to toTup"
+  fromTup (C x) = [Some x]
 
 -- | A type-erased column, which may also be renamed.
 --   Only for internal use.

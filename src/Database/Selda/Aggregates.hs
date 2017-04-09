@@ -1,8 +1,9 @@
-{-# LANGUAGE TypeOperators, TypeFamilies, FlexibleInstances #-}
+{-# LANGUAGE TypeOperators, TypeFamilies, FlexibleInstances, FlexibleContexts #-}
 module Database.Selda.Aggregates where
 import Database.Selda.Column
 import Database.Selda.Types
 import Data.Text (Text)
+import Unsafe.Coerce
 
 -- | A single aggregate column.
 --   Aggregate columns may not be used to restrict queries.
@@ -29,13 +30,37 @@ data Inner s
 aggr :: Text -> Col s a -> Aggr s b
 aggr f = Aggr . AggrEx f . unC
 
--- | Convert one or more aggregate column to equivalent non-aggregate columns
---   in the outer query.
---   @AggrCols Aggr (Inner s) a :*: Aggr (Inner s) b = Col s a :*: Col s b@,
+-- | Convert one or more inner column to equivalent columns in the outer query.
+--   @OuterCols (Aggr (Inner s) a :*: Aggr (Inner s) b) = Col s a :*: Col s b@,
 --   for instance.
-type family AggrCols a where
-  AggrCols (Aggr (Inner s) a :*: b) = Col s a :*: AggrCols b
-  AggrCols (Aggr (Inner s) a)       = Col s a
+type family OuterCols a where
+  OuterCols (t (Inner s) a :*: b) = Col s a :*: OuterCols b
+  OuterCols (t (Inner s) a)       = Col s a
+
+-- | The results of a join are always nullable, as there is no guarantee that
+--   all joined columns will be non-null.
+--   @JoinCols a@ where @a@ is an extensible tuple is that same tuple, but in
+--   the outer query and with all elements nullable.
+--   For instance:
+--
+-- >  JoinCols (Col (Inner s) Int :*: Col (Inner s) Text)
+-- >    = Col s (Maybe Int) :*: Col s (Maybe Text)
+type family JoinCols a where
+  JoinCols (Col (Inner s) (Maybe a) :*: b) = Col s (Maybe a) :*: JoinCols b
+  JoinCols (Col (Inner s) a :*: b)         = Col s (Maybe a) :*: JoinCols b
+  JoinCols (Col (Inner s) (Maybe a))       = Col s (Maybe a)
+  JoinCols (Col (Inner s) a)               = Col s (Maybe a)
+
+-- | Coerce an inner column tuple to an outer one where all fields are nullable.
+--   This is ONLY safe as long as 'Columns' only has instances for tuples of
+--   actual columns.
+toJoinCols :: (Columns a, Columns (JoinCols a)) => a -> JoinCols a
+toJoinCols = unsafeCoerce
+
+-- | Like 'toJoinCols', but does not make any fields nullable unless they
+--   weren't before.
+toOuterCols :: (Columns a, Columns (JoinCols a)) => a -> OuterCols a
+toOuterCols = unsafeCoerce
 
 -- | One or more aggregate columns.
 class Aggregates a where
