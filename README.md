@@ -111,6 +111,48 @@ Insertions come in two variants: the "plain" version which reports back the
 number of inserted rows, and one appended with an underscore which returns `()`.
 Use the latter to explicitly indicate your intent to ignore the return value.
 
+There is one gotcha when inserting tuples: auto-incrementing primary keys.
+When inserting data into a table with such a primary key, *the primary key
+column must be omitted from any inserted tuples* to avoid a type error.
+The reason for this is that it's usually a bad idea to set auto-incrementing
+keys manually. The following example inserts a few rows into a table with an
+auto-incrementing primary key:
+
+```
+people' :: Table (Auto Int :*: Text :*: Int :*: Maybe Text)
+people' = table "people_with_ids"
+        $ autoPrimary "id"
+        ¤ required "name"
+        ¤ required "age"
+        ¤ optional "pet"
+
+populate' :: SeldaT IO ()
+populate' = do
+  insert_ people'
+    [ "Link"      :*: 125 :*: Just "horse"
+    , "Velvet"    :*: 19  :*: Nothing
+    , "Kobayashi" :*: 23  :*: Just "dragon"
+    , "Miyu"      :*: 10  :*: Nothing
+    ]
+```
+
+Note that the tuple list passed to `insert_` is the same as for the previous
+example, even though our new table has an additional field `id`.
+Since the `id` field is an auto-incrementing primary key, it will automatically
+be assigned a unique, increasing value.
+Thus, the resulting table would look like this:
+
+```
+id | name      | age | pet
+-----------------------------
+ 0 | Link      | 125 | horse
+ 1 | Velvet    | 19  |
+ 2 | Kobayashi | 23  | dragon
+ 3 | Miyu      | 10  |
+```
+
+If you want manual control over your primary keys, do not use `autoPrimary`.
+
 
 Updating rows
 -------------
