@@ -10,6 +10,7 @@ module Database.Selda.Backend
     -- * Low-level API for creating backends and custom queries.
   , MonadTrans (..), MonadThrow (..), MonadCatch (..)
   , QueryRunner, Param (..), Lit (..), Proxy (..), SqlValue (..)
+  , SeldaBackend (..)
   , exec, queryWith, runSeldaT
   ) where
 import Database.Selda.Column
@@ -28,17 +29,27 @@ import Control.Monad.Reader
 
 -- | A function which executes a query and gives back a list of extensible
 --   tuples; one tuple per result row, and one tuple element per column.
-type QueryRunner = Text -> [Param] -> IO (Int, [[SqlValue]])
+type QueryRunner a = Text -> [Param] -> IO a
+
+-- | A collection of functions making up a Selda backend.
+data SeldaBackend = SeldaBackend
+  { -- | Execute an SQL statement.
+    runStmt          :: QueryRunner (Int, [[SqlValue]])
+
+    -- | Execute an SQL statement and return the last inserted row identifier.
+    --   Backends must take special care to make this thread-safe.
+  , runStmtWithRowId :: QueryRunner Int
+  }
 
 -- | Monad transformer adding Selda SQL capabilities.
-newtype SeldaT m a = S {unS :: ReaderT QueryRunner m a}
+newtype SeldaT m a = S {unS :: ReaderT SeldaBackend m a}
   deriving ( Functor, Applicative, Monad, MonadIO
            , MonadThrow, MonadCatch, MonadMask, MonadTrans
            )
 
 -- | Run a Selda transformer. Backends should use this to implement their
 --   @withX@ functions.
-runSeldaT :: SeldaT m a -> QueryRunner -> m a
+runSeldaT :: SeldaT m a -> SeldaBackend -> m a
 runSeldaT m = runReaderT (unS m)
 
 -- | Run a query within a Selda transformer.
@@ -46,8 +57,8 @@ runSeldaT m = runReaderT (unS m)
 --   such as 'withSQLite' from the SQLite backend.
 query :: forall s m a. (MonadIO m, Result a) => Query s a -> SeldaT m [Res a]
 query q = S $ do
-  runner <- ask
-  queryWith runner q
+  backend <- ask
+  queryWith (runStmt backend) q
 
 -- | Insert the given values into the given table. All columns of the table
 --   must be present, EXCEPT any auto-incrementing primary keys ('autoPrimary'
@@ -130,7 +141,7 @@ tryDropTable = void . flip exec [] . compileDropTable Ignore
 
 -- | Build the final result from a list of result columns.
 queryWith :: forall s m a. (MonadIO m, Result a)
-          => QueryRunner -> Query s a -> m [Res a]
+          => QueryRunner (Int, [[SqlValue]]) -> Query s a -> m [Res a]
 queryWith qr =
   liftIO . fmap (mkResults (Proxy :: Proxy a) . snd) . uncurry qr . compile
 
@@ -141,5 +152,5 @@ mkResults p = map (toRes p)
 -- | Execute a statement without a result.
 exec :: MonadIO m => Text -> [Param] -> SeldaT m Int
 exec q ps = S $ do
-  runner <- ask
-  fmap fst . liftIO $ runner q ps
+  backend <- ask
+  fmap fst . liftIO $ runStmt backend q ps
