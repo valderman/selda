@@ -25,17 +25,17 @@ sqliteBackend lock db = SeldaBackend
 sqliteQueryRunner :: MVar () -> Database -> QueryRunner (Int, (Int, [[SqlValue]]))
 sqliteQueryRunner lock db qry params = do
     stm <- prepare db qry
-    go stm `finally` finalize stm
+    takeMVar lock
+    go stm `finally` do
+      putMVar lock ()
+      finalize stm
   where
     go stm = do
-      takeMVar lock
-      (rows, rid) <- flip finally (putMVar lock ()) $ do
-        bind stm [toSqlData p | Param p <- params]
-        rows <- getRows stm []
-        rid <- lastInsertRowId db
-        return (rows, fromIntegral rid)
+      bind stm [toSqlData p | Param p <- params]
+      rows <- getRows stm []
+      rid <- lastInsertRowId db
       cs <- changes db
-      return (rid, (cs, [map fromSqlData r | r <- rows]))
+      return (fromIntegral rid, (cs, [map fromSqlData r | r <- rows]))
 
     getRows s acc = do
       res <- step s
