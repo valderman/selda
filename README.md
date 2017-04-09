@@ -381,14 +381,17 @@ countHomes = do
 TODOs
 =====
 
-The following is a non-exhaustive list of tasks that need to be done before a
-"proper" release.
+The following is a non-exhaustive list of things that could reasonably be
+expected of a 1.0 release, in roughly descending order of importance.
 
-* Foreign keys.
-* Constraints other than primary key.
 * If/else.
 * PostgreSQL backend.
+* Split backends into separate packages.
 * Tests.
 * Examples.
-* Split backends into separate packages.
+* Foreign keys.
+* `WHERE x IN (SELECT ...)`
+* `SELECT INTO`.
+* Constraints other than primary key.
+* Database schema upgrades.
 * Stack support.
