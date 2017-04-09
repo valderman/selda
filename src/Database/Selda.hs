@@ -46,10 +46,10 @@ module Database.Selda
   , fun, fun2, cast
   ) where
 import Data.Text (Text)
-import Database.Selda.Aggregates
 import Database.Selda.Backend
 import Database.Selda.Column
 import Database.Selda.Compile
+import Database.Selda.Inner
 import Database.Selda.Query
 import Database.Selda.Query.Type
 import Database.Selda.SQL (Order (..))

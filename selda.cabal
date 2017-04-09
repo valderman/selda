@@ -19,9 +19,9 @@ library
     Database.Selda.Backend
     Database.Selda.SQLite
   other-modules:
-    Database.Selda.Aggregates
     Database.Selda.Column
     Database.Selda.Compile
+    Database.Selda.Inner
     Database.Selda.Query
     Database.Selda.Query.Type
     Database.Selda.SQL

@@ -1,11 +1,11 @@
 {-# LANGUAGE FlexibleContexts, OverloadedStrings #-}
 -- | Query monad and primitive operations.
 module Database.Selda.Query where
-import Database.Selda.Table
 import Database.Selda.Column
-import Database.Selda.SQL
-import Database.Selda.Aggregates
+import Database.Selda.Inner
 import Database.Selda.Query.Type
+import Database.Selda.SQL
+import Database.Selda.Table
 import Database.Selda.Transform
 import Control.Monad.State
 import Data.Text (pack)

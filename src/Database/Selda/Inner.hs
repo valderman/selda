@@ -1,5 +1,6 @@
 {-# LANGUAGE TypeOperators, TypeFamilies, FlexibleInstances, FlexibleContexts #-}
-module Database.Selda.Aggregates where
+-- | Helpers for working with inner queries.
+module Database.Selda.Inner where
 import Database.Selda.Column
 import Database.Selda.Types
 import Data.Text (Text)
@@ -50,17 +51,6 @@ type family JoinCols a where
   JoinCols (Col (Inner s) a :*: b)         = Col s (Maybe a) :*: JoinCols b
   JoinCols (Col (Inner s) (Maybe a))       = Col s (Maybe a)
   JoinCols (Col (Inner s) a)               = Col s (Maybe a)
-
--- | Coerce an inner column tuple to an outer one where all fields are nullable.
---   This is ONLY safe as long as 'Columns' only has instances for tuples of
---   actual columns.
-toJoinCols :: (Columns a, Columns (JoinCols a)) => a -> JoinCols a
-toJoinCols = unsafeCoerce
-
--- | Like 'toJoinCols', but does not make any fields nullable unless they
---   weren't before.
-toOuterCols :: (Columns a, Columns (JoinCols a)) => a -> OuterCols a
-toOuterCols = unsafeCoerce
 
 -- | One or more aggregate columns.
 class Aggregates a where
