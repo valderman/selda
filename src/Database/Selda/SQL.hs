@@ -6,10 +6,16 @@ import Database.Selda.SqlType
 import Database.Selda.Types (TableName)
 import Data.Monoid
 
+-- | A source for an SQL query.
+data SqlSource
+ = TableName TableName
+ | Product [SQL]
+ | LeftJoin (Exp Bool) SQL SQL
+
 -- | AST for SQL queries.
 data SQL = SQL
   { cols      :: [SomeCol]
-  , source    :: Either TableName [SQL]
+  , source    :: SqlSource
   , restricts :: [Exp Bool]
   , groups    :: [SomeCol]
   , ordering  :: [(Order, SomeCol)]

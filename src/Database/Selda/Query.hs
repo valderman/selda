@@ -9,7 +9,7 @@ import Database.Selda.Query.Type
 import Database.Selda.Transform
 import Control.Monad.State
 import Data.Text (pack)
-import Data.Monoid
+import Data.Monoid hiding (Product)
 
 -- | Query the given table. Result is returned as an inductive tuple, i.e.
 --   @first :*: second :*: third <- query tableOfThree@.
@@ -17,7 +17,7 @@ select :: Columns (Cols s a) => Table a -> Query s (Cols s a)
 select (Table name cs) = Query $ do
     rns <- mapM (rename . Some . Col) cs'
     st <- get
-    put $ st {sources = SQL rns (Left name) [] [] [] Nothing : sources st}
+    put $ st {sources = SQL rns (TableName name) [] [] [] Nothing : sources st}
     return $ toTup [n | Named n _ <- rns]
   where
     cs' = map colName cs
@@ -32,7 +32,7 @@ restrict (C p) = Query $ do
       [SQL cs s ps gs os lim] ->
         st {sources = [SQL cs s (p : ps) gs os lim]}
       ss ->
-        st {sources = [SQL (allCols ss) (Right ss) [p] [] [] Nothing]}
+        st {sources = [SQL (allCols ss) (Product ss) [p] [] [] Nothing]}
 
 -- | Execute a query, returning an aggregation of its results.
 --   The query must return an inductive tuple of 'Aggregate' columns.
@@ -68,7 +68,7 @@ aggregate q = Query $ do
   cs <- mapM rename $ unAggrs aggrs
   let ns' = nameSupply gst
       sql = state2sql gst
-      sql' = SQL cs (Right [sql]) [] (groupCols gst) [] Nothing
+      sql' = SQL cs (Product [sql]) [] (groupCols gst) [] Nothing
   put $ st {sources = sql' : sources st, nameSupply = ns'}
   pure $ toTup [n | Named n _ <- cs]
 
@@ -87,7 +87,7 @@ limit from to = Query $ do
     [SQL cs s ps gs os Nothing] ->
       st {sources = [SQL cs s ps gs os (Just (from, to))]}
     ss ->
-      st {sources = [SQL (allCols ss) (Right ss) [] [] [] (Just (from, to))]}
+      st {sources = [SQL (allCols ss) (Product ss) [] [] [] (Just (from, to))]}
 
 -- | Sort the result rows in ascending or descending order on the given row.
 order :: Col s a -> Order -> Query s ()
@@ -97,7 +97,7 @@ order (C c) o = Query $ do
     [SQL cs s ps gs os lim] ->
       st {sources = [SQL cs s ps gs ((o, Some c):os) lim]}
     ss ->
-      st {sources = [SQL (allCols ss) (Right ss) [] [] [(o, Some c)] Nothing]}
+      st {sources = [SQL (allCols ss) (Product ss) [] [] [(o, Some c)] Nothing]}
 
 -- | Generate a unique name for the given column.
 --   Not for public consumption.

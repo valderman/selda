@@ -6,7 +6,7 @@ import Database.Selda.SQL
 import Database.Selda.SqlType
 import Database.Selda.Types
 import Control.Monad.State
-import Data.Monoid
+import Data.Monoid hiding (Product)
 import Data.Text (Text)
 import qualified Data.Text as Text
 
@@ -84,11 +84,16 @@ ppSql (SQL cs src r gs ord lim) = do
     , lim'
     ]
   where
-    ppSrc (Left n)     = pure $ " FROM " <> n
-    ppSrc (Right [])   = pure ""
-    ppSrc (Right sqls) = do
+    ppSrc (TableName n)  = pure $ " FROM " <> n
+    ppSrc (Product [])   = pure ""
+    ppSrc (Product sqls) = do
       srcs <- mapM ppSql (reverse sqls)
       pure $ " FROM " <> Text.intercalate "," ["(" <> s <> ")" | s <- srcs]
+    ppSrc (LeftJoin on l r) = do
+      l' <- ppSql l
+      r' <- ppSql r
+      on' <- ppCol on
+      pure $ mconcat [" FROM (", l', ") LEFT JOIN (", r', ") ON ", on']
 
     ppRestricts [] = pure ""
     ppRestricts rs = ppCols rs >>= \rs' -> pure $ " WHERE " <> rs'

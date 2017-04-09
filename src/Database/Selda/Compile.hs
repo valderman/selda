@@ -50,7 +50,7 @@ compileDelete tbl check = compDelete (tableName tbl) predicate
 --   Groups are ignored, as they are only used by 'aggregate'.
 compQuery :: Result a => Int -> Query s a -> (Int, SQL)
 compQuery ns q =
-    (nameSupply st, SQL final (Right [srcs]) [] [] [] Nothing)
+    (nameSupply st, SQL final (Product [srcs]) [] [] [] Nothing)
   where
     (cs, st) = runQueryM ns q
     final = finalCols cs

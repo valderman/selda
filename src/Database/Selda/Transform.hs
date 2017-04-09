@@ -10,9 +10,11 @@ import Database.Selda.Types
 removeDeadCols :: [ColName] -> SQL -> SQL
 removeDeadCols cns sql =
     case source sql' of
-      Left _   -> sql'
-      Right qs -> sql' {source = Right $ map (removeDeadCols live') qs}
+      TableName _     -> sql'
+      Product qs      -> sql' {source = Product $ map noDead qs}
+      LeftJoin on l r -> sql' {source = LeftJoin on (noDead l) (noDead r)}
   where
+    noDead = removeDeadCols live'
     sql' = keepCols cns sql
     live' = allColNames sql'
 
@@ -23,6 +25,9 @@ allColNames sql = concat
   [ colNames (map Some (restricts sql))
   , colNames (cols sql)
   , colNames (groups sql)
+  , case source sql of
+      LeftJoin on _ _ -> allNamesIn on
+      _               -> []
   ]
 
 -- | Get all column names appearing in the given list of (possibly complex)
@@ -58,7 +63,7 @@ state2sql :: GenState -> SQL
 state2sql (GenState [sql] srs _ _) =
   sql {restricts = restricts sql ++ srs}
 state2sql (GenState ss srs _ _) =
-  SQL (allCols ss) (Right ss) srs [] [] Nothing
+  SQL (allCols ss) (Product ss) srs [] [] Nothing
 
 -- | Get all columns from a list of SQL ASTs.
 allCols :: [SQL] -> [SomeCol]
