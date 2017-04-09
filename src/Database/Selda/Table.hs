@@ -107,11 +107,11 @@ type family IsNullable a where
   IsNullable (Maybe a) = Nullable
   IsNullable a         = NotNullable
 
--- | Any table that has an auto-incrementing primary key.
+-- | Any table type that has an auto-incrementing primary key.
 class HasAutoPrimary a
-instance HasAutoPrimary (Table (Auto a))
-instance HasAutoPrimary (Table ((Auto a) :*: b))
-instance HasAutoPrimary b => HasAutoPrimary (Table (a :*: b))
+instance HasAutoPrimary (Auto a)
+instance HasAutoPrimary (Auto a :*: b)
+instance {-# OVERLAPPABLE #-} HasAutoPrimary b => HasAutoPrimary (a :*: b)
 
 -- | Any SQL type which is NOT nullable.
 class SqlType a => NonNull a
