@@ -3,17 +3,17 @@
 module Database.Selda.Table.Compile where
 import Database.Selda.Table
 import Data.Monoid
-import Data.Text (Text, intercalate)
+import Data.Text (Text, intercalate, pack)
 import qualified Data.Text as Text
 
 data OnError = Fail | Ignore
   deriving (Eq, Ord, Show)
 
 -- | Compile a @CREATAE TABLE@ query from a table definition.
-compileCreateTable :: OnError -> Table a -> Text
-compileCreateTable ifex tbl = mconcat
+compileCreateTable :: (Text -> [ColAttr] -> Maybe Text) -> OnError -> Table a -> Text
+compileCreateTable customColType ifex tbl = mconcat
   [ "CREATE TABLE ", ifNotExists ifex, tableName tbl, "("
-  , intercalate ", " (map compileTableCol (tableCols tbl))
+  , intercalate ", " (map (compileTableCol customColType) (tableCols tbl))
   , ");"
   ]
   where
@@ -21,12 +21,16 @@ compileCreateTable ifex tbl = mconcat
     ifNotExists Ignore = "IF NOT EXISTS "
 
 -- | Compile a table column.
-compileTableCol :: ColInfo -> Text
-compileTableCol ci = Text.unwords
+compileTableCol :: (Text -> [ColAttr] -> Maybe Text) -> ColInfo -> Text
+compileTableCol customColType ci = Text.unwords
   [ colName ci
-  , colType ci
-  , Text.unwords (map compileColAttr (colAttrs ci))
+  , case customColType typ attrs of
+      Just s -> s
+      _      -> typ <> " " <> Text.unwords (map compileColAttr attrs)
   ]
+  where
+    typ = colType ci
+    attrs = colAttrs ci
 
 -- | Compile a @DROP TABLE@ query.
 compileDropTable :: OnError -> Table a -> Text
@@ -45,12 +49,13 @@ compInsert tbl mrows =
       ]
     ncols = length nonAutos
     names = "(" <>  Text.intercalate ", " nonAutos <> ")"
-    cols = "(" <> Text.intercalate ", " (replicate ncols "?") <> ")"
-    vals = Text.intercalate ", " (replicate mrows cols)
+    cols n = "(" <> Text.intercalate ", " (mkParams ncols n) <> ")"
+    vals = Text.intercalate ", " $ zipWith (\f n -> f n)
+                                           (replicate mrows cols)
+                                           [0, ncols ..]
+    mkParams cs n = map (pack . ('$':) . show . (+n)) [1..cs]
 
 -- | Compile a column attribute.
---   TODO: at least @AutoIncrement@ is implementation-specific; parameterise
---   over implementation quirks.
 compileColAttr :: ColAttr -> Text
 compileColAttr Primary       = "PRIMARY KEY"
 compileColAttr AutoIncrement = "AUTOINCREMENT"

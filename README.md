@@ -7,7 +7,16 @@ After defining a database schema, Selda supports creating, deleting, updating
 and querying tables.
 All operations are type-safe, and should be reasonably performant.
 
-Presently, SQLite is the only supported backend.
+Selda currently has backends for SQLite and PostgreSQL.
+
+
+Requirements
+============
+
+Selda requires SQLite 3.7.11+, or PostgreSQL 9+.
+To build the SQLite backend, you need a C compiler installed.
+To build the PostgreSQL backend, you need the `libpq` development libraries
+installed (`libpq-dev` on Debian-based Linux distributions).
 
 
 A brief tutorial
@@ -385,7 +394,6 @@ The following is a non-exhaustive list of things that could reasonably be
 expected of a 1.0 release, in roughly descending order of importance.
 
 * If/else.
-* PostgreSQL backend.
 * Split backends into separate packages.
 * Tests.
 * Examples.

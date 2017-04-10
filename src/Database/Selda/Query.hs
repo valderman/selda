@@ -64,12 +64,11 @@ aggregate q = Query $ do
   -- Run query in isolation, then rename the remaining vars and generate outer
   -- query.
   st <- get
-  let (aggrs, gst) = runQueryM (nameSupply st) q
+  (gst, aggrs) <- isolate q
   cs <- mapM rename $ unAggrs aggrs
-  let ns' = nameSupply gst
-      sql = state2sql gst
+  let sql = state2sql gst
       sql' = SQL cs (Product [sql]) [] (groupCols gst) [] Nothing
-  put $ st {sources = sql' : sources st, nameSupply = ns'}
+  put $ st {sources = sql' : sources st}
   pure $ toTup [n | Named n _ <- cs]
 
 -- | Perform a @LEFT JOIN@ with the current result set (i.e. the outer query)
@@ -94,16 +93,16 @@ leftJoin :: (Columns a, Columns (OuterCols a), Columns (JoinCols a))
          -> Query (Inner s) a
          -> Query s (JoinCols a)
 leftJoin check q = Query $ do
-  st <- get
-  let (res, join_st) = runQueryM (nameSupply st) q
+  (join_st, res) <- isolate q
   cs <- mapM rename $ fromTup res
-  let ns' = nameSupply join_st
-      nameds = [n | Named n _ <- cs]
+  st <- get
+  let nameds = [n | Named n _ <- cs]
       left = state2sql st
-      right = state2sql join_st
+      right = SQL cs (Product [state2sql join_st]) [] [] [] Nothing
       C on = check $ toTup nameds
-      sql = SQL (cs ++ allCols [left]) (LeftJoin on left right) [] [] [] Nothing
-  put $ st {sources = [sql], nameSupply = ns'}
+      outCols = [Some $ Col n | Named n _ <- cs] ++ allCols [left]
+      sql = SQL outCols (LeftJoin on left right) [] [] [] Nothing
+  put $ st {sources = [sql]}
   pure $ toTup nameds
 
 -- | Group an aggregate query by a column.

@@ -15,7 +15,7 @@ removeDeadCols live sql =
       LeftJoin on l r -> sql' {source = LeftJoin on (noDead l) (noDead r)}
   where
     noDead = removeDeadCols live'
-    sql' = keepCols live sql
+    sql' = keepCols (allNonOutputColNames sql ++ live) sql
     live' = allColNames sql'
 
 -- | Return the names of all columns in the given top-level query.

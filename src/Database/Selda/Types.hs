@@ -25,7 +25,7 @@ class Tup a where
   tupHead :: a -> Head a
 
 instance {-# OVERLAPPING #-} Tup (a :*: b) where
-  tupHead (a :*: b) = a
+  tupHead (a :*: _) = a
 
 instance Head a ~ a => Tup a where
   tupHead a = a

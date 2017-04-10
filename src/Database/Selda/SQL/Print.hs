@@ -12,25 +12,31 @@ import qualified Data.Text as Text
 
 -- | SQL pretty-printer. The state is the list of SQL parameters to the
 --   prepared statement.
-type PP = State [Param]
+type PP = State PPState
+
+data PPState = PPState
+  { ppParams  :: [Param]
+  , ppParamNS :: Int
+  , ppQueryNS :: Int
+  }
+
+-- | Run a pretty-printer.
+runPP :: PP Text -> (Text, [Param])
+runPP pp =
+  case runState pp (PPState [] 1 0) of
+    (q, st) -> (q <> ";", reverse (ppParams st))
 
 -- | Compile an SQL AST into a parameterized SQL query.
 compSql :: SQL -> (Text, [Param])
-compSql sql =
-  case runState (ppSql sql) [] of
-    (q, ps) -> (q <> ";", reverse ps)
+compSql = runPP . ppSql
 
 -- | Compile a single column expression.
 compExp :: Exp a -> (Text, [Param])
-compExp e =
-  case runState (ppCol e) [] of
-    (q, ps) -> (q, reverse ps)
+compExp = runPP . ppCol
 
 -- | Compile an @UPATE@ statement.
 compUpdate :: TableName -> Exp Bool -> [(ColName, SomeCol)] -> (Text, [Param])
-compUpdate tbl p cs =
-    case runState ppUpd [] of
-      (q, ps) -> (q <> ";", reverse ps)
+compUpdate tbl p cs = runPP ppUpd
   where
     ppUpd = do
       updates <- mapM ppUpdate cs
@@ -48,9 +54,7 @@ compUpdate tbl p cs =
 
 -- | Compile a @DELETE@ statement.
 compDelete :: TableName -> Exp Bool -> (Text, [Param])
-compDelete tbl p =
-    case runState ppDelete [] of
-      (q, ps) -> (q <> ";", reverse ps)
+compDelete tbl p = runPP ppDelete
   where
     ppDelete = do
       c' <- ppCol p
@@ -62,9 +66,16 @@ ppLit :: Lit a -> PP Text
 ppLit LitNull     = pure "NULL"
 ppLit (LitJust l) = ppLit l
 ppLit l           = do
-  ps <- get
-  put (Param l : ps)
-  return "?"
+  PPState ps ns qns <- get
+  put $ PPState (Param l : ps) (succ ns) qns
+  return $ Text.pack ('$':show ns)
+
+-- | Generate a unique name for a subquery.
+freshQueryName :: PP Text
+freshQueryName = do
+  PPState ps ns qns <- get
+  put $ PPState ps ns (succ qns)
+  return $ Text.pack ('q':show qns)
 
 -- | Pretty-print an SQL AST.
 ppSql :: SQL -> PP Text
@@ -91,12 +102,21 @@ ppSql (SQL cs src r gs ord lim) = do
     ppSrc (Product [])   = pure ""
     ppSrc (Product sqls) = do
       srcs <- mapM ppSql (reverse sqls)
-      pure $ " FROM " <> Text.intercalate "," ["(" <> s <> ")" | s <- srcs]
+      qs <- flip mapM ["(" <> s <> ")" | s <- srcs] $ \q -> do
+        qn <- freshQueryName
+        pure (q <> " AS " <> qn)
+      pure $ " FROM " <> Text.intercalate "," qs
     ppSrc (LeftJoin on left right) = do
       l' <- ppSql left
       r' <- ppSql right
       on' <- ppCol on
-      pure $ mconcat [" FROM (", l', ") LEFT JOIN (", r', ") ON ", on']
+      lqn <- freshQueryName
+      rqn <- freshQueryName
+      pure $ mconcat
+        [ " FROM (", l', ") AS ", lqn
+        , " LEFT JOIN (", r', ") AS ", rqn
+        , " ON ", on'
+        ]
 
     ppRestricts [] = pure ""
     ppRestricts rs = ppCols rs >>= \rs' -> pure $ " WHERE " <> rs'

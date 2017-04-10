@@ -27,6 +27,13 @@ data SqlValue where
   SqlBool   :: Bool   -> SqlValue
   SqlNull   :: SqlValue
 
+instance Show SqlValue where
+  show (SqlInt n)    = "SqlInt " ++ show n
+  show (SqlFloat f)  = "SqlFloat " ++ show f
+  show (SqlString s) = "SqlString " ++ show s
+  show (SqlBool b)   = "SqlBool " ++ show b
+  show (SqlNull)     = "SqlNull"
+
 instance Show (Lit a) where
   show (LitS s)    = show s
   show (LitI i)    = show i

@@ -9,8 +9,18 @@ newtype Query s a = Query {unQ :: State GenState a}
   deriving (Functor, Applicative, Monad)
 
 -- | Run a query computation from an initial state.
-runQueryM :: Int -> Query s a -> (a, GenState)
-runQueryM n = flip runState (initState {nameSupply = n}) . unQ
+runQueryM :: Query s a -> (a, GenState)
+runQueryM = flip runState initState . unQ
+
+-- | Run a query computation in isolation, but reusing the current name supply.
+isolate :: Query s a -> State GenState (GenState, a)
+isolate (Query q) = do
+  st <- get
+  put $ initState {nameSupply = nameSupply st}
+  x <- q
+  st' <- get
+  put $ st {nameSupply = nameSupply st'}
+  return (st', x)
 
 -- | SQL generation internal state.
 --   Contains the subqueries and static (i.e. not dependent on any subqueries)

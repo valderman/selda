@@ -13,7 +13,8 @@ module Database.Selda.Backend
     -- * Low-level API for creating backends and custom queries.
   , MonadTrans (..), MonadThrow (..), MonadCatch (..)
   , QueryRunner, Param (..), Lit (..), Proxy (..), SqlValue (..)
-  , SeldaBackend (..)
+  , SeldaBackend (..), ColAttr (..)
+  , compileColAttr
   , exec, queryWith, runSeldaT
   ) where
 import Database.Selda.Column
@@ -43,6 +44,9 @@ data SeldaBackend = SeldaBackend
     --   where the primary key is auto-incrementing.
     --   Backends must take special care to make this thread-safe.
   , runStmtWithPK :: QueryRunner Int
+    -- | Generate a custom column type for the column having the given Selda
+    --   type and list of attributes.
+  , customColType :: Text -> [ColAttr] -> Maybe Text
   }
 
 -- | Monad transformer adding Selda SQL capabilities.
@@ -137,11 +141,15 @@ deleteFrom_ tbl f = void . uncurry exec $ compileDelete tbl f
 
 -- | Create a table from the given schema.
 createTable :: MonadIO m => Table a -> SeldaT m ()
-createTable = void . flip exec [] . compileCreateTable Fail
+createTable tbl = do
+  cct <- customColType <$> S ask
+  void . flip exec [] $ compileCreateTable cct Fail tbl
 
 -- | Create a table from the given schema, unless it already exists.
 tryCreateTable :: MonadIO m => Table a -> SeldaT m ()
-tryCreateTable = void . flip exec [] . compileCreateTable Ignore
+tryCreateTable tbl = do
+  cct <- customColType <$> S ask
+  void . flip exec [] $ compileCreateTable cct Ignore tbl
 
 -- | Drop the given table.
 dropTable :: MonadIO m => Table a -> SeldaT m ()

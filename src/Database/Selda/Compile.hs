@@ -16,7 +16,7 @@ import Data.Proxy
 
 -- | Compile a query into a parameterised SQL statement.
 compile :: Result a => Query s a -> (Text, [Param])
-compile = compSql . snd . compQuery 0
+compile = compSql . snd . compQuery
 
 -- | Compile an @INSERT@ query.
 compileInsert :: Insert (InsertCols a)
@@ -48,11 +48,11 @@ compileDelete tbl check = compDelete (tableName tbl) predicate
 
 -- | Compile a query to an SQL AST.
 --   Groups are ignored, as they are only used by 'aggregate'.
-compQuery :: Result a => Int -> Query s a -> (Int, SQL)
-compQuery ns q =
+compQuery :: Result a => Query s a -> (Int, SQL)
+compQuery q =
     (nameSupply st, SQL final (Product [srcs]) [] [] [] Nothing)
   where
-    (cs, st) = runQueryM ns q
+    (cs, st) = runQueryM q
     final = finalCols cs
     sql = state2sql st
     live = colNames final ++ allNonOutputColNames sql

@@ -20,6 +20,7 @@ sqliteBackend :: MVar () -> Database -> SeldaBackend
 sqliteBackend lock db = SeldaBackend
   { runStmt       = \q ps -> snd <$> sqliteQueryRunner lock db q ps
   , runStmtWithPK = \q ps -> fst <$> sqliteQueryRunner lock db q ps
+  , customColType = \_ _ -> Nothing
   }
 
 sqliteQueryRunner :: MVar () -> Database -> QueryRunner (Int, (Int, [[SqlValue]]))
