@@ -109,10 +109,19 @@ leftJoin check q = Query $ do
 
 -- | Group an aggregate query by a column.
 --   Attempting to group a non-aggregate query is a type error.
-groupBy :: Col (Inner s) a -> Query (Inner s) ()
+--   An aggregate representing the grouped-by column is returned, which can be
+--   returned from the aggregate query. For instance, if you want to find out
+--   how many people have a pet at home:
+--
+-- > aggregate $ do
+-- >   name :*: pet_name <- select people
+-- >   name' <- groupBy name
+-- >   return (name' :*: count(pet_name) > 0)
+groupBy :: Col (Inner s) a -> Query (Inner s) (Aggr (Inner s) a)
 groupBy (C c) = Query $ do
   st <- get
   put $ st {groupCols = Some c : groupCols st}
+  return (Aggr c)
 
 -- | Drop the first @m@ rows, then get at most @n@ of the remaining rows.
 limit :: Int -> Int -> Query s ()
