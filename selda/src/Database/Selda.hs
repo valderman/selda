@@ -164,11 +164,11 @@ sum_ :: Num a => Col s a -> Aggr s a
 sum_ = aggr "SUM"
 
 -- | Round a value to the nearest integer. Equivalent to @roundTo 0@.
-round_ :: Num a => Col s a -> Col s a
+round_ :: Num a => Col s Double -> Col s a
 round_ = fun "ROUND"
 
 -- | Round a column to the given number of decimals places.
-roundTo :: Num a => Col s Int -> Col s a -> Col s a
+roundTo :: Col s Int -> Col s Double -> Col s Double
 roundTo = flip $ fun2 "ROUND"
 
 -- | Calculate the length of a string column.
