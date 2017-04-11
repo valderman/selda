@@ -9,6 +9,10 @@ category:            Database
 build-type:          Simple
 cabal-version:       >=1.10
 
+flag postgres
+  default: False
+  description: Run tests using PostgreSQL backend.
+
 test-suite selda-tests
   type:
     exitcode-stdio-1.0
@@ -17,10 +21,14 @@ test-suite selda-tests
   build-depends:
       base       >=4.8 && <5
     , selda
-    , selda-sqlite
     , text       >=1.1 && <1.3
     , exceptions >=0.8 && <0.9
     , HUnit      >=1.4 && <1.7
     , directory  >=1.2 && <1.4
+  if flag(postgres)
+    build-depends: selda-postgresql
+    cpp-options:   -DPOSTGRES
+  else
+    build-depends: selda-sqlite
   default-language:
     Haskell2010

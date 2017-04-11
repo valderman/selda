@@ -17,6 +17,11 @@ test: build
 	cd ./selda-tests && cabal configure --enable-tests
 	cd ./selda-tests && cabal test
 
+pgtest: build
+	cabal install --only-dependencies --enable-tests ./selda-tests
+	cd ./selda-tests && cabal configure --enable-tests -fpostgres
+	cd ./selda-tests && cabal test
+
 sqlite: cabal.sandbox.config
 	cabal install ./selda-sqlite
 

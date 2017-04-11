@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeOperators, OverloadedStrings #-}
+{-# LANGUAGE TypeOperators, OverloadedStrings, CPP #-}
 module Main where
 import Control.Monad
 import Control.Monad.Catch
@@ -9,7 +9,15 @@ import System.Exit
 import Test.HUnit
 import Test.HUnit.Text
 import Database.Selda
+
+#ifdef POSTGRES
+-- To test the PostgreSQL backend, specify the connection info for the server
+-- as PGConnectInfo.pgConnectInfo :: PGConnectInfo.
+import Database.Selda.PostgreSQL
+import PGConnectInfo (pgConnectInfo)
+#else
 import Database.Selda.SQLite
+#endif
 
 people :: Table (Text :*: Int :*: Maybe Text :*: Double)
 people =
@@ -63,10 +71,12 @@ teardown :: SeldaT IO ()
 teardown = do
   tryDropTable people
   tryDropTable addresses
+  tryDropTable comments
 
 main = do
   tmpdir <- getTemporaryDirectory
   let dbfile = tmpdir ++ "/" ++ "__selda_test_tmp.sqlite"
+  freshEnv dbfile $ teardown
   result <- runTestTT (allTests dbfile)
   case result of
     Counts cs tries 0 0 -> return ()
@@ -75,12 +85,16 @@ main = do
 -- | Run the given computation over the given SQLite file. If the file exists,
 --   it will be removed first.
 freshEnv :: FilePath -> SeldaT IO a -> IO a
+#ifdef POSTGRES
+freshEnv _ m = withPostgreSQL pgConnectInfo $ teardown >> m
+#else
 freshEnv file m = do
   exists <- doesFileExist file
   when exists $ removeFile file
   x <- withSQLite file m
   removeFile file
   return x
+#endif
 
 -- | Assert that the given computation should fail.
 assertFail :: SeldaT IO a -> SeldaT IO ()
@@ -120,9 +134,15 @@ queryTests f = test
   , "aggregate with join and group" ~: run joinGroupAggregate
   , "nested left join" ~: run nestedLeftJoin
   , "order + limit" ~: run orderLimit
+  , "aggregate with doubles" ~: run aggregateWithDoubles
   , "teardown succeeds" ~: run teardown
   ]
-  where run = withSQLite f
+  where
+#ifdef POSTGRES
+    run = withPostgreSQL pgConnectInfo
+#else
+    run = withSQLite f
+#endif
 
 simpleSelect = do
   ppl <- query $ select people
@@ -209,13 +229,13 @@ joinGroupAggregate = do
     name :*: _ :*: pet :*: _ <- select people
     _ :*: city <- leftJoin (\(name' :*: _) -> name .== name')
                            (select addresses)
-    groupBy (pet `is` null_)
-    return (some (pet `isn't` null_) :*: count city)
+    nopet <- groupBy (pet `is` null_)
+    return (nopet :*: count city)
   assEq "wrong number of cities per pet owneship status" ans (sort res)
   where
     -- There are pet owners in Tokyo and Kakariko, there is no pet owner in
     -- Fuyukishi
-    ans = [False :*: 1, True :*: 2]
+    ans = [False :*: 2, True :*: 1]
 
 nestedLeftJoin = do
   res <- query $ do
@@ -224,8 +244,8 @@ nestedLeftJoin = do
       name' :*: city <- select addresses
       _ :*: cs <- leftJoin (\(n :*: _) -> n .== just name') $ aggregate $ do
         _ :*: name' :*: comment <- select comments
-        groupBy name'
-        return (some name' :*: count comment)
+        n <- groupBy name'
+        return (n :*: count comment)
       return (name' :*: city :*: cs)
     return (name :*: city :*: cs)
   ass ("user with comment not in result: " ++ show res) (link `elem` res)
@@ -235,12 +255,20 @@ nestedLeftJoin = do
     velvet = "Velvet" :*: Nothing :*: Nothing
 
 orderLimit = do
-  [res] <- query $ do
+  res <- query $ do
     name :*: age :*: pet :*: cash <- select people
     order cash descending
-    limit 1 1
+    limit 1 2
     return name
-  assEq "got wrong result" "Link" res
+  assEq "got wrong result" ["Link", "Velvet"] (sort res)
+
+aggregateWithDoubles = do
+  [res] <- query $ aggregate $ do
+    name :*: age :*: pet :*: cash <- select people
+    return (avg cash)
+  assEq "got wrong result" ans res
+  where
+    ans = sum (map fourth peopleItems)/fromIntegral (length peopleItems)
 
 
 -- Tests that mutate the database
