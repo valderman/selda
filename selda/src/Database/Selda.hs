@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, FlexibleInstances, UndecidableInstances #-}
 -- | Selda is not LINQ, but they're definitely related.
 --
 --   Selda is a high-level EDSL for interacting with relational databases.
@@ -23,7 +23,7 @@ module Database.Selda
     -- * Converting between column types
   , round_, just, fromBool, fromInt, toString
     -- * Inner queries
-  , Aggr, Aggregates, OuterCols, JoinCols, Inner
+  , Aggr, Aggregates, OuterCols, JoinCols, Inner, MinMax
   , leftJoin
   , aggregate, groupBy
   , count, avg, sum_, max_, min_
@@ -66,6 +66,12 @@ import Database.Selda.Table
 import Database.Selda.Table.Compile
 import Database.Selda.Types
 import Database.Selda.Unsafe
+
+-- | Any column type that can be used with the 'min_' and 'max_' functions.
+class MinMax a
+instance {-# OVERLAPPABLE #-} Num a => MinMax a
+instance MinMax Text
+instance MinMax a => MinMax (Maybe a)
 
 (.==), (./=), (.>), (.<), (.>=), (.<=) :: Col s a -> Col s a -> Col s Bool
 (.==) = liftC2 $ BinOp Eq
@@ -151,11 +157,11 @@ avg :: Num a => Col s a -> Aggr s a
 avg = aggr "AVG"
 
 -- | The greatest value in the given column. Texts are compared lexically.
-max_ :: Col s a -> Aggr s a
+max_ :: MinMax a => Col s a -> Aggr s a
 max_ = aggr "MAX"
 
 -- | The smallest value in the given column. Texts are compared lexically.
-min_  :: Col s a -> Aggr s a
+min_  :: MinMax a => Col s a -> Aggr s a
 min_ = aggr "MIN"
 
 -- | Sum all values in the given column.
