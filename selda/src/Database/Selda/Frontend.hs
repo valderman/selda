@@ -68,7 +68,8 @@ insert_ :: (MonadSelda m, Insert (InsertCols a))
 insert_ t cs = void $ insert t cs
 
 -- | Like 'insert', but returns the primary key of the last inserted row.
---   Attempting 
+--   Attempting to run this operation on a table without an auto-incrementing
+--   primary key is a type error.
 insertWithPK :: (MonadSelda m, HasAutoPrimary a, Insert (InsertCols a))
                 => Table a -> [InsertCols a] -> m Int
 insertWithPK t cs = do
