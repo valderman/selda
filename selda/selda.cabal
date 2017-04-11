@@ -15,6 +15,7 @@ library
   exposed-modules:
     Database.Selda
     Database.Selda.Backend
+    Database.Selda.Unsafe
   other-modules:
     Database.Selda.Column
     Database.Selda.Compile

@@ -45,8 +45,6 @@ module Database.Selda
   , compile
   , compileCreateTable, compileDropTable
   , compileInsert, compileUpdate
-    -- * Unsafe functions for dialect-specific extensions
-  , fun, fun2, cast
     -- * Tuple convenience functions
   , Tup, Head
   , first, second, third, fourth, fifth, sixth, seventh, eighth, ninth, tenth
@@ -63,6 +61,7 @@ import Database.Selda.SqlType
 import Database.Selda.Table
 import Database.Selda.Table.Compile
 import Database.Selda.Types
+import Database.Selda.Unsafe
 
 (.==), (./=), (.>), (.<), (.>=), (.<=), is, isn't :: Col s a -> Col s a -> Col s Bool
 (.==) = liftC2 $ BinOp Eq
@@ -130,11 +129,6 @@ false = literal False
 like :: Col s Text -> Col s Text -> Col s Bool
 like = liftC2 $ BinOp Like
 infixl 4 `like`
-
--- | Cast a column to another type, using whichever coercion semantics are used
---   by the underlying SQL implementation.
-cast :: Col s a -> Col s b
-cast = liftC Cast
 
 -- | The number of non-null values in the given column.
 count :: Col s a -> Aggr s Int
