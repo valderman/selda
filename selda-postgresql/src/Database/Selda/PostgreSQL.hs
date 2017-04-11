@@ -21,6 +21,11 @@ data PGConnectException = PGConnectException String
   deriving Show
 instance Exception PGConnectException
 
+-- | The exception thrown when a query fails.
+data PGQueryException = PGQueryException String
+  deriving Show
+instance Exception PGQueryException
+
 -- | PostgreSQL connection information.
 data PGConnectInfo = PGConnectInfo
   { -- | Host to connect to.
@@ -114,11 +119,16 @@ pgQueryRunner :: Connection -> Bool -> T.Text -> [Param] -> IO (Either Int (Int,
 pgQueryRunner c return_lastid q ps = do
     mres <- execParams c (encodeUtf8 q') [fromSqlValue p | Param p <- ps] Text
     case mres of
-      Just res
-        | return_lastid -> Left <$> getLastId res
-        | otherwise     -> Right <$> getRows res
+      Just res -> do
+        st <- resultStatus res
+        case st of
+          BadResponse       -> throwM $ PGQueryException "bad response"
+          FatalError        -> throwM $ PGQueryException errmsg
+          _ | return_lastid -> Left <$> getLastId res
+            | otherwise     ->Right <$> getRows res
       Nothing           -> error "unable to submit query to server"
   where
+    errmsg = "fatal error for query `" ++ T.unpack q' ++ "'"
     q' | return_lastid = q <> " RETURNING LASTVAL();"
        | otherwise     = q
 
