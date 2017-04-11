@@ -76,6 +76,10 @@ aggregate q = Query $ do
 --   Like with 'aggregate', the inner (or right) query must not depend on the
 --   outer (or right) one.
 --
+--   The given predicate over the values returned by the inner query determines
+--   for each row whether to join or not. This predicate may depend on any
+--   values from the outer query.
+--
 --   For instance, the following will list everyone in the @people@ table
 --   together with their address if they have one; if they don't, the address
 --   field will be @NULL@.
