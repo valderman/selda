@@ -1,16 +1,21 @@
-{-# LANGUAGE GADTs #-}
+{-# LANGUAGE GADTs, CPP #-}
 -- | SQLite3 backend for Selda.
 module Database.Selda.SQLite (withSQLite) where
 import Database.Selda
 import Database.Selda.Backend
-import Database.SQLite3
 import Data.Text (pack)
 import Control.Monad.Catch
 import Control.Concurrent
+#ifndef __HASTE__
+import Database.SQLite3
+#endif
 
 -- | Perform the given computation over an SQLite database.
 --   The database is guaranteed to be closed when the computation terminates.
 withSQLite :: (MonadIO m, MonadMask m) => FilePath -> SeldaT m a -> m a
+#ifdef __HASTE__
+withSQLite _ _ = return $ error "withSQLite called in JS context"
+#else
 withSQLite file m = do
   lock <- liftIO $ newMVar ()
   db <- liftIO $ open (pack file)
@@ -61,3 +66,4 @@ fromSqlData (SQLFloat f)   = SqlFloat f
 fromSqlData (SQLText s)    = SqlString s
 fromSqlData (SQLBlob _)    = error "Selda doesn't support blobs"
 fromSqlData SQLNull        = SqlNull
+#endif

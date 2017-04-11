@@ -1,16 +1,19 @@
-{-# LANGUAGE OverloadedStrings, RecordWildCards, GADTs #-}
+{-# LANGUAGE OverloadedStrings, RecordWildCards, GADTs, CPP #-}
 -- | PostgreSQL backend for Selda.
 module Database.Selda.PostgreSQL
   ( PGConnectInfo (..), PGConnectException (..)
   , withPostgreSQL, on, auth
   ) where
-import qualified Data.ByteString.Char8 as BS
 import Data.Monoid
 import qualified Data.Text as T
 import Data.Text.Encoding
-import Database.PostgreSQL.LibPQ hiding (user, pass, db, host)
 import Database.Selda.Backend
 import Control.Monad.Catch
+
+#ifndef __HASTE__
+import Database.PostgreSQL.LibPQ hiding (user, pass, db, host)
+import qualified Data.ByteString.Char8 as BS
+#endif
 
 -- | The exception thrown when a connection could not be made to the PostgreSQL
 --   server.
@@ -66,6 +69,9 @@ infixl 4 `auth`
 --   terminates.
 withPostgreSQL :: (MonadIO m, MonadThrow m, MonadMask m)
                => PGConnectInfo -> SeldaT m a -> m a
+#ifdef __HASTE__
+withPostgreSQL _ _ = return $ error "withPostgreSQL called in JS context"
+#else
 withPostgreSQL ci m = do
   conn <- liftIO $ connectdb (pgConnString ci)
   st <- liftIO $ status conn
@@ -162,3 +168,4 @@ boolType   = Oid 16
 intType    = Oid 20
 textType   = Oid 25
 doubleType = Oid 701
+#endif
