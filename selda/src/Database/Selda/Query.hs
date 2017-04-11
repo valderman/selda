@@ -27,10 +27,18 @@ restrict (C p) = Query $ do
     put $ case sources st of
       [] ->
         st {staticRestricts = p : staticRestricts st}
-      [SQL cs s ps gs os lim] ->
+      -- PostgreSQL doesn't put renamed columns in scope in the WHERE clause
+      -- of the query where they are renamed, so if the restrict predicate
+      -- contains any vars renamed in this query, we must add another query
+      -- just for the restrict.
+      [SQL cs s ps gs os lim] | not $ p `wasRenamedIn` cs ->
         st {sources = [SQL cs s (p : ps) gs os lim]}
       ss ->
         st {sources = [SQL (allCols ss) (Product ss) [p] [] [] Nothing]}
+  where
+    wasRenamedIn p cs =
+      let cs' = [n | Named n _ <- cs]
+      in  any (`elem` cs') (colNames [Some p])
 
 -- | Execute a query, returning an aggregation of its results.
 --   The query must return an inductive tuple of 'Aggregate' columns.
