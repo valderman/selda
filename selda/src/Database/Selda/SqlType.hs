@@ -46,22 +46,24 @@ instance SqlType Int where
   mkLit = LitI
   sqlType _ = "INTEGER"
   fromSql (SqlInt x) = x
-  fromSql _          = error "fromSql: int column with non-int value"
+  fromSql v          = error $ "fromSql: int column with non-int value" ++ show v
 instance SqlType Double where
   mkLit = LitD
   sqlType _ = "DOUBLE"
   fromSql (SqlFloat x) = x
-  fromSql _            = error "fromSql: float column with non-float value"
+  fromSql v            = error $ "fromSql: float column with non-float value" ++ show v
 instance SqlType Text where
   mkLit = LitS
   sqlType _ = "TEXT"
   fromSql (SqlString x) = x
-  fromSql _             = error "fromSql: text column with non-text value"
+  fromSql v             = error $ "fromSql: text column with non-text value" ++ show v
 instance SqlType Bool where
   mkLit = LitB
   sqlType _ = "INT"
   fromSql (SqlBool x) = x
-  fromSql _           = error "fromSql: bool column with non-bool value"
+  fromSql (SqlInt 0)  = False
+  fromSql (SqlInt _)  = True
+  fromSql v           = error $ "fromSql: bool column with non-bool value: " ++ show v
 instance SqlType a => SqlType (Maybe a) where
   mkLit (Just x) = LitJust $ mkLit x
   mkLit Nothing  = LitNull
