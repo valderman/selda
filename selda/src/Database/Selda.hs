@@ -15,10 +15,12 @@ module Database.Selda
   , select, restrict, limit, order
   , ascending, descending
     -- * Expressions over columns
-  , (.==), (./=), (.>), (.<), (.>=), (.<=), (.&&), (.||), is, isn't, like
-  , literal, int, float, text, true, false, not_, round_, roundTo, length_
-  , just, null_
-  , fromBool, fromInt, toString
+  , (.==), (./=), (.>), (.<), (.>=), (.<=), is, isn't, like
+  , (.&&), (.||), not_
+  , literal, int, float, text, true, false, null_
+  , roundTo, length_
+    -- * Converting between column types
+  , round_, just, fromBool, fromInt, toString
     -- * Inner queries
   , Aggr, Aggregates, OuterCols, JoinCols, Inner
   , leftJoin
@@ -63,21 +65,29 @@ import Database.Selda.Table.Compile
 import Database.Selda.Types
 import Database.Selda.Unsafe
 
-(.==), (./=), (.>), (.<), (.>=), (.<=), is, isn't :: Col s a -> Col s a -> Col s Bool
+(.==), (./=), (.>), (.<), (.>=), (.<=) :: Col s a -> Col s a -> Col s Bool
 (.==) = liftC2 $ BinOp Eq
 (./=) = liftC2 $ BinOp Neq
 (.>)  = liftC2 $ BinOp Gt
 (.<)  = liftC2 $ BinOp Lt
 (.>=) = liftC2 $ BinOp Gte
 (.<=) = liftC2 $ BinOp Lte
-is    = liftC2 $ BinOp Is
-isn't = liftC2 $ BinOp IsNot
 infixl 4 .==
 infixl 4 .>
 infixl 4 .<
 infixl 4 .>=
 infixl 4 .<=
+
+-- | NULL-aware equality. @null_ .== null_@ is a blank row,
+--   but @null_ `is` null_@ is true.
+is :: Col s a -> Col s a -> Col s Bool
+is = liftC2 $ BinOp Is
 infixl 4 `is`
+
+-- | NULL-aware inequality. @null_ ./= null_@ is a blank row,
+--   but @null_ `isn't` null_@ is false.
+isn't :: Col s a -> Col s a -> Col s Bool
+isn't = liftC2 $ BinOp IsNot
 infixl 4 `isn't`
 
 (.&&), (.||) :: Col s Bool -> Col s Bool -> Col s Bool
