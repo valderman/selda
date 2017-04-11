@@ -26,7 +26,7 @@ module Database.Selda
   , Aggr, Aggregates, OuterCols, JoinCols, Inner
   , leftJoin
   , aggregate, groupBy
-  , some, count, avg, sum_, max_, min_
+  , count, avg, sum_, max_, min_
     -- * Modifying tables
   , Insert, InsertCols, HasAutoPrimary
   , insert, insert_, insertWithPK
@@ -145,14 +145,6 @@ infixl 4 `like`
 -- | The number of non-null values in the given column.
 count :: Col s a -> Aggr s Int
 count = aggr "COUNT"
-
--- | Choose an arbitrary value from the given column.
---   This is useful for queries like
---   @SELECT COUNT(address), address FROM addresses GROUP BY address@,
---   where you want a representative of a column on an aggregated query, but
---   you don't particularly care which one.
-some :: Col s a -> Aggr s a
-some = aggr ""
 
 -- | The average of all values in the given column.
 avg :: Num a => Col s a -> Aggr s a
