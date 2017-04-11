@@ -1,13 +1,11 @@
 name:                selda
 version:             0.1.0.0
 synopsis:            Type-safe, high-level EDSL for interacting with relational databases.
--- description:         
 homepage:            https://github.com/valderman/selda
 license:             MIT
 license-file:        LICENSE
 author:              Anton Ekblad
 maintainer:          anton@ekblad.cc
--- copyright:           
 category:            Database
 build-type:          Simple
 extra-source-files:  ChangeLog.md
@@ -17,8 +15,6 @@ library
   exposed-modules:
     Database.Selda
     Database.Selda.Backend
-    Database.Selda.SQLite
-    Database.Selda.PostgreSQL
   other-modules:
     Database.Selda.Column
     Database.Selda.Compile
@@ -35,7 +31,6 @@ library
   other-extensions:
     OverloadedStrings
     GADTs
-    TypeOperators
     MultiParamTypeClasses
     UndecidableInstances
     ScopedTypeVariables
@@ -48,10 +43,7 @@ library
       base          >=4.8 && <5
     , text          >=1.0 && <1.3
     , mtl           >=2.0 && <2.3
-    , direct-sqlite >=2.2 && <2.4
     , exceptions    >=0.8 && <0.9
-    , postgresql-libpq >=0.9 && <0.10
-    , bytestring    >=0.9 && <0.11
   hs-source-dirs:
     src
   default-language:

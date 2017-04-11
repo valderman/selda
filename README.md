@@ -394,7 +394,6 @@ The following is a non-exhaustive list of things that could reasonably be
 expected of a 1.0 release, in roughly descending order of importance.
 
 * If/else.
-* Split backends into separate packages.
 * Tests.
 * Examples.
 * Foreign keys.
