@@ -5,7 +5,8 @@
 --   Please see <https://github.com/valderman/selda/> for a brief tutorial.
 module Database.Selda
   ( -- * Running queries
-    SeldaT, Table, Query, Col, Res, MonadIO (..), MonadTrans (..), Result
+    MonadIO (..), MonadTrans (..), MonadSelda
+  , SeldaT, Table, Query, Col, Res, Result
   , query
     -- * Constructing queries
   , SqlType

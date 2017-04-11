@@ -3,7 +3,7 @@
 -- | API for executing queries and building backends.
 module Database.Selda.Backend
   ( -- * High-level API
-    Result, Res, MonadIO (..), SeldaT
+    Result, Res, MonadIO (..), MonadSelda (..), SeldaT
   , query
   , insert, insert_, insertWithPK
   , update, update_
@@ -31,6 +31,11 @@ import Control.Monad.Catch
 import Control.Monad.IO.Class
 import Control.Monad.Reader
 
+-- | Any monad with capable of running Selda computations.
+class MonadIO m => MonadSelda m where
+  -- | Return the currently active Selda backend.
+  seldaBackend :: m SeldaBackend
+
 -- | A function which executes a query and gives back a list of extensible
 --   tuples; one tuple per result row, and one tuple element per column.
 type QueryRunner a = Text -> [Param] -> IO a
@@ -55,6 +60,9 @@ newtype SeldaT m a = S {unS :: ReaderT SeldaBackend m a}
            , MonadThrow, MonadCatch, MonadMask, MonadTrans
            )
 
+instance MonadIO m => MonadSelda (SeldaT m) where
+  seldaBackend = S ask
+
 -- | Run a Selda transformer. Backends should use this to implement their
 --   @withX@ functions.
 runSeldaT :: SeldaT m a -> SeldaBackend -> m a
@@ -63,9 +71,9 @@ runSeldaT m = runReaderT (unS m)
 -- | Run a query within a Selda transformer.
 --   Selda transformers are entered using backend-specific @withX@ functions,
 --   such as 'withSQLite' from the SQLite backend.
-query :: forall s m a. (MonadIO m, Result a) => Query s a -> SeldaT m [Res a]
-query q = S $ do
-  backend <- ask
+query :: forall s m a. (MonadSelda m, Result a) => Query s a -> m [Res a]
+query q = do
+  backend <- seldaBackend
   queryWith (runStmt backend) q
 
 -- | Insert the given values into the given table. All columns of the table
@@ -92,71 +100,71 @@ query q = S $ do
 --   Again, note that ALL non-auto-incrementing fields must be present in the
 --   tuples to be inserted, including primary keys without the auto-increment
 --   attribute.
-insert :: (MonadIO m, Insert (InsertCols a))
-       => Table a -> [InsertCols a] -> SeldaT m Int
+insert :: (MonadSelda m, Insert (InsertCols a))
+       => Table a -> [InsertCols a] -> m Int
 insert _ [] = return 0
 insert t cs = uncurry exec $ compileInsert t cs
 
 -- | Like 'insert', but does not return anything.
 --   Use this when you really don't care about how many rows were inserted.
-insert_ :: (MonadIO m, Insert (InsertCols a))
-        => Table a -> [InsertCols a] -> SeldaT m ()
+insert_ :: (MonadSelda m, Insert (InsertCols a))
+        => Table a -> [InsertCols a] -> m ()
 insert_ t cs = void $ insert t cs
 
 -- | Like 'insert', but returns the primary key of the last inserted row.
 --   Attempting 
-insertWithPK :: (MonadIO m, HasAutoPrimary a, Insert (InsertCols a))
-                => Table a -> [InsertCols a] -> SeldaT m Int
-insertWithPK t cs = S $ do
-  backend <- ask
+insertWithPK :: (MonadSelda m, HasAutoPrimary a, Insert (InsertCols a))
+                => Table a -> [InsertCols a] -> m Int
+insertWithPK t cs = do
+  backend <- seldaBackend
   liftIO . uncurry (runStmtWithPK backend) $ compileInsert t cs
 
 -- | Update the given table using the given update function, for all rows
 --   matching the given predicate. Returns the number of updated rows.
-update :: (MonadIO m, Columns (Cols s a), Result (Cols s a))
+update :: (MonadSelda m, Columns (Cols s a), Result (Cols s a))
        => Table a                  -- ^ The table to update.
        -> (Cols s a -> Col s Bool) -- ^ Predicate.
        -> (Cols s a -> Cols s a)   -- ^ Update function.
-       -> SeldaT m Int
+       -> m Int
 update tbl check upd = uncurry exec $ compileUpdate tbl upd check
 
 -- | Like 'update', but doesn't return the number of updated rows.
-update_ :: (MonadIO m, Columns (Cols s a), Result (Cols s a))
+update_ :: (MonadSelda m, Columns (Cols s a), Result (Cols s a))
        => Table a
        -> (Cols s a -> Col s Bool)
        -> (Cols s a -> Cols s a)
-       -> SeldaT m ()
+       -> m ()
 update_ tbl check upd = void $ update tbl check upd
 
 -- | From the given table, delete all rows matching the given predicate.
 --   Returns the number of deleted rows.
-deleteFrom :: (MonadIO m, Columns (Cols s a))
-           => Table a -> (Cols s a -> Col s Bool) -> SeldaT m Int
+deleteFrom :: (MonadSelda m, Columns (Cols s a))
+           => Table a -> (Cols s a -> Col s Bool) -> m Int
 deleteFrom tbl f = uncurry exec $ compileDelete tbl f
 
 -- | Like 'deleteFrom', but does not return the number of deleted rows.
-deleteFrom_ :: (MonadIO m, Columns (Cols s a))
-            => Table a -> (Cols s a -> Col s Bool) -> SeldaT m ()
+deleteFrom_ :: (MonadSelda m, Columns (Cols s a))
+            => Table a -> (Cols s a -> Col s Bool) -> m ()
 deleteFrom_ tbl f = void . uncurry exec $ compileDelete tbl f
 
 -- | Create a table from the given schema.
-createTable :: MonadIO m => Table a -> SeldaT m ()
+createTable :: MonadSelda m => Table a -> m ()
 createTable tbl = do
-  cct <- customColType <$> S ask
+  cct <- customColType <$> seldaBackend
   void . flip exec [] $ compileCreateTable cct Fail tbl
 
 -- | Create a table from the given schema, unless it already exists.
-tryCreateTable :: MonadIO m => Table a -> SeldaT m ()
+tryCreateTable :: MonadSelda m => Table a -> m ()
 tryCreateTable tbl = do
-  cct <- customColType <$> S ask
+  cct <- customColType <$> seldaBackend
   void . flip exec [] $ compileCreateTable cct Ignore tbl
 
 -- | Drop the given table.
-dropTable :: MonadIO m => Table a -> SeldaT m ()
+dropTable :: MonadSelda m => Table a -> m ()
 dropTable = void . flip exec [] . compileDropTable Fail
 
 -- | Drop the given table, if it exists.
-tryDropTable :: MonadIO m => Table a -> SeldaT m ()
+tryDropTable :: MonadSelda m => Table a -> m ()
 tryDropTable = void . flip exec [] . compileDropTable Ignore
 
 -- | Build the final result from a list of result columns.
@@ -170,7 +178,7 @@ mkResults :: Result a => Proxy a -> [[SqlValue]] -> [Res a]
 mkResults p = map (toRes p)
 
 -- | Execute a statement without a result.
-exec :: MonadIO m => Text -> [Param] -> SeldaT m Int
-exec q ps = S $ do
-  backend <- ask
+exec :: MonadSelda m => Text -> [Param] -> m Int
+exec q ps = do
+  backend <- seldaBackend
   fmap fst . liftIO $ runStmt backend q ps
