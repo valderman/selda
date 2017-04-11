@@ -159,11 +159,17 @@ pgQueryRunner c return_lastid q ps = do
 --   TODO: use binary format instead of text.
 toSqlValue :: Oid -> BS.ByteString -> SqlValue
 toSqlValue t val
-  | t == boolType   = SqlBool $ if read (BS.unpack val) == (0 :: Int) then False else True
+  | t == boolType   = SqlBool $ readBool val
   | t == intType    = SqlInt $ read (BS.unpack val)
   | t == doubleType = SqlFloat $ read (BS.unpack val)
   | t == textType   = SqlString (decodeUtf8 val)
   | otherwise       = error $ "result with unknown type oid: " ++ show t
+  where
+    readBool "f"   = False
+    readBool "0"   = False
+    readBool "0.0" = False
+    readBool "F"   = False
+    readBool _     = True
 
 -- | Convert a parameter into an postgres parameter triple.
 fromSqlValue :: Lit a -> Maybe (Oid, BS.ByteString, Format)
