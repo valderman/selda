@@ -18,6 +18,7 @@ module Database.Selda
   , (.==), (./=), (.>), (.<), (.>=), (.<=), (.&&), (.||), is, isn't, like
   , literal, int, float, text, true, false, not_, round_, roundTo, length_
   , just, null_
+  , fromBool, fromInt, toString
     -- * Inner queries
   , Aggr, Aggregates, OuterCols, JoinCols, Inner
   , leftJoin
@@ -178,3 +179,15 @@ length_ = fun "LENGTH"
 -- | Boolean negation.
 not_ :: Col s Bool -> Col s Bool
 not_ = liftC $ UnOp Not
+
+-- | Convert a boolean column to any numeric type.
+fromBool :: Num a => Col s Bool -> Col s a
+fromBool = cast
+
+-- | Convert an integer column to any numeric type.
+fromInt :: Num a => Col s Int -> Col s a
+fromInt = cast
+
+-- | Convert any column to a string.
+toString :: Col s a -> Col s String
+toString = cast
