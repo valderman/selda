@@ -12,19 +12,19 @@ class SqlType a where
 
 -- | An SQL mkLit.
 data Lit a where
-  LitS    :: Text   -> Lit Text
-  LitI    :: Int    -> Lit Int
-  LitD    :: Double -> Lit Double
-  LitB    :: Bool   -> Lit Bool
-  LitJust :: Lit a -> Lit (Maybe b)
+  LitS    :: !Text    -> Lit Text
+  LitI    :: !Int     -> Lit Int
+  LitD    :: !Double  -> Lit Double
+  LitB    :: !Bool    -> Lit Bool
+  LitJust :: !(Lit a) -> Lit (Maybe b)
   LitNull :: Lit (Maybe a)
 
 -- | Some value that is representable in SQL.
 data SqlValue where
-  SqlInt    :: Int    -> SqlValue
-  SqlFloat  :: Double -> SqlValue
-  SqlString :: Text   -> SqlValue
-  SqlBool   :: Bool   -> SqlValue
+  SqlInt    :: !Int    -> SqlValue
+  SqlFloat  :: !Double -> SqlValue
+  SqlString :: !Text   -> SqlValue
+  SqlBool   :: !Bool   -> SqlValue
   SqlNull   :: SqlValue
 
 instance Show SqlValue where

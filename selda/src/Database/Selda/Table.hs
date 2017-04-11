@@ -57,17 +57,17 @@ type family InsertCols a where
 --   would have the type @Table Text@.
 data Table a = Table
   { -- | Name of the table. NOT guaranteed to be a valid SQL name.
-    tableName :: TableName
+    tableName :: !TableName
     -- | All table columns.
     --   Invariant: the 'colAttrs' list of each column is sorted and contains
     --   no duplicates.
-  , tableCols :: [ColInfo]
+  , tableCols :: ![ColInfo]
   }
 
 data ColInfo = ColInfo
-  { colName  :: ColName
-  , colType  :: Text
-  , colAttrs :: [ColAttr]
+  { colName  :: !ColName
+  , colType  :: !Text
+  , colAttrs :: ![ColAttr]
   }
 
 newCol :: forall a. SqlType a => ColName -> ColSpec a

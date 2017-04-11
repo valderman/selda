@@ -8,18 +8,18 @@ import Data.Monoid
 
 -- | A source for an SQL query.
 data SqlSource
- = TableName TableName
- | Product [SQL]
- | LeftJoin (Exp Bool) SQL SQL
+ = TableName !TableName
+ | Product ![SQL]
+ | LeftJoin !(Exp Bool) !SQL !SQL
 
 -- | AST for SQL queries.
 data SQL = SQL
-  { cols      :: [SomeCol]
-  , source    :: SqlSource
-  , restricts :: [Exp Bool]
-  , groups    :: [SomeCol]
-  , ordering  :: [(Order, SomeCol)]
-  , limits    :: Maybe (Int, Int)
+  { cols      :: ![SomeCol]
+  , source    :: !SqlSource
+  , restricts :: ![Exp Bool]
+  , groups    :: ![SomeCol]
+  , ordering  :: ![(Order, SomeCol)]
+  , limits    :: !(Maybe (Int, Int))
   }
 
 -- | The order in which to sort result rows.
@@ -28,7 +28,7 @@ data Order = Asc | Desc
 
 -- | A parameter to a prepared SQL statement.
 data Param where
-  Param :: Lit a -> Param
+  Param :: !(Lit a) -> Param
 
 instance Show Param where
   show (Param l) = "Param " <> show l

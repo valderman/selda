@@ -7,7 +7,7 @@ import Database.Selda.Query.Type
 import Database.Selda.SQL
 import Database.Selda.Table
 import Database.Selda.Transform
-import Control.Monad.State
+import Control.Monad.State.Strict
 import Data.Text (pack)
 import Data.Monoid hiding (Product)
 

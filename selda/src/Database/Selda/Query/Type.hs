@@ -1,6 +1,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Database.Selda.Query.Type where
-import Control.Monad.State
+import Control.Monad.State.Strict
 import Database.Selda.SQL
 import Database.Selda.Column
 
@@ -27,10 +27,10 @@ isolate (Query q) = do
 --   restrictions of the query currently being built, as well as a name supply
 --   for column renaming.
 data GenState = GenState
-  { sources         :: [SQL]
-  , staticRestricts :: [Exp Bool]
-  , groupCols       :: [SomeCol]
-  , nameSupply      :: Int
+  { sources         :: ![SQL]
+  , staticRestricts :: ![Exp Bool]
+  , groupCols       :: ![SomeCol]
+  , nameSupply      :: !Int
   }
 
 -- | Initial state: no subqueries, no restrictions.

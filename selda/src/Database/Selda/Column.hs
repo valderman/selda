@@ -30,8 +30,8 @@ instance Columns (Col s a) where
 -- | A type-erased column, which may also be renamed.
 --   Only for internal use.
 data SomeCol where
-  Some  :: Exp a -> SomeCol
-  Named :: ColName -> Exp a -> SomeCol
+  Some  :: !(Exp a) -> SomeCol
+  Named :: !ColName -> !(Exp a) -> SomeCol
 
 -- | A database column. A column is often a literal column table, but can also
 --   be an expression over such a column or a constant expression.
@@ -54,13 +54,13 @@ fun2 f = liftC2 (Fun2 f)
 
 -- | Underlying column expression type, not tied to any particular query.
 data Exp a where
-  Col    :: ColName -> Exp a
-  Lit    :: Lit a -> Exp a
-  BinOp  :: BinOp a b -> Exp a -> Exp a -> Exp b
-  UnOp   :: UnOp a b -> Exp a -> Exp b
-  Fun2   :: Text -> Exp a -> Exp b -> Exp c
-  Cast   :: Exp a -> Exp b
-  AggrEx :: Text -> Exp a -> Exp b
+  Col    :: !ColName -> Exp a
+  Lit    :: !(Lit a) -> Exp a
+  BinOp  :: !(BinOp a b) -> !(Exp a) -> !(Exp a) -> Exp b
+  UnOp   :: !(UnOp a b) -> !(Exp a) -> Exp b
+  Fun2   :: !Text -> !(Exp a) -> !(Exp b) -> Exp c
+  Cast   :: !(Exp a) -> Exp b
+  AggrEx :: !Text -> !(Exp a) -> Exp b
 
 -- | Get all column names in the given expression.
 allNamesIn :: Exp a -> [ColName]
