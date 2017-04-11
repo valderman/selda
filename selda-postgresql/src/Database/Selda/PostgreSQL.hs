@@ -85,10 +85,15 @@ withPostgreSQL ci m = do
 
 pgBackend :: Connection -> SeldaBackend
 pgBackend c = SeldaBackend
-  { runStmt       = pgQueryRunner c
-  , runStmtWithPK = error "runStmtWithPK not supported"
+  { runStmt       = \q ps -> right <$> pgQueryRunner c False q ps
+  , runStmtWithPK = \q ps -> left <$> pgQueryRunner c True q ps
   , customColType = pgColType
   }
+  where
+    left (Left x) = x
+    left _        = error "impossible"
+    right (Right x) = x
+    right _         = error "impossible"
 
 pgConnString :: PGConnectInfo -> BS.ByteString
 pgConnString PGConnectInfo{..} = mconcat
@@ -105,13 +110,20 @@ pgConnString PGConnectInfo{..} = mconcat
   , "client_encoding=UTF8"
   ]
 
-pgQueryRunner :: Connection -> T.Text -> [Param] -> IO (Int, [[SqlValue]])
-pgQueryRunner c q ps = do
-    mres <- execParams c (encodeUtf8 q) [fromSqlValue p | Param p <- ps] Text
+pgQueryRunner :: Connection -> Bool -> T.Text -> [Param] -> IO (Either Int (Int, [[SqlValue]]))
+pgQueryRunner c return_lastid q ps = do
+    mres <- execParams c (encodeUtf8 q') [fromSqlValue p | Param p <- ps] Text
     case mres of
-      Just res -> getRows res
-      Nothing  -> error "unable to submit query to server!"
+      Just res
+        | return_lastid -> Left <$> getLastId res
+        | otherwise     -> Right <$> getRows res
+      Nothing           -> error "unable to submit query to server"
   where
+    q' | return_lastid = q <> " RETURNING LASTVAL();"
+       | otherwise     = q
+
+    getLastId res = (read . BS.unpack . maybe "" id) <$> getvalue res 0 0
+
     getRows res = do
       rows <- ntuples res
       cols <- nfields res

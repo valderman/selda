@@ -38,6 +38,7 @@ compileDropTable Fail t = Text.unwords ["DROP TABLE",tableName t,";"]
 compileDropTable _ t    = Text.unwords ["DROP TABLE IF EXISTS",tableName t,";"]
 
 -- | Compile an @INSERT INTO@ query inserting @m@ rows with @n@ cols each.
+--   Note that backends expect insertions to NOT have a semicolon at the end.
 compInsert :: Table a -> Int -> Text
 compInsert tbl mrows =
     Text.unwords ["INSERT INTO", tableName tbl, names, "VALUES", vals]
