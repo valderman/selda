@@ -5,7 +5,7 @@
 --   Please see <https://github.com/valderman/selda/> for a brief tutorial.
 module Database.Selda
   ( -- * Running queries
-    MonadIO (..), MonadTrans (..), MonadSelda
+    MonadIO (..), MonadSelda
   , SeldaT, Table, Query, Col, Res, Result
   , query
     -- * Constructing queries
@@ -56,6 +56,7 @@ import Data.Text (Text)
 import Database.Selda.Backend
 import Database.Selda.Column
 import Database.Selda.Compile
+import Database.Selda.Frontend
 import Database.Selda.Inner
 import Database.Selda.Query
 import Database.Selda.Query.Type

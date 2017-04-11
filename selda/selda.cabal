@@ -19,6 +19,7 @@ library
   other-modules:
     Database.Selda.Column
     Database.Selda.Compile
+    Database.Selda.Frontend
     Database.Selda.Inner
     Database.Selda.Query
     Database.Selda.Query.Type
