@@ -17,6 +17,15 @@ infixr 1 :*:
 instance (Show a, Show b) => Show (a :*: b) where
   show (a :*: b) = show a ++ " :*: " ++ show b
 
+instance (Eq a, Eq b) => Eq (a :*: b) where
+  (a :*: b) == (a' :*: b') = a == a' && b == b'
+
+instance (Ord a, Ord b) => Ord (a :*: b) where
+  (a :*: b) `compare` (a' :*: b') =
+    case a `compare` a' of
+      EQ -> b `compare` b'
+      o  -> o
+
 type family Head a where
   Head (a :*: b) = a
   Head a         = a
