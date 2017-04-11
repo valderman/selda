@@ -49,6 +49,7 @@ data SeldaBackend = SeldaBackend
     --   where the primary key is auto-incrementing.
     --   Backends must take special care to make this thread-safe.
   , runStmtWithPK :: QueryRunner Int
+
     -- | Generate a custom column type for the column having the given Selda
     --   type and list of attributes.
   , customColType :: Text -> [ColAttr] -> Maybe Text
