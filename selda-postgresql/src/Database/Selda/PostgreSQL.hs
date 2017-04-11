@@ -124,11 +124,12 @@ pgQueryRunner c return_lastid q ps = do
         case st of
           BadResponse       -> throwM $ PGQueryException "bad response"
           FatalError        -> throwM $ PGQueryException errmsg
+          NonfatalError     -> throwM $ PGQueryException errmsg
           _ | return_lastid -> Left <$> getLastId res
             | otherwise     ->Right <$> getRows res
       Nothing           -> error "unable to submit query to server"
   where
-    errmsg = "fatal error for query `" ++ T.unpack q' ++ "'"
+    errmsg = "error executing query `" ++ T.unpack q' ++ "'"
     q' | return_lastid = q <> " RETURNING LASTVAL();"
        | otherwise     = q
 
