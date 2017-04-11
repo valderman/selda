@@ -24,7 +24,7 @@ data PPState = PPState
 runPP :: PP Text -> (Text, [Param])
 runPP pp =
   case runState pp (PPState [] 1 0) of
-    (q, st) -> (q <> ";", reverse (ppParams st))
+    (q, st) -> (q, reverse (ppParams st))
 
 -- | Compile an SQL AST into a parameterized SQL query.
 compSql :: SQL -> (Text, [Param])

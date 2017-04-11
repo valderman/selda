@@ -14,7 +14,7 @@ compileCreateTable :: (Text -> [ColAttr] -> Maybe Text) -> OnError -> Table a ->
 compileCreateTable customColType ifex tbl = mconcat
   [ "CREATE TABLE ", ifNotExists ifex, tableName tbl, "("
   , intercalate ", " (map (compileTableCol customColType) (tableCols tbl))
-  , ");"
+  , ")"
   ]
   where
     ifNotExists Fail   = ""
@@ -34,8 +34,8 @@ compileTableCol customColType ci = Text.unwords
 
 -- | Compile a @DROP TABLE@ query.
 compileDropTable :: OnError -> Table a -> Text
-compileDropTable Fail t = Text.unwords ["DROP TABLE",tableName t,";"]
-compileDropTable _ t    = Text.unwords ["DROP TABLE IF EXISTS",tableName t,";"]
+compileDropTable Fail t = Text.unwords ["DROP TABLE",tableName t]
+compileDropTable _ t    = Text.unwords ["DROP TABLE IF EXISTS",tableName t]
 
 -- | Compile an @INSERT INTO@ query inserting @m@ rows with @n@ cols each.
 --   Note that backends expect insertions to NOT have a semicolon at the end.
