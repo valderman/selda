@@ -14,7 +14,7 @@ build: cabal.sandbox.config
 sqlite: cabal.sandbox.config
 	cabal install ./selda-sqlite
 
-sqlite-postgresql: cabal.sandbox.config
+postgres: cabal.sandbox.config
 	cabal install ./selda-postgresql
 
 repl: cabal.sandbox.config
