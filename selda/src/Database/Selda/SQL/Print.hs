@@ -135,7 +135,7 @@ ppSql (SQL cs src r gs ord lim) = do
     ppOrd Desc = "DESC"
 
     ppLimit Nothing = pure ""
-    ppLimit (Just (from, to)) = pure $ " LIMIT " <> ppInt from <> "," <> ppInt to
+    ppLimit (Just (off, lim)) = pure $ " LIMIT " <> ppInt lim <> " OFFSET " <> ppInt off
 
     ppInt = Text.pack . show
 
