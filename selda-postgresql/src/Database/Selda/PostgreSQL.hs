@@ -181,6 +181,8 @@ pgColType "INTEGER" attrs
     Just "BIGSERIAL PRIMARY KEY NOT NULL"
   | otherwise =
     Just $ T.unwords ("INT8" : map compileColAttr attrs)
+pgColType "DOUBLE" attrs =
+    Just $ T.unwords ("FLOAT8" : map compileColAttr attrs)
 pgColType _ _ =
     Nothing
 
