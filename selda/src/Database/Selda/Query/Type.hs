@@ -1,6 +1,8 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, OverloadedStrings #-}
 module Database.Selda.Query.Type where
 import Control.Monad.State.Strict
+import Data.Monoid
+import Data.Text (pack)
 import Database.Selda.SQL
 import Database.Selda.Column
 
@@ -41,3 +43,17 @@ initState = GenState
   , groupCols = []
   , nameSupply = 0
   }
+
+-- | Generate a unique name for the given column.
+rename :: SomeCol -> State GenState SomeCol
+rename (Some col) = do
+    st <- get
+    put $ st {nameSupply = succ $ nameSupply st}
+    return $ Named (newName $ nameSupply st) col
+  where
+    newName ns =
+      case col of
+        Col n -> n <> "_" <> pack (show ns)
+        _     -> "tmp_" <> pack (show ns)
+rename col@(Named _ _) = do
+  return col

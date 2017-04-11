@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleContexts, OverloadedStrings #-}
+{-# LANGUAGE FlexibleContexts #-}
 -- | Query monad and primitive operations.
 module Database.Selda.Query where
 import Database.Selda.Column
@@ -8,8 +8,6 @@ import Database.Selda.SQL
 import Database.Selda.Table
 import Database.Selda.Transform
 import Control.Monad.State.Strict
-import Data.Text (pack)
-import Data.Monoid hiding (Product)
 
 -- | Query the given table. Result is returned as an inductive tuple, i.e.
 --   @first :*: second :*: third <- query tableOfThree@.
@@ -135,18 +133,3 @@ order (C c) o = Query $ do
       st {sources = [SQL cs s ps gs ((o, Some c):os) lim]}
     ss ->
       st {sources = [SQL (allCols ss) (Product ss) [] [] [(o, Some c)] Nothing]}
-
--- | Generate a unique name for the given column.
---   Not for public consumption.
-rename :: SomeCol -> State GenState SomeCol
-rename (Some col) = do
-    st <- get
-    put $ st {nameSupply = succ $ nameSupply st}
-    return $ Named (newName $ nameSupply st) col
-  where
-    newName ns =
-      case col of
-        Col n -> n <> "_" <> pack (show ns)
-        _     -> "tmp_" <> pack (show ns)
-rename col@(Named _ _) = do
-  return col
