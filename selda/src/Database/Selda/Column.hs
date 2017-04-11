@@ -2,14 +2,17 @@
 -- | Columns and associated utility functions.
 module Database.Selda.Column where
 import Database.Selda.SqlType
+import Database.Selda.Table (Auto)
 import Database.Selda.Types
 import Data.String
 import Data.Text (Text)
 
 -- | Convert a tuple of Haskell types to a tuple of column types.
 type family Cols s a where
-  Cols s (a :*: b) = Col s a :*: Cols s b
-  Cols s a         = Col s a
+  Cols s (Auto a :*: b) = Col s a :*: Cols s b
+  Cols s (a :*: b)      = Col s a :*: Cols s b
+  Cols s (Auto a)       = Col s a
+  Cols s a              = Col s a
 
 -- | Any column tuple.
 class Columns a where
