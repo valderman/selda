@@ -14,15 +14,11 @@ import Database.Selda.Column
 import Database.Selda.Compile
 import Database.Selda.Query.Type
 import Database.Selda.SQL (Param (..))
-import Database.Selda.SqlType
 import Database.Selda.Table
 import Database.Selda.Table.Compile
 import Data.Proxy
 import Data.Text (Text)
 import Control.Monad
-import Control.Monad.Catch
-import Control.Monad.IO.Class
-import Control.Monad.Reader
 
 -- | Run a query within a Selda transformer.
 --   Selda transformers are entered using backend-specific @withX@ functions,

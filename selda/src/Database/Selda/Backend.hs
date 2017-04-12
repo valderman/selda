@@ -14,7 +14,6 @@ import Database.Selda.Table.Compile (compileColAttr)
 import Control.Monad.Catch
 import Control.Monad.IO.Class
 import Control.Monad.Reader
-import Control.Monad.Trans
 import Data.Text (Text)
 
 -- | A function which executes a query and gives back a list of extensible
