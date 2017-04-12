@@ -380,12 +380,16 @@ countHomes = do
   name :*: _ :*: _ <- select people
   owner :*: homes <- aggregate $ do
     owner :*: city <- select addresses
-    groupBy owner
-    return (count city :*: some owner)
+    owner' <- groupBy owner
+    return (count city :*: owner')
   restrict (owner .== name)
   order homes descending
   return (owner :*: homes)
 ```
+
+Note how `groupBy` returns an aggregate version of its argument, which can be
+returned from the aggregate query. In this example, returning `owner` instead of
+`owner'` wouldn't work since the former is a plain column and not an aggregate.
 
 
 TODOs
