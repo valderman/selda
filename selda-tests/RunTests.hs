@@ -294,6 +294,8 @@ freshEnvTests f = test
   , "insert returns number of rows" ~: freshEnv f insertReturnsNumRows
   , "update updates table"          ~: freshEnv f updateUpdates
   , "insert time values"            ~: freshEnv f insertTime
+  , "transaction completes"         ~: freshEnv f transactionCompletes
+  , "transaction rolls back"        ~: freshEnv f transactionRollsBack
   ]
 
 tryDropNeverFails = teardown
@@ -347,3 +349,43 @@ insertTime = do
   insert_ times ["now" :*: t :*: d :*: lt]
   ["now" :*: t' :*: d' :*: lt'] <- query $ select times
   assEq "time not properly inserted" (t, d, lt) (t', d', lt')
+
+transactionCompletes = do
+  setup
+  transaction $ do
+    insert_ comments [Just "Kobayashi" :*: c1]
+    insert_ comments
+      [ Nothing :*: "more anonymous spam"
+      , Just "Kobayashi" :*: c2
+      ]
+  cs <- query $ do
+    _ :*: name :*: comment <- select comments
+    restrict (name .== just "Kobayashi")
+    return comment
+  ass "some inserts were not performed"
+      (c1 `elem` cs && c2 `elem` cs && length cs == 2)
+  where
+    c1 = "チョロゴン"
+    c2 = "メイド最高！"
+
+transactionRollsBack = do
+  setup
+  res <- try $ transaction $ do
+    insert_ comments [Just "Kobayashi" :*: c1]
+    insert_ comments
+      [ Nothing :*: "more anonymous spam"
+      , Just "Kobayashi" :*: c2
+      ]
+    fail "nope"
+  case res of
+    Right _ ->
+      liftIO $ assertFailure "exception didn't propagate"
+    Left (SomeException _) -> do
+      cs <- query $ do
+        _ :*: name :*: comment <- select comments
+        restrict (name .== just "Kobayashi")
+        return comment
+      assEq "commit was not rolled back" cs []
+  where
+    c1 = "チョロゴン"
+    c2 = "メイド最高！"

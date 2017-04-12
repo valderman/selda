@@ -1,4 +1,4 @@
-{-# LANGUAGE ScopedTypeVariables, FlexibleContexts #-}
+{-# LANGUAGE ScopedTypeVariables, FlexibleContexts, OverloadedStrings #-}
 -- | API for running Selda operations over databases.
 module Database.Selda.Frontend
   ( Result, Res, MonadIO (..), MonadSelda (..), SeldaT
@@ -8,6 +8,7 @@ module Database.Selda.Frontend
   , deleteFrom, deleteFrom_
   , createTable, tryCreateTable
   , dropTable, tryDropTable
+  , transaction
   ) where
 import Database.Selda.Backend
 import Database.Selda.Column
@@ -18,6 +19,7 @@ import Database.Selda.Table.Compile
 import Data.Proxy
 import Data.Text (Text)
 import Control.Monad
+import Control.Monad.Catch
 
 -- | Run a query within a Selda transformer.
 --   Selda transformers are entered using backend-specific @withX@ functions,
@@ -118,6 +120,21 @@ dropTable = void . flip exec [] . compileDropTable Fail
 -- | Drop the given table, if it exists.
 tryDropTable :: MonadSelda m => Table a -> m ()
 tryDropTable = void . flip exec [] . compileDropTable Ignore
+
+-- | Perform the given computation atomically.
+--   If an exception is raised during its execution, the enture transaction
+--   will be rolled back, and the exception re-thrown.
+transaction :: (MonadSelda m, MonadThrow m, MonadCatch m) => m a -> m a
+transaction m = do
+  exec "BEGIN TRANSACTION" []
+  res <- try m
+  case res of
+    Left (SomeException e) -> do
+      exec "ROLLBACK" []
+      throwM e
+    Right x -> do
+      exec "COMMIT" []
+      return x
 
 -- | Build the final result from a list of result columns.
 queryWith :: forall s m a. (MonadIO m, Result a)

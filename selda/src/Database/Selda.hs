@@ -7,7 +7,7 @@ module Database.Selda
   ( -- * Running queries
     MonadIO (..), MonadSelda
   , SeldaT, Table, Query, Col, Res, Result
-  , query
+  , query, transaction
     -- * Constructing queries
   , SqlType
   , Text, Cols, Columns
