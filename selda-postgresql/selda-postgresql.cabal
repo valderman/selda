@@ -1,6 +1,9 @@
 name:                selda-postgresql
 version:             0.1.0.0
 synopsis:            PostgreSQL backend for the Selda database EDSL.
+description:         PostgreSQL backend for the Selda database EDSL.
+                     Requires the PostgreSQL @libpq@ development libraries to be
+                     installed.
 homepage:            https://github.com/valderman/selda
 license:             MIT
 license-file:        LICENSE
