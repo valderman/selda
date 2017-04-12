@@ -56,6 +56,9 @@ toSqlData :: Lit a -> SQLData
 toSqlData (LitI i)    = SQLInteger $ fromIntegral i
 toSqlData (LitD d)    = SQLFloat d
 toSqlData (LitS s)    = SQLText s
+toSqlData (LitTS s)   = SQLText s
+toSqlData (LitDate s) = SQLText s
+toSqlData (LitTime s) = SQLText s
 toSqlData (LitB b)    = SQLInteger $ if b then 1 else 0
 toSqlData (LitNull)   = SQLNull
 toSqlData (LitJust x) = toSqlData x

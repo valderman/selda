@@ -159,12 +159,13 @@ pgQueryRunner c return_lastid q ps = do
 --   TODO: use binary format instead of text.
 toSqlValue :: Oid -> BS.ByteString -> SqlValue
 toSqlValue t val
-  | t == boolType   = SqlBool $ readBool val
-  | t == intType    = SqlInt $ read (BS.unpack val)
-  | t == doubleType = SqlFloat $ read (BS.unpack val)
-  | t == textType   = SqlString (decodeUtf8 val)
-  | otherwise       = error $ "result with unknown type oid: " ++ show t
+  | t == boolType    = SqlBool $ readBool val
+  | t == intType     = SqlInt $ read (BS.unpack val)
+  | t == doubleType  = SqlFloat $ read (BS.unpack val)
+  | t `elem` textish = SqlString (decodeUtf8 val)
+  | otherwise        = error $ "result with unknown type oid: " ++ show t
   where
+    textish = [textType, timestampType, timeType, dateType]
     readBool "f"   = False
     readBool "0"   = False
     readBool "0.0" = False
@@ -177,6 +178,9 @@ fromSqlValue (LitB b)    = Just (boolType, if b then "true" else "false", Text)
 fromSqlValue (LitI n)    = Just (intType, BS.pack $ show n, Text)
 fromSqlValue (LitD f)    = Just (doubleType, BS.pack $ show f, Text)
 fromSqlValue (LitS s)    = Just (textType, encodeUtf8 s, Text)
+fromSqlValue (LitTS s)   = Just (timestampType, encodeUtf8 s, Text)
+fromSqlValue (LitTime s) = Just (timeType, encodeUtf8 s, Text)
+fromSqlValue (LitDate s) = Just (dateType, encodeUtf8 s, Text)
 fromSqlValue (LitNull)   = Nothing
 fromSqlValue (LitJust x) = fromSqlValue x
 
@@ -190,13 +194,18 @@ pgColType "INTEGER" attrs
     Just $ T.unwords ("INT8" : map compileColAttr attrs)
 pgColType "DOUBLE" attrs =
     Just $ T.unwords ("FLOAT8" : map compileColAttr attrs)
+pgColType "DATETIME" attrs =
+    Just $ T.unwords ("TIMESTAMP" : map compileColAttr attrs)
 pgColType _ _ =
     Nothing
 
 -- | OIDs for all types used by Selda.
 boolType, intType, textType, doubleType :: Oid
-boolType   = Oid 16
-intType    = Oid 20
-textType   = Oid 25
-doubleType = Oid 701
+boolType      = Oid 16
+intType       = Oid 20
+textType      = Oid 25
+doubleType    = Oid 701
+dateType      = Oid 1082
+timeType      = Oid 1083
+timestampType = Oid 1114
 #endif

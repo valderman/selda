@@ -9,6 +9,8 @@ import System.Exit
 import Test.HUnit
 import Test.HUnit.Text
 import Database.Selda
+import Database.Selda.Backend
+import Data.Time
 
 #ifdef POSTGRES
 -- To test the PostgreSQL backend, specify the connection info for the server
@@ -40,6 +42,14 @@ comments =
   ¤ optional "author"
   ¤ required "comment"
 
+times :: Table (Text :*: UTCTime :*: Day :*: TimeOfDay)
+times =
+    table "times"
+  $ required "description"
+  ¤ required "time"
+  ¤ required "day"
+  ¤ required "local_tod"
+
 peopleItems =
   [ "Link"      :*: 125 :*: Just "horse"  :*: 13506
   , "Velvet"    :*: 19  :*: Nothing       :*: 5.55
@@ -63,6 +73,7 @@ setup = do
   createTable people
   createTable addresses
   createTable comments
+  createTable times
   insert_ people peopleItems
   insert_ addresses addressItems
   insert_ comments commentItems
@@ -72,6 +83,7 @@ teardown = do
   tryDropTable people
   tryDropTable addresses
   tryDropTable comments
+  tryDropTable times
 
 main = do
   tmpdir <- getTemporaryDirectory
@@ -281,6 +293,7 @@ freshEnvTests f = test
   , "auto primary increments"       ~: freshEnv f autoPrimaryIncrements
   , "insert returns number of rows" ~: freshEnv f insertReturnsNumRows
   , "update updates table"          ~: freshEnv f updateUpdates
+  , "insert time values"            ~: freshEnv f insertTime
   ]
 
 tryDropNeverFails = teardown
@@ -324,3 +337,13 @@ updateUpdates = do
     return (count name)
   assEq "update returns wrong number of updated rows" 3 rows
   assEq "rows were not updated" 3 upd
+
+insertTime = do
+  setup
+  let Just t = parseTimeM True defaultTimeLocale sqlDateTimeFormat "2011-11-11 11:11:11.11111"
+      Just d = parseTimeM True defaultTimeLocale sqlDateFormat "2011-11-11"
+      Just lt = parseTimeM True defaultTimeLocale sqlTimeFormat "11:11:11.11111"
+  liftIO $ print $ compileInsert times ["now" :*: t :*: d :*: lt]
+  insert_ times ["now" :*: t :*: d :*: lt]
+  ["now" :*: t' :*: d' :*: lt'] <- query $ select times
+  assEq "time not properly inserted" (t, d, lt) (t', d', lt')

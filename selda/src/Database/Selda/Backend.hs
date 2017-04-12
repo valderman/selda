@@ -5,6 +5,7 @@ module Database.Selda.Backend
   , QueryRunner, SeldaBackend (..), MonadSelda (..), SeldaT (..)
   , Param (..), Lit (..), SqlValue (..), ColAttr (..)
   , compileColAttr
+  , sqlDateTimeFormat, sqlDateFormat, sqlTimeFormat
   , runSeldaT
   ) where
 import Database.Selda.SQL (Param (..))

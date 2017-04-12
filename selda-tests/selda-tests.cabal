@@ -24,11 +24,12 @@ test-suite selda-testsuite
     RunTests.hs
   build-depends:
       base       >=4.8 && <5
-    , selda
-    , text       >=1.1 && <1.3
+    , directory  >=1.2 && <1.4
     , exceptions >=0.8 && <0.9
     , HUnit      >=1.4 && <1.7
-    , directory  >=1.2 && <1.4
+    , selda
+    , text       >=1.1 && <1.3
+    , time       >=1.4 && <1.9
   if flag(postgres)
     build-depends: selda-postgresql
     cpp-options:   -DPOSTGRES
