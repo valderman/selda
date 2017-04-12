@@ -7,7 +7,7 @@ help:
 	@echo "pgtest      - build packages and run tests with PostgreSQL"
 	@echo "repl        - start ghci in sandbox"
 	@echo "check       - build package, run tests, do a cabal sanity check"
-	@echo "travischeck - like check, but create a travis-friendly PGConnectInfo first"
+	@echo "travischeck - like check, but without sandbox and with appropriate PGConnectInfo"
 	@echo "sqlite      - build and install sqlite backend into sandbox"
 	@echo "postgres    - build and install sqlite backend into sandbox"
 	@echo "upload      - upload packages to Hackage"
@@ -16,6 +16,7 @@ build: cabal.sandbox.config
 	cabal install $(PACKAGES)
 
 travischeck:
+	touch cabal.sandbox.config
 	echo '{-# LANGUAGE OverloadedStrings #-}' > selda-tests/PGConnectInfo.hs
 	echo 'module PGConnectInfo where' >> selda-tests/PGConnectInfo.hs
 	echo 'import Database.Selda.PostgreSQL' >> selda-tests/PGConnectInfo.hs
