@@ -168,11 +168,12 @@ ppUnOp :: UnOp a b -> Exp a -> PP Text
 ppUnOp op c = do
   c' <- ppCol c
   pure $ case op of
-    Abs   -> "ABS(" <> c' <> ")"
-    Sgn   -> "SIGN(" <> c' <> ")"
-    Neg   -> "-(" <> c' <> ")"
-    Not   -> "NOT(" <> c' <> ")"
-    Fun f -> f <> "(" <> c' <> ")"
+    Abs    -> "ABS(" <> c' <> ")"
+    Sgn    -> "SIGN(" <> c' <> ")"
+    Neg    -> "-(" <> c' <> ")"
+    Not    -> "NOT(" <> c' <> ")"
+    IsNull -> "(" <> c' <> ") IS NULL"
+    Fun f  -> f <> "(" <> c' <> ")"
 
 ppBinOp :: BinOp a b -> Exp a -> Exp a -> PP Text
 ppBinOp op a b = do
@@ -192,8 +193,6 @@ ppBinOp op a b = do
     ppOp Lte   = "<="
     ppOp Eq    = "="
     ppOp Neq   = "!="
-    ppOp Is    = "IS"
-    ppOp IsNot = "IS NOT"
     ppOp And   = "AND"
     ppOp Or    = "OR"
     ppOp Add   = "+"

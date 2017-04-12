@@ -16,10 +16,10 @@ module Database.Selda
   , select, restrict, limit, order
   , ascending, descending
     -- * Expressions over columns
-  , (.==), (./=), (.>), (.<), (.>=), (.<=), is, isn't, like
+  , (.==), (./=), (.>), (.<), (.>=), (.<=), like
   , (.&&), (.||), not_
   , literal, int, float, text, true, false, null_
-  , roundTo, length_
+  , roundTo, length_, isNull
     -- * Converting between column types
   , round_, just, fromBool, fromInt, toString
     -- * Inner queries
@@ -86,17 +86,9 @@ infixl 4 .<
 infixl 4 .>=
 infixl 4 .<=
 
--- | NULL-aware equality. @null_ .== null_@ is a blank row,
---   but @null_ `is` null_@ is true.
-is :: Col s a -> Col s a -> Col s Bool
-is = liftC2 $ BinOp Is
-infixl 4 `is`
-
--- | NULL-aware inequality. @null_ ./= null_@ is a blank row,
---   but @null_ `isn't` null_@ is false.
-isn't :: Col s a -> Col s a -> Col s Bool
-isn't = liftC2 $ BinOp IsNot
-infixl 4 `isn't`
+-- | Is the given column null?
+isNull :: Col s (Maybe a) -> Col s Bool
+isNull = liftC $ UnOp IsNull
 
 (.&&), (.||) :: Col s Bool -> Col s Bool -> Col s Bool
 (.&&) = liftC2 $ BinOp And

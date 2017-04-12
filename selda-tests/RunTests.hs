@@ -2,7 +2,7 @@
 module Main where
 import Control.Monad
 import Control.Monad.Catch
-import Data.List hiding (groupBy)
+import Data.List hiding (groupBy, insert)
 import Data.Text (Text)
 import System.Directory
 import System.Exit
@@ -229,7 +229,7 @@ joinGroupAggregate = do
     name :*: _ :*: pet :*: _ <- select people
     _ :*: city <- leftJoin (\(name' :*: _) -> name .== name')
                            (select addresses)
-    nopet <- groupBy (pet `is` null_)
+    nopet <- groupBy (isNull pet)
     return (nopet :*: count city)
   assEq "wrong number of cities per pet owneship status" ans (sort res)
   where
@@ -274,11 +274,13 @@ aggregateWithDoubles = do
 -- Tests that mutate the database
 
 freshEnvTests f = test
-  [ "tryDrop never fails"       ~: freshEnv f tryDropNeverFails
-  , "tryCreate never fails"     ~: freshEnv f tryCreateNeverFails
-  , "drop fails on missing"     ~: freshEnv f dropFailsOnMissing
-  , "create fails on duplicate" ~: freshEnv f createFailsOnDuplicate
-  , "auto primary increments"   ~: freshEnv f autoPrimaryIncrements
+  [ "tryDrop never fails"           ~: freshEnv f tryDropNeverFails
+  , "tryCreate never fails"         ~: freshEnv f tryCreateNeverFails
+  , "drop fails on missing"         ~: freshEnv f dropFailsOnMissing
+  , "create fails on duplicate"     ~: freshEnv f createFailsOnDuplicate
+  , "auto primary increments"       ~: freshEnv f autoPrimaryIncrements
+  , "insert returns number of rows" ~: freshEnv f insertReturnsNumRows
+  , "update updates table"          ~: freshEnv f updateUpdates
   ]
 
 tryDropNeverFails = teardown
@@ -289,10 +291,36 @@ createFailsOnDuplicate = createTable people >> assertFail (createTable people)
 autoPrimaryIncrements = do
   setup
   k <- insertWithPK comments [Just "Kobayashi" :*: "チョロゴン" ]
-  k' <- insertWithPK comments [Nothing :*: "more anonymous spam" ]
+  k' <- insertWithPK comments [Nothing :*: "more anonymous spam"]
   [name] <- query $ do
     id :*: name :*: _ <- select comments
     restrict (id .== int k)
     return name
   assEq "inserted key refers to wrong value" name (Just "Kobayashi")
   ass "primary key doesn't increment properly" (k' == k+1)
+
+insertReturnsNumRows = do
+  setup
+  rows <- insert comments
+    [ Just "Kobayashi" :*: "チョロゴン"
+    , Nothing :*: "more anonymous spam"
+    , Nothing :*: "even more spam"
+    ]
+  assEq "insert returns wrong number of inserted rows" 3 rows
+
+updateUpdates = do
+  setup
+  insert_ comments
+    [ Just "Kobayashi" :*: "チョロゴン"
+    , Nothing :*: "more anonymous spam"
+    , Nothing :*: "even more spam"
+    ]
+  rows <- update comments (isNull . second)
+                          (\(id :*: _ :*: c) -> (id :*: just "anon" :*: c))
+  [upd] <- query $ aggregate $ do
+    _ :*: name :*: _ <- select comments
+    restrict (not_ $ isNull name)
+    restrict (name .== just "anon")
+    return (count name)
+  assEq "update returns wrong number of updated rows" 3 rows
+  assEq "rows were not updated" 3 upd

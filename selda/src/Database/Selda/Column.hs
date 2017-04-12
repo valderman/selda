@@ -76,11 +76,12 @@ allNamesIn (Cast x)      = allNamesIn x
 allNamesIn (AggrEx _ x)  = allNamesIn x
 
 data UnOp a b where
-  Abs :: UnOp a a
-  Not :: UnOp Bool Bool
-  Neg :: UnOp a a
-  Sgn :: UnOp a a
-  Fun :: Text -> UnOp a b
+  Abs    :: UnOp a a
+  Not    :: UnOp Bool Bool
+  Neg    :: UnOp a a
+  Sgn    :: UnOp a a
+  IsNull :: UnOp (Maybe a) Bool
+  Fun    :: Text -> UnOp a b
 
 data BinOp a b where
   Gt    :: BinOp a Bool
@@ -89,8 +90,6 @@ data BinOp a b where
   Lte   :: BinOp a Bool
   Eq    :: BinOp a Bool
   Neq   :: BinOp a Bool
-  Is    :: BinOp a Bool
-  IsNot :: BinOp a Bool
   And   :: BinOp Bool Bool
   Or    :: BinOp Bool Bool
   Add   :: BinOp a a
