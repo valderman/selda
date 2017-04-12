@@ -2,21 +2,21 @@ PACKAGES=./selda ./selda-sqlite ./selda-postgresql
 
 help:
 	@echo "Available targets:"
-	@echo "build       - build and install packages into sandbox"
+	@echo "build       - build and install packages"
 	@echo "test        - build packages and run tests with SQLite"
 	@echo "pgtest      - build packages and run tests with PostgreSQL"
-	@echo "repl        - start ghci in sandbox"
+	@echo "repl        - start ghci"
 	@echo "check       - build package, run tests, do a cabal sanity check"
-	@echo "travischeck - like check, but without sandbox and with appropriate PGConnectInfo"
-	@echo "sqlite      - build and install sqlite backend into sandbox"
-	@echo "postgres    - build and install sqlite backend into sandbox"
+	@echo "travischeck - like check, but with appropriate PGConnectInfo"
+	@echo "sqlite      - build and install sqlite backend"
+	@echo "postgres    - build and install sqlite backend"
 	@echo "upload      - upload packages to Hackage"
+	@echo "sandbox     - create shared sandbox"
 
-build: cabal.sandbox.config
+build:
 	cabal install $(PACKAGES)
 
 travischeck:
-	touch cabal.sandbox.config
 	echo '{-# LANGUAGE OverloadedStrings #-}' > selda-tests/PGConnectInfo.hs
 	echo 'module PGConnectInfo where' >> selda-tests/PGConnectInfo.hs
 	echo 'import Database.Selda.PostgreSQL' >> selda-tests/PGConnectInfo.hs
@@ -41,17 +41,19 @@ pgtest: build
 	cd ./selda-tests && cabal configure --enable-tests -fpostgres
 	cd ./selda-tests && cabal test
 
-sqlite: cabal.sandbox.config
+sqlite:
 	cabal install ./selda-sqlite
 
-postgres: cabal.sandbox.config
+postgres:
 	cabal install ./selda-postgresql
 
-repl: cabal.sandbox.config
+repl:
 	cabal repl --ghc-options="-XOverloadedStrings"
 
 upload: check
 	cabal upload $$(for pkg in $(PACKAGES) ; do echo $$pkg/dist/$$pkg-*.tar.gz ; done)
+
+sandbox: cabal.sandbox.config
 
 cabal.sandbox.config:
 	mkdir -p .cabal-sandbox
