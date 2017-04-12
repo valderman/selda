@@ -18,6 +18,7 @@ check: test pgtest
 	for pkg in $(PACKAGES) ; do \
 	  cd $$pkg ; \
 	  cabal check ; \
+	  cabal sdist ; \
 	  cd .. ; \
 	done
 
@@ -41,11 +42,6 @@ repl: cabal.sandbox.config
 	cabal repl --ghc-options="-XOverloadedStrings"
 
 upload: check
-	for pkg in $(PACKAGES) ; do \
-	  cd $$pkg ; \
-	  cabal sdist ; \
-	  cd .. ; \
-	done
 	cabal upload $$(for pkg in $(PACKAGES) ; do echo $$pkg/dist/$$pkg-*.tar.gz ; done)
 
 cabal.sandbox.config:
