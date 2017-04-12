@@ -31,7 +31,7 @@ check: test pgtest
 	done
 
 test: build
-	cabal install --only-dependencies --enable-tests ./selda-tests
+	cabal install --only-dependencies --enable-tests --allow-newer=time ./selda-tests
 	cd ./selda-tests && cabal configure --enable-tests
 	cd ./selda-tests && cabal test
 
