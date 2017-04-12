@@ -1,5 +1,6 @@
 What is Selda?
 ==============
+[![Build Status](https://travis-ci.org/valderman/selda.svg?branch=master)](https://travis-ci.org/valderman/selda)
 
 Selda is an SQL EDSL that was inspired by LINQ and
 [Opaleye](http://hackage.haskell.org/package/opaleye).
