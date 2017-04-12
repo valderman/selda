@@ -13,6 +13,10 @@ flag postgres
   default: False
   description: Run tests using PostgreSQL backend.
 
+library
+  default-language:
+    Haskell2010
+
 test-suite selda-tests
   type:
     exitcode-stdio-1.0
