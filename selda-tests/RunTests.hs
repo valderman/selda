@@ -385,7 +385,7 @@ transactionRollsBack = do
         _ :*: name :*: comment <- select comments
         restrict (name .== just "Kobayashi")
         return comment
-      assEq "commit was not rolled back" cs []
+      assEq "commit was not rolled back" [] cs
   where
     c1 = "チョロゴン"
     c2 = "メイド最高！"
