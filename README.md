@@ -203,8 +203,8 @@ Only rows satisfying the predicate are updated.
 ```
 age10Years :: SeldaT IO ()
 age10Years = do
-  update_ people (\(name :*: age :*: pet) -> name :*: age + 10 :*: pet)
-                 (\(name :*: _ :*: _) -> name ./= "Link")
+  update_ people (\(name :*: _ :*: _) -> name ./= "Link")
+                 (\(name :*: age :*: pet) -> name :*: age + 10 :*: pet)
 ```
 
 Note that you can use arithmetic, logic and other standard SQL operations on
