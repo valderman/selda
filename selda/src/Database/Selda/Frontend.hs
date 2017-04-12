@@ -13,7 +13,6 @@ import Database.Selda.Backend
 import Database.Selda.Column
 import Database.Selda.Compile
 import Database.Selda.Query.Type
-import Database.Selda.SQL (Param (..))
 import Database.Selda.Table
 import Database.Selda.Table.Compile
 import Data.Proxy

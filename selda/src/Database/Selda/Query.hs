@@ -36,9 +36,9 @@ restrict (C p) = Query $ do
       ss ->
         st {sources = [SQL (allCols ss) (Product ss) [p] [] [] Nothing]}
   where
-    wasRenamedIn p cs =
+    wasRenamedIn predicate cs =
       let cs' = [n | Named n _ <- cs]
-      in  any (`elem` cs') (colNames [Some p])
+      in  any (`elem` cs') (colNames [Some predicate])
 
 -- | Execute a query, returning an aggregation of its results.
 --   The query must return an inductive tuple of 'Aggregate' columns.
