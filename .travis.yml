@@ -34,7 +34,7 @@ install:
    fi
  - travis_retry cabal update -v
  - sed -i 's/^jobs:/-- jobs:/' ${HOME}/.cabal/config
- - cabal install --only-dependencies --enable-tests --enable-benchmarks --dry -v > installplan.txt
+ - cabal install --only-dependencies --enable-tests --enable-benchmarks --dry -v ./selda ./selda-sqlite ./selda-postgresql ./selda-tests > installplan.txt
  - sed -i -e '1,/^Resolving /d' installplan.txt; cat installplan.txt
 
 # check whether current requested install-plan matches cached package-db snapshot
@@ -48,7 +48,7 @@ install:
      echo "cabal build-cache MISS";
      rm -rf $HOME/.cabsnap;
      mkdir -p $HOME/.ghc $HOME/.cabal/lib $HOME/.cabal/share $HOME/.cabal/bin;
-     cabal install --only-dependencies --enable-tests --enable-benchmarks;
+     cabal install --only-dependencies --enable-tests --enable-benchmarks ./selda ./selda-sqlite ./selda-postgresql;
    fi
 
 # snapshot package-db on cache miss
@@ -64,11 +64,5 @@ install:
 # any command which exits with a non-zero exit code causes the build to fail.
 script:
  - make check
-
-# Check that the resulting source distribution can be built & installed.
-# If there are no other `.tar.gz` files in `dist`, this can be even simpler:
-# `cabal install --force-reinstalls dist/*-*.tar.gz`
- - SRC_TGZ=$(cabal info . | awk '{print $2;exit}').tar.gz &&
-   (cd dist && cabal install --force-reinstalls "$SRC_TGZ")
 
 # EOF
