@@ -2,13 +2,22 @@ What is Selda?
 ==============
 [![Build Status](https://travis-ci.org/valderman/selda.svg?branch=master)](https://travis-ci.org/valderman/selda)
 
-Selda is an SQL EDSL that was inspired by LINQ and
+Selda is an embedded domain-specific language for interacting with relational
+databases. It was inspired by LINQ and
 [Opaleye](http://hackage.haskell.org/package/opaleye).
-After defining a database schema, Selda supports creating, deleting, updating
-and querying tables.
-All operations are type-safe, and should be reasonably performant.
 
-Selda currently has backends for SQLite and PostgreSQL.
+
+Features
+========
+
+* Creating, dropping and querying tables using type-safe database schemas.
+* Monadic query language with products, filtering, joins and aggregation.
+* Inserting, updating and deleting rows from tables.
+* Transaction support.
+* Configurable, automatic, consistent in-process caching of query results.
+* Multiple backends: SQLite and PostgreSQL.
+* Lightweight and modular: non-essential features are optional or split into
+  add-on packages.
 
 
 Requirements
@@ -245,7 +254,7 @@ those having an `age` column with a value greater than 20.
 ```
 grownups :: Query s (Col s Text)
 grownups = do
-  name :*: age :*: _ <- select people
+  (name :*: age :*: _) <- select people
   restrict (age .> 20)
   return name
 
@@ -277,9 +286,9 @@ does not match the one in the `addresses` table.
 ```
 grownupsIn :: Text -> Query s (Col s Text)
 grownupsIn city = do
-  name :*: age :*: _ <- select people
+  (name :*: age :*: _) <- select people
   restrict (age .> 20)
-  name' :*: home <- select addresses
+  (name' :*: home) <- select addresses
   restrict (home .== text city .&& name .== name')
   return name
 
@@ -296,8 +305,8 @@ something like this:
 ```
 allPeople :: Query s (Col s Text :*: Col s Text)
 allPeople = do
-  people_name :*: _ :*: _ <- select people
-  addresses_name :*: city <- select addresses
+  (people_name :*: _ :*: _) <- select people
+  (addresses_name :*: city) <- select addresses
   restrict (people_name == addresses_name)
   return (people_name :*: city)
 ```
@@ -323,8 +332,8 @@ Velvet's address (or for anyone else who does not have an entry in the
 ```
 allPeople' :: Query s (Col s Text :*: Col s Maybe Text)
 allPeople' = do
-  name :*: _ :*: _ <- select people
-  _ :*: city <- leftJoin (\(name' :*: _) -> name .== name')
+  (name :*: _ :*: _) <- select people
+  (_ :*: city) <- leftJoin (\(name' :*: _) -> name .== name')
                          (select addresses)
   return (name :*: city)
 ```
@@ -377,9 +386,9 @@ top.
 ```
 countHomes :: Query s (Col s Text :*: Col s Int)
 countHomes = do
-  name :*: _ :*: _ <- select people
-  owner :*: homes <- aggregate $ do
-    owner :*: city <- select addresses
+  (name :*: _ :*: _) <- select people
+  (owner :*: homes) <- aggregate $ do
+    (owner :*: city) <- select addresses
     owner' <- groupBy owner
     return (count city :*: owner')
   restrict (owner .== name)
