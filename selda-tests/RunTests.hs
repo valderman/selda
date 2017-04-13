@@ -125,14 +125,21 @@ ass :: String -> Bool -> SeldaT IO ()
 ass s pred = liftIO $ assertBool s pred
 
 allTests f = TestList
-  [ queryTests f
-  , freshEnvTests f
+  [ "query tests"             ~: queryTests run
+  , "mutable tests"           ~: freshEnvTests (freshEnv f)
+  , "mutable tests (caching)" ~: freshEnvTests caching
   ]
-
+  where
+    caching m = freshEnv f (setLocalCache 1000)
+#ifdef POSTGRES
+    run = withPostgreSQL pgConnectInfo
+#else
+    run = withSQLite f
+#endif
 
 -- Tests that don't mutate the database
 
-queryTests f = test
+queryTests run = test
   [ "setup succeeds" ~: run setup
   , "simple select" ~: run simpleSelect
   , "simple product"  ~: run simpleProduct
@@ -149,12 +156,6 @@ queryTests f = test
   , "aggregate with doubles" ~: run aggregateWithDoubles
   , "teardown succeeds" ~: run teardown
   ]
-  where
-#ifdef POSTGRES
-    run = withPostgreSQL pgConnectInfo
-#else
-    run = withSQLite f
-#endif
 
 simpleSelect = do
   ppl <- query $ select people
@@ -285,17 +286,17 @@ aggregateWithDoubles = do
 
 -- Tests that mutate the database
 
-freshEnvTests f = test
-  [ "tryDrop never fails"           ~: freshEnv f tryDropNeverFails
-  , "tryCreate never fails"         ~: freshEnv f tryCreateNeverFails
-  , "drop fails on missing"         ~: freshEnv f dropFailsOnMissing
-  , "create fails on duplicate"     ~: freshEnv f createFailsOnDuplicate
-  , "auto primary increments"       ~: freshEnv f autoPrimaryIncrements
-  , "insert returns number of rows" ~: freshEnv f insertReturnsNumRows
-  , "update updates table"          ~: freshEnv f updateUpdates
-  , "insert time values"            ~: freshEnv f insertTime
-  , "transaction completes"         ~: freshEnv f transactionCompletes
-  , "transaction rolls back"        ~: freshEnv f transactionRollsBack
+freshEnvTests freshEnv = test
+  [ "tryDrop never fails"           ~: freshEnv tryDropNeverFails
+  , "tryCreate never fails"         ~: freshEnv tryCreateNeverFails
+  , "drop fails on missing"         ~: freshEnv dropFailsOnMissing
+  , "create fails on duplicate"     ~: freshEnv createFailsOnDuplicate
+  , "auto primary increments"       ~: freshEnv autoPrimaryIncrements
+  , "insert returns number of rows" ~: freshEnv insertReturnsNumRows
+  , "update updates table"          ~: freshEnv updateUpdates
+  , "insert time values"            ~: freshEnv insertTime
+  , "transaction completes"         ~: freshEnv transactionCompletes
+  , "transaction rolls back"        ~: freshEnv transactionRollsBack
   ]
 
 tryDropNeverFails = teardown
