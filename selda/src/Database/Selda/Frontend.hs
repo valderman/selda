@@ -146,7 +146,10 @@ transaction m = do
       return x
 
 -- | Set the maximum local cache size to @n@. A cache size of zero disables
---   local cache altogether. By default, local caching is turned off.
+--   local cache altogether. Changing the cache size will also flush all
+--   entries.
+--
+--   By default, local caching is turned off.
 --
 --   WARNING: local caching is guaranteed to be consistent with the underlying
 --   database, ONLY under the assumption that no other process will modify it.
@@ -158,8 +161,10 @@ queryWith :: forall s m a. (MonadSelda m, Result a)
           => QueryRunner (Int, [[SqlValue]]) -> Query s a -> m [Res a]
 queryWith qr q = do
     mres <- cached qry <$> getLocalCache
+    mis <- maxItems <$> getLocalCache
     case mres of
-      Just res -> do
+      (Just res, c') -> do
+        updateLocalCache $ const c'
         return res
       _        -> do
         res <- fmap snd . liftIO $ uncurry qr qry

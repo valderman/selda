@@ -88,14 +88,19 @@ cache tns k v rc
     addTbl key Nothing        = ((), Just ((), singleton key () ()))
 
 -- | Get the cached value for the given key, if it exists.
-cached :: forall a. Typeable a => CacheKey -> ResultCache -> Maybe a
+cached :: forall a. Typeable a => CacheKey -> ResultCache -> (Maybe a, ResultCache)
 cached k rc = do
-  if maxItems rc == 0
-    then Nothing
-    else fromD =<< lookup k (results rc)
+  case (maxItems rc, alter updatePrio k (results rc)) of
+    (0, _)                  -> (Nothing, rc)
+    (_, (Just x, results')) -> (fromDynamic x, rc' results')
+    _                       -> (Nothing, rc)
   where
-    fromD :: (Int, Dynamic) -> Maybe a
-    fromD (_, x) = fromDynamic x
+    rc' rs = rc
+      { results = rs
+      , nextPrio = nextPrio rc + 1
+      }
+    updatePrio (Just (_, v)) = (Just v, Just (nextPrio rc, v))
+    updatePrio _             = (Nothing, Nothing)
 
 -- | Invalidate all items in cache that depend on the given table.
 invalidate :: TableName -> ResultCache -> ResultCache
@@ -114,4 +119,5 @@ invalidate tbl rc
 
 -- | Set the maximum number of items allowed in the cache.
 setMaxItems :: Int -> ResultCache -> ResultCache
-setMaxItems n rc = rc {maxItems = n}
+setMaxItems 0 _  = emptyCache
+setMaxItems n rc = emptyCache {maxItems = n}
