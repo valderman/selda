@@ -15,6 +15,7 @@ help:
 
 build:
 	cd ./selda ; cabal configure
+	cp -f README.md ./selda/README.md
 	cabal install $(PACKAGES)
 
 travischeck:

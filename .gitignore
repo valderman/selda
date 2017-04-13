@@ -6,3 +6,4 @@ dist
 #*
 cabal.sandbox.config
 /selda-tests/PGConnectInfo.hs
+/selda/README.md
