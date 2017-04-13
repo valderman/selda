@@ -11,8 +11,9 @@ import Database.Selda.Table
 import Database.Selda.Table.Compile
 import Database.Selda.Transform
 import Database.Selda.Types
-import Data.Text (Text, empty)
 import Data.Proxy
+import Data.Text (Text, empty)
+import Data.Typeable
 
 -- | Compile a query into a parameterised SQL statement.
 compile :: Result a => Query s a -> (Text, [Param])
@@ -74,7 +75,7 @@ instance {-# OVERLAPPABLE #-} SqlType a => Insert a where
 
 -- | An acceptable query result type; one or more columns stitched together
 --   with @:*:@.
-class Result r where
+class Typeable (Res r) => Result r where
   type Res r
   -- | Converts the given list of @SqlValue@s into an tuple of well-typed
   --   results.
@@ -87,13 +88,13 @@ class Result r where
   -- | Produce a list of all columns present in the result.
   finalCols :: r -> [SomeCol]
 
-instance (SqlType a, Result b) => Result (Col s a :*: b) where
+instance (Typeable a, SqlType a, Result b) => Result (Col s a :*: b) where
   type Res (Col s a :*: b) = a :*: Res b
   toRes _ (x:xs) = fromSql x :*: toRes (Proxy :: Proxy b) xs
   toRes _ _      = error "backend bug: too few result columns to toRes"
   finalCols (a :*: b) = finalCols a ++ finalCols b
 
-instance SqlType a => Result (Col s a) where
+instance (Typeable a, SqlType a) => Result (Col s a) where
   type Res (Col s a) = a
   toRes _ [x] = fromSql x
   toRes _ []  = error "backend bug: too few result columns to toRes"

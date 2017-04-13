@@ -158,14 +158,14 @@ queryWith :: forall s m a. (MonadSelda m, Result a)
           => QueryRunner (Int, [[SqlValue]]) -> Query s a -> m [Res a]
 queryWith qr q = do
     mres <- cached qry <$> getLocalCache
-    res <- case mres of
+    case mres of
       Just res -> do
         return res
       _        -> do
         res <- fmap snd . liftIO $ uncurry qr qry
-        updateLocalCache $ cache tables qry res
-        return res
-    return $ mkResults (Proxy :: Proxy a) res
+        let res' = mkResults (Proxy :: Proxy a) res
+        updateLocalCache $ cache tables qry res'
+        return res'
   where
     (tables, qry) = compileWithTables q
 

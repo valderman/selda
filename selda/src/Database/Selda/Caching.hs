@@ -1,10 +1,11 @@
-{-# LANGUAGE GADTs #-}
+{-# LANGUAGE GADTs, ScopedTypeVariables #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 module Database.Selda.Caching
    ( ResultCache, CacheKey
     , emptyCache, cache, cached, invalidate, setMaxItems, maxItems
    ) where
 import Prelude hiding (lookup)
+import Data.Dynamic
 import Data.Hashable
 import Data.HashPSQ
 import Data.IORef
@@ -34,7 +35,7 @@ instance Hashable (Lit a) where
 -- PSQs as hash maps?
 data ResultCache = ResultCache
   { -- | Query to result mapping.
-    results  :: !(HashPSQ CacheKey Int [[SqlValue]])
+    results  :: !(HashPSQ CacheKey Int Dynamic)
     -- | Table to query mapping, for keeping track of which queries depend on
     --   which tables.
   , deps     :: !(HashPSQ TableName () (HashPSQ CacheKey () ()))
@@ -60,7 +61,7 @@ emptyCache = ResultCache
   }
 
 -- | Cache the given value, with the given table dependencies.
-cache :: [TableName] -> CacheKey -> [[SqlValue]] -> ResultCache -> ResultCache
+cache :: Typeable a => [TableName] -> CacheKey -> a -> ResultCache -> ResultCache
 cache tns k v rc
   | maxItems rc == 0 = rc
   | prio + 1 < prio = cache tns k v $ rc
@@ -70,27 +71,31 @@ cache tns k v rc
     , items = 0
     }
   | items rc >= maxItems rc = rc
-    { results  = insert k prio v (deleteMin $ results rc)
+    { results  = insert k prio v' (deleteMin $ results rc)
     , deps     = foldl' (\m tn -> snd $ alter (addTbl k) tn m) (deps rc) tns
     , nextPrio = prio + 1
     }
   | otherwise = rc
-    { results = insert k (nextPrio rc) v (results rc)
+    { results = insert k (nextPrio rc) v' (results rc)
     , deps     = foldl' (\m tn -> snd $ alter (addTbl k) tn m) (deps rc) tns
     , items    = items rc + 1
     , nextPrio = prio + 1
     }
   where
+    v' = toDyn v
     prio = nextPrio rc
     addTbl key (Just (p, ks)) = ((), Just (p, insert key () () ks))
     addTbl key Nothing        = ((), Just ((), singleton key () ()))
 
 -- | Get the cached value for the given key, if it exists.
-cached :: CacheKey -> ResultCache -> Maybe [[SqlValue]]
+cached :: forall a. Typeable a => CacheKey -> ResultCache -> Maybe a
 cached k rc = do
   if maxItems rc == 0
     then Nothing
-    else snd <$> lookup k (results rc)
+    else fromD =<< lookup k (results rc)
+  where
+    fromD :: (Int, Dynamic) -> Maybe a
+    fromD (_, x) = fromDynamic x
 
 -- | Invalidate all items in cache that depend on the given table.
 invalidate :: TableName -> ResultCache -> ResultCache

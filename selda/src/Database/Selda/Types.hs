@@ -2,6 +2,7 @@
 -- | Basic Selda types.
 module Database.Selda.Types where
 import Data.Text (Text)
+import Data.Typeable
 
 -- | Name of a database column.
 type ColName = Text
@@ -12,6 +13,7 @@ type TableName = Text
 -- | An inductively defined "tuple", or heterogeneous, non-empty list.
 data a :*: b where
   (:*:) :: a -> b -> a :*: b
+  deriving Typeable
 infixr 1 :*:
 
 instance (Show a, Show b) => Show (a :*: b) where
