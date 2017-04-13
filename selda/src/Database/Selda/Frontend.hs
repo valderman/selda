@@ -126,14 +126,14 @@ tryDropTable = void . flip exec [] . compileDropTable Ignore
 --   will be rolled back, and the exception re-thrown.
 transaction :: (MonadSelda m, MonadThrow m, MonadCatch m) => m a -> m a
 transaction m = do
-  exec "BEGIN TRANSACTION" []
+  void $ exec "BEGIN TRANSACTION" []
   res <- try m
   case res of
     Left (SomeException e) -> do
-      exec "ROLLBACK" []
+      void $ exec "ROLLBACK" []
       throwM e
     Right x -> do
-      exec "COMMIT" []
+      void $ exec "COMMIT" []
       return x
 
 -- | Build the final result from a list of result columns.
