@@ -337,7 +337,7 @@ allPeople' :: Query s (Col s Text :*: Col s Maybe Text)
 allPeople' = do
   (name :*: _ :*: _) <- select people
   (_ :*: city) <- leftJoin (\(name' :*: _) -> name .== name')
-                         (select addresses)
+                           (select addresses)
   return (name :*: city)
 ```
 
