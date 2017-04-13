@@ -64,7 +64,7 @@ instance MonadIO m => MonadSelda (SeldaT m) where
   getLocalCache = S (thecache <$> get)
   updateLocalCache f = S $ do
     SeldaState b c <- get
-    when (maxItems c > 0) $ put (SeldaState b (f c))
+    when (maxItems c > 0 || maxItems (f c) > 0) $ put (SeldaState b (f c))
 
 -- | Run a Selda transformer. Backends should use this to implement their
 --   @withX@ functions.
