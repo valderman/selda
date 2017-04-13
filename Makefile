@@ -14,6 +14,7 @@ help:
 	@echo "sandbox     - create shared sandbox"
 
 build:
+	cd ./selda ; cabal configure
 	cabal install $(PACKAGES)
 
 travischeck:
@@ -30,6 +31,8 @@ check: test pgtest
 	  cabal sdist ; \
 	  cd .. ; \
 	done
+	cd ./selda ; cabal configure -f-localcache
+	cd ./selda ; cabal build
 
 test: build
 	cabal install --only-dependencies --enable-tests --allow-newer=time ./selda-tests

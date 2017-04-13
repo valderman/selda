@@ -1,4 +1,4 @@
-{-# LANGUAGE GADTs, ScopedTypeVariables #-}
+{-# LANGUAGE GADTs, ScopedTypeVariables, CPP #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 module Database.Selda.Caching
    ( ResultCache, CacheKey
@@ -6,19 +6,43 @@ module Database.Selda.Caching
    ) where
 import Prelude hiding (lookup)
 import Data.Dynamic
+#ifndef NO_LOCALCACHE
 import Data.Hashable
 import Data.HashPSQ
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet as S
-import Data.IORef
 import Data.List (foldl')
-import Data.Text (Text)
-import System.IO.Unsafe
-import Database.Selda.SQL (Param (..))
 import Database.Selda.SqlType
+#endif
+import Data.Text (Text)
+import Database.Selda.SQL (Param (..))
 import Database.Selda.Types (TableName)
 
 type CacheKey = (Text, [Param])
+
+#ifdef NO_LOCALCACHE
+
+data ResultCache = ResultCache
+
+emptyCache :: ResultCache
+emptyCache = ResultCache
+
+cache :: Typeable a => [TableName] -> CacheKey -> a -> ResultCache -> ResultCache
+cache _ _ _ _ = ResultCache
+
+cached :: forall a. Typeable a => CacheKey -> ResultCache -> (Maybe a, ResultCache)
+cached _ _ = (Nothing, ResultCache)
+
+invalidate :: TableName -> ResultCache -> ResultCache
+invalidate _ _ = ResultCache
+
+setMaxItems :: Int -> ResultCache -> ResultCache
+setMaxItems _ _ = ResultCache
+
+maxItems :: ResultCache -> Int
+maxItems _ = 0
+
+#else
 
 instance Hashable Param where
   hashWithSalt s (Param x) = hashWithSalt s x
@@ -46,10 +70,6 @@ data ResultCache = ResultCache
     -- | Next cache prio to use.
   , nextPrio :: !Int
   } deriving Show
-
-{-# NOINLINE resultCache #-}
-resultCache :: IORef ResultCache
-resultCache = unsafePerformIO $ newIORef emptyCache
 
 emptyCache :: ResultCache
 emptyCache = ResultCache
@@ -114,3 +134,4 @@ invalidate tbl rc
 setMaxItems :: Int -> ResultCache -> ResultCache
 setMaxItems 0 _  = emptyCache
 setMaxItems n rc = emptyCache {maxItems = n}
+#endif

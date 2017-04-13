@@ -161,7 +161,6 @@ queryWith :: forall s m a. (MonadSelda m, Result a)
           => QueryRunner (Int, [[SqlValue]]) -> Query s a -> m [Res a]
 queryWith qr q = do
     mres <- cached qry <$> getLocalCache
-    mis <- maxItems <$> getLocalCache
     case mres of
       (Just res, c') -> do
         updateLocalCache $ const c'
