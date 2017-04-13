@@ -242,9 +242,7 @@ Basic queries
 
 Queries are written in the `Query` monad, in which you can query tables,
 restrict the result set, and perform inner, aggregate queries.
-In addition to the return type of a query, the `Query` type has an additional
-type parameter `s`. We'll cover this parameter in more detail when we get to
-aggregation, so just ignore it for now.
+Queries are executed in some Selda monad using the `query` function.
 
 The following example uses the `select` operation to draw each row from the
 `people` table, and the `restrict` operation to remove out all rows except
@@ -263,6 +261,11 @@ printGrownups = do
   names <- query grownups
   liftIO (print names)
 ```
+
+You may have noticed that in addition to the return type of a query,
+the `Query` type has an additional type parameter `s`.
+We'll cover this parameter in more detail when we get to
+aggregating queries, so for now you can just ignore it.
 
 
 Products and joins
@@ -401,11 +404,91 @@ returned from the aggregate query. In this example, returning `owner` instead of
 `owner'` wouldn't work since the former is a plain column and not an aggregate.
 
 
+Transactions
+------------
+
+All databases supported by Selda guarantee that each query is atomic: either
+the entire query is performed in one go, with no observable intermediate state,
+or the whole query fails without leaving a trace in the database.
+However, sometimes this guarantee is not enough.
+Consider, for instance, a money transfer from Alice's bank account to Bob's.
+This involves at least two queries: one to remove the money from
+Alice's account, and one to add the same amount to Bob's.
+Clearly, it would be *bad* if this operation were to be interrupted after
+withdrawing the money from Alice's account but before depositing it into Bob's.
+
+The solution to this problem is *transactions*: a mechanism by which
+*a list of queries* gain the same atomicity guarantees as a single query always
+enjoys. Using transactions in Selda is super easy:
+
+```
+transferMoney :: Text -> Text -> Double -> SeldaT s ()
+transferMoney from to amount = do
+  transaction $ do
+    update_ accounts (\(owner :*: _) -> owner .== text from)
+                     (\(owner :*: money) -> owner :*: money - float amount)
+    update_ accounts (\(owner :*: _) -> owner .== text to)
+                     (\(owner :*: money) -> owner :*: money + float amount)
+```
+
+This is all there is to it: pass the entire computation to the `transaction`
+function, and the whole computation is guaranteed to either execute atomically,
+or to fail without leaving a trace in the database.
+If an exception is raised during the computation, it will of course be rolled
+back.
+
+Do be careful, however, to avoid performing IO within a query.
+While they will not affect the atomicity of the computation as far as the
+database is concerned, the computations themselves can obviously not be
+rolled back.
+
+
+In-process caching
+------------------
+
+In many applications, read operations are orders of magnitude more common than
+write operations. For such applications, it is often useful to *cache* the
+results of a query, to avoid having the database perform the same, potentially
+heavy, query over and over even though we *know* we'll get the same result
+every time.
+
+Selda supports automatic caching of query results out of the box.
+However, it is turned off by default.
+To enable caching, use the `setLocalCache` function.
+
+```
+main = withPostgreSQL connection_info $ do
+  setLocalCache 1000
+  ...
+```
+
+This will enable local caching of up to 1,000 different results.
+When that limit is reached, the least recently used result will be discarded,
+so the next request for that result will need to actually execute the query
+on the database backend.
+If caching was already enabled, changing the maximum number of cached results
+will discard the cache's previous contents.
+Setting the cache limit to 0 disables caching again.
+
+To make sure that the cache is always consistent with the underlying database,
+Selda keeps track of which tables each query depends on.
+Whenever an insert, update, delete or drop is issued on a table `t`, all cached
+queries that depend on `t` will be discarded.
+
+This guarantees consistency between cache and database, but *only* under the
+assumption that *no other process will modify the database*.
+If this assumption does not hold for your application, you should avoid using
+in-process caching.
+It is perfectly fine, however, to have multiple *threads* within the same
+application modifying the same database as long as they're all using Selda
+to do it, as the cache shared between all Selda computations
+running in the same process.
+
+
 TODOs
 =====
 
-The following is a non-exhaustive list of things that could reasonably be
-expected of a 1.0 release, in roughly descending order of importance.
+Features that would be nice to have but are not yet implemented.
 
 * If/else.
 * Examples.
@@ -414,4 +497,4 @@ expected of a 1.0 release, in roughly descending order of importance.
 * `SELECT INTO`.
 * Constraints other than primary key.
 * Database schema upgrades.
-* Stack support.
+* Stack build.
