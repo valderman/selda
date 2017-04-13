@@ -59,7 +59,7 @@ insert :: (MonadSelda m, Insert (InsertCols a))
 insert _ [] = do
   return 0
 insert t cs = do
-  updateLocalCache $ invalidate (tableName t)
+  liftIO $ invalidate (tableName t)
   uncurry exec $ compileInsert t cs
 
 -- | Like 'insert', but does not return anything.
@@ -75,7 +75,7 @@ insertWithPK :: (MonadSelda m, HasAutoPrimary a, Insert (InsertCols a))
                 => Table a -> [InsertCols a] -> m Int
 insertWithPK t cs = do
   backend <- seldaBackend
-  updateLocalCache $ invalidate (tableName t)
+  liftIO $ invalidate (tableName t)
   liftIO . uncurry (runStmtWithPK backend) $ compileInsert t cs
 
 -- | Update the given table using the given update function, for all rows
@@ -86,7 +86,7 @@ update :: (MonadSelda m, Columns (Cols s a), Result (Cols s a))
        -> (Cols s a -> Cols s a)   -- ^ Update function.
        -> m Int
 update tbl check upd = do
-  updateLocalCache $ invalidate (tableName tbl)
+  liftIO $ invalidate (tableName tbl)
   uncurry exec $ compileUpdate tbl upd check
 
 -- | Like 'update', but doesn't return the number of updated rows.
@@ -102,7 +102,7 @@ update_ tbl check upd = void $ update tbl check upd
 deleteFrom :: (MonadSelda m, Columns (Cols s a))
            => Table a -> (Cols s a -> Col s Bool) -> m Int
 deleteFrom tbl f = do
-  updateLocalCache $ invalidate (tableName tbl)
+  liftIO $ invalidate (tableName tbl)
   uncurry exec $ compileDelete tbl f
 
 -- | Like 'deleteFrom', but does not return the number of deleted rows.
@@ -153,22 +153,23 @@ transaction m = do
 --
 --   WARNING: local caching is guaranteed to be consistent with the underlying
 --   database, ONLY under the assumption that no other process will modify it.
+--   Also note that the cache is shared between ALL Selda computations running
+--   within the same process.
 setLocalCache :: MonadSelda m => Int -> m ()
-setLocalCache = updateLocalCache . setMaxItems
+setLocalCache = liftIO . setMaxItems
 
 -- | Build the final result from a list of result columns.
 queryWith :: forall s m a. (MonadSelda m, Result a)
           => QueryRunner (Int, [[SqlValue]]) -> Query s a -> m [Res a]
 queryWith qr q = do
-    mres <- cached qry <$> getLocalCache
+    mres <- liftIO $ cached qry
     case mres of
-      (Just res, c') -> do
-        updateLocalCache $ const c'
+      Just res -> do
         return res
       _        -> do
         res <- fmap snd . liftIO $ uncurry qr qry
         let res' = mkResults (Proxy :: Proxy a) res
-        updateLocalCache $ cache tables qry res'
+        liftIO $ cache tables qry res'
         return res'
   where
     (tables, qry) = compileWithTables q
@@ -181,7 +182,7 @@ mkResults p = map (toRes p)
 --   results depending on that table.
 withInval :: MonadSelda m => (Table a -> m b) -> Table a -> m b
 withInval f t = do
-  updateLocalCache (invalidate $ tableName t)
+  liftIO $ invalidate $ tableName t
   f t
 
 -- | Execute a statement without a result.

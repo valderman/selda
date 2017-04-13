@@ -1,8 +1,8 @@
 {-# LANGUAGE GADTs, ScopedTypeVariables, CPP #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 module Database.Selda.Caching
-   ( ResultCache, CacheKey
-    , emptyCache, cache, cached, invalidate, setMaxItems, maxItems
+   ( CacheKey
+    , cache, cached, invalidate, setMaxItems
    ) where
 import Prelude hiding (lookup)
 import Data.Dynamic
@@ -13,6 +13,8 @@ import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet as S
 import Data.List (foldl')
 import Database.Selda.SqlType
+import Data.IORef
+import System.IO.Unsafe
 #endif
 import Data.Text (Text)
 import Database.Selda.SQL (Param (..))
@@ -22,25 +24,17 @@ type CacheKey = (Text, [Param])
 
 #ifdef NO_LOCALCACHE
 
-data ResultCache = ResultCache
+cache :: Typeable a => [TableName] -> CacheKey -> a -> IO ()
+cache _ _ _ = return ()
 
-emptyCache :: ResultCache
-emptyCache = ResultCache
+cached :: forall a. Typeable a => CacheKey -> IO (Maybe a)
+cached _ = return Nothing
 
-cache :: Typeable a => [TableName] -> CacheKey -> a -> ResultCache -> ResultCache
-cache _ _ _ _ = ResultCache
+invalidate :: TableName -> IO ()
+invalidate _ = return ()
 
-cached :: forall a. Typeable a => CacheKey -> ResultCache -> (Maybe a, ResultCache)
-cached _ _ = (Nothing, ResultCache)
-
-invalidate :: TableName -> ResultCache -> ResultCache
-invalidate _ _ = ResultCache
-
-setMaxItems :: Int -> ResultCache -> ResultCache
-setMaxItems _ _ = ResultCache
-
-maxItems :: ResultCache -> Int
-maxItems _ = 0
+setMaxItems :: Int -> IO ()
+setMaxItems _ = return ()
 
 #else
 
@@ -80,11 +74,18 @@ emptyCache = ResultCache
   , nextPrio = 0
   }
 
+{-# NOINLINE theCache #-}
+theCache :: IORef ResultCache
+theCache = unsafePerformIO $ newIORef emptyCache
+
 -- | Cache the given value, with the given table dependencies.
-cache :: Typeable a => [TableName] -> CacheKey -> a -> ResultCache -> ResultCache
-cache tns k v rc
+cache :: Typeable a => [TableName] -> CacheKey -> a -> IO ()
+cache tns k v = atomicModifyIORef' theCache $ \c -> (cache' tns k v c, ())
+
+cache' :: Typeable a => [TableName] -> CacheKey -> a -> ResultCache -> ResultCache
+cache' tns k v rc
   | maxItems rc == 0 = rc
-  | prio + 1 < prio  = cache tns k v (emptyCache {maxItems = maxItems rc})
+  | prio + 1 < prio  = cache' tns k v (emptyCache {maxItems = maxItems rc})
   | otherwise        = rc
     { results  = insert k prio v' results'
     , deps     = foldl' (\m tn -> M.alter (addTbl k) tn m) (deps rc) tns
@@ -102,12 +103,15 @@ cache tns k v rc
     addTbl key Nothing   = Just (S.singleton key)
 
 -- | Get the cached value for the given key, if it exists.
-cached :: forall a. Typeable a => CacheKey -> ResultCache -> (Maybe a, ResultCache)
-cached k rc = do
+cached :: forall a. Typeable a => CacheKey -> IO (Maybe a)
+cached k = atomicModifyIORef' theCache $ cached' k
+
+cached' :: forall a. Typeable a => CacheKey -> ResultCache -> (ResultCache, Maybe a)
+cached' k rc = do
   case (maxItems rc, alter updatePrio k (results rc)) of
-    (0, _)                  -> (Nothing, rc)
-    (_, (Just x, results')) -> (fromDynamic x, rc' results')
-    _                       -> (Nothing, rc)
+    (0, _)                  -> (rc, Nothing)
+    (_, (Just x, results')) -> (rc' results', fromDynamic x)
+    _                       -> (rc, Nothing)
   where
     rc' rs = rc
       { results = rs
@@ -117,8 +121,11 @@ cached k rc = do
     updatePrio _             = (Nothing, Nothing)
 
 -- | Invalidate all items in cache that depend on the given table.
-invalidate :: TableName -> ResultCache -> ResultCache
-invalidate tbl rc
+invalidate :: TableName -> IO ()
+invalidate tn = atomicModifyIORef' theCache $ \c -> (invalidate' tn c, ())
+
+invalidate' :: TableName -> ResultCache -> ResultCache
+invalidate' tbl rc
   | maxItems rc == 0 = rc
   | otherwise        = rc
     { results = results'
@@ -131,7 +138,14 @@ invalidate tbl rc
     deps' = M.delete tbl (deps rc)
 
 -- | Set the maximum number of items allowed in the cache.
-setMaxItems :: Int -> ResultCache -> ResultCache
-setMaxItems 0 _  = emptyCache
-setMaxItems n rc = emptyCache {maxItems = n}
+setMaxItems :: Int -> IO ()
+setMaxItems n = atomicModifyIORef' theCache $ \c -> (setMaxItems' n c, ())
+
+-- | The the maximum number of items for the cache.
+getMaxItems :: IO Int
+getMaxItems = maxItems <$> readIORef theCache
+
+setMaxItems' :: Int -> ResultCache -> ResultCache
+setMaxItems' 0 _  = emptyCache
+setMaxItems' n rc = emptyCache {maxItems = n}
 #endif

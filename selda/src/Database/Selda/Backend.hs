@@ -8,7 +8,6 @@ module Database.Selda.Backend
   , sqlDateTimeFormat, sqlDateFormat, sqlTimeFormat
   , runSeldaT
   ) where
-import Database.Selda.Caching
 import Database.Selda.SQL (Param (..))
 import Database.Selda.SqlType
 import Database.Selda.Table (ColAttr (..))
@@ -17,11 +16,6 @@ import Control.Monad.Catch
 import Control.Monad.IO.Class
 import Control.Monad.State
 import Data.Text (Text)
-
-data SeldaState = SeldaState
-  { thebackend :: !SeldaBackend
-  , thecache   :: !ResultCache
-  }
 
 -- | A function which executes a query and gives back a list of extensible
 --   tuples; one tuple per result row, and one tuple element per column.
@@ -47,26 +41,16 @@ class MonadIO m => MonadSelda m where
   -- | Get the backend in use by the computation.
   seldaBackend :: m SeldaBackend
 
-  -- | Get the local result cache of this computation.
-  getLocalCache :: m ResultCache
-
-  -- | Modify the local result cache.
-  updateLocalCache :: (ResultCache -> ResultCache) -> m ()
-
 -- | Monad transformer adding Selda SQL capabilities.
-newtype SeldaT m a = S {unS :: StateT SeldaState m a}
+newtype SeldaT m a = S {unS :: StateT SeldaBackend m a}
   deriving ( Functor, Applicative, Monad, MonadIO
            , MonadThrow, MonadCatch, MonadMask, MonadTrans
            )
 
 instance MonadIO m => MonadSelda (SeldaT m) where
-  seldaBackend = S (thebackend <$> get)
-  getLocalCache = S (thecache <$> get)
-  updateLocalCache f = S $ do
-    SeldaState b c <- get
-    when (maxItems c > 0 || maxItems (f c) > 0) $ put (SeldaState b (f c))
+  seldaBackend = S get
 
 -- | Run a Selda transformer. Backends should use this to implement their
 --   @withX@ functions.
 runSeldaT :: MonadIO m => SeldaT m a -> SeldaBackend -> m a
-runSeldaT m b = fst <$> runStateT (unS m) (SeldaState b emptyCache)
+runSeldaT m b = fst <$> runStateT (unS m) b
