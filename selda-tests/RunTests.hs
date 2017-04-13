@@ -130,7 +130,7 @@ allTests f = TestList
   , "mutable tests (caching)" ~: freshEnvTests caching
   ]
   where
-    caching m = freshEnv f (setLocalCache 1000)
+    caching m = freshEnv f (setLocalCache 1000 >> m)
 #ifdef POSTGRES
     run = withPostgreSQL pgConnectInfo
 #else
@@ -297,6 +297,9 @@ freshEnvTests freshEnv = test
   , "insert time values"            ~: freshEnv insertTime
   , "transaction completes"         ~: freshEnv transactionCompletes
   , "transaction rolls back"        ~: freshEnv transactionRollsBack
+  , "queries are consistent"        ~: freshEnv consistentQueries
+  , "delete deletes"                ~: freshEnv deleteDeletes
+  , "delete everything"             ~: freshEnv deleteEverything
   ]
 
 tryDropNeverFails = teardown
@@ -346,7 +349,6 @@ insertTime = do
   let Just t = parseTimeM True defaultTimeLocale sqlDateTimeFormat "2011-11-11 11:11:11.11111"
       Just d = parseTimeM True defaultTimeLocale sqlDateFormat "2011-11-11"
       Just lt = parseTimeM True defaultTimeLocale sqlTimeFormat "11:11:11.11111"
-  liftIO $ print $ compileInsert times ["now" :*: t :*: d :*: lt]
   insert_ times ["now" :*: t :*: d :*: lt]
   ["now" :*: t' :*: d' :*: lt'] <- query $ select times
   assEq "time not properly inserted" (t, d, lt) (t', d', lt')
@@ -390,3 +392,39 @@ transactionRollsBack = do
   where
     c1 = "チョロゴン"
     c2 = "メイド最高！"
+
+consistentQueries = do
+  setup
+  a <- query q
+  b <- query q
+  assEq "query result changed on its own" a b
+  where
+    q = do
+      (name :*: age :*: _ :*: cash) <- select people
+      restrict (round_ cash .> age)
+      return name
+
+deleteDeletes = do
+  setup
+  a <- query q
+  deleteFrom_ people (\(name :*: _) -> name .== "Link")
+  b <- query q
+  ass "rows not deleted" (a /= b && length b < length a)
+  where
+    q = do
+      (name :*: age :*: _ :*: cash) <- select people
+      restrict (round_ cash .> age)
+      return name
+
+deleteEverything = do
+  setup
+  a <- query q
+  deleteFrom_ people (const true)
+  b <- query q
+  ass "table empty before delete" (a /= [])
+  assEq "rows not deleted" [] b
+  where
+    q = do
+      (name :*: age :*: _ :*: cash) <- select people
+      restrict (round_ cash .> age)
+      return name
