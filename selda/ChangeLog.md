@@ -1,5 +1,5 @@
 # Revision history for selda
 
-## 0.1.0.0  -- YYYY-mm-dd
+## 0.1.0.0  -- 2017-04-14
 
-* First version. Released on an unsuspecting world.
+* Initial release.
