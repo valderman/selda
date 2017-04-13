@@ -6,9 +6,14 @@ import Database.Selda.SQL
 import Database.Selda.SqlType
 import Database.Selda.Types
 import Control.Monad.State
+import Data.List
 import Data.Monoid hiding (Product)
 import Data.Text (Text)
 import qualified Data.Text as Text
+
+-- | O(n log n) equivalent of @nub . sort@
+snub :: (Ord a, Eq a) => [a] -> [a]
+snub = map head . group . sort
 
 -- | SQL pretty-printer. The state is the list of SQL parameters to the
 --   prepared statement.
@@ -16,27 +21,28 @@ type PP = State PPState
 
 data PPState = PPState
   { ppParams  :: [Param]
+  , ppTables  :: [TableName]
   , ppParamNS :: Int
   , ppQueryNS :: Int
   }
 
 -- | Run a pretty-printer.
-runPP :: PP Text -> (Text, [Param])
+runPP :: PP Text -> ([TableName], (Text, [Param]))
 runPP pp =
-  case runState pp (PPState [] 1 0) of
-    (q, st) -> (q, reverse (ppParams st))
+  case runState pp (PPState [] [] 1 0) of
+    (q, st) -> (snub $ ppTables st, (q, reverse (ppParams st)))
 
 -- | Compile an SQL AST into a parameterized SQL query.
-compSql :: SQL -> (Text, [Param])
+compSql :: SQL -> ([TableName], (Text, [Param]))
 compSql = runPP . ppSql
 
 -- | Compile a single column expression.
 compExp :: Exp a -> (Text, [Param])
-compExp = runPP . ppCol
+compExp = snd . runPP . ppCol
 
 -- | Compile an @UPATE@ statement.
 compUpdate :: TableName -> Exp Bool -> [(ColName, SomeCol)] -> (Text, [Param])
-compUpdate tbl p cs = runPP ppUpd
+compUpdate tbl p cs = snd $ runPP ppUpd
   where
     ppUpd = do
       updates <- mapM ppUpdate cs
@@ -54,7 +60,7 @@ compUpdate tbl p cs = runPP ppUpd
 
 -- | Compile a @DELETE@ statement.
 compDelete :: TableName -> Exp Bool -> (Text, [Param])
-compDelete tbl p = runPP ppDelete
+compDelete tbl p = snd $ runPP ppDelete
   where
     ppDelete = do
       c' <- ppCol p
@@ -66,15 +72,20 @@ ppLit :: Lit a -> PP Text
 ppLit LitNull     = pure "NULL"
 ppLit (LitJust l) = ppLit l
 ppLit l           = do
-  PPState ps ns qns <- get
-  put $ PPState (Param l : ps) (succ ns) qns
+  PPState ps ts ns qns <- get
+  put $ PPState (Param l : ps) ts (succ ns) qns
   return $ Text.pack ('$':show ns)
+
+dependOn :: TableName -> PP ()
+dependOn t = do
+  PPState ps ts ns qns <- get
+  put $ PPState ps (t:ts) ns qns
 
 -- | Generate a unique name for a subquery.
 freshQueryName :: PP Text
 freshQueryName = do
-  PPState ps ns qns <- get
-  put $ PPState ps ns (succ qns)
+  PPState ps ts ns qns <- get
+  put $ PPState ps ts ns (succ qns)
   return $ Text.pack ('q':show qns)
 
 -- | Pretty-print an SQL AST.
@@ -98,8 +109,11 @@ ppSql (SQL cs src r gs ord lim) = do
     result []  = "1"
     result cs' = Text.intercalate "," cs'
 
-    ppSrc (TableName n)  = pure $ " FROM " <> n
-    ppSrc (Product [])   = pure ""
+    ppSrc (TableName n)  = do
+      dependOn n
+      pure $ " FROM " <> n
+    ppSrc (Product [])   = do
+      pure ""
     ppSrc (Product sqls) = do
       srcs <- mapM ppSql (reverse sqls)
       qs <- flip mapM ["(" <> s <> ")" | s <- srcs] $ \q -> do

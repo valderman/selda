@@ -16,7 +16,12 @@ import Data.Proxy
 
 -- | Compile a query into a parameterised SQL statement.
 compile :: Result a => Query s a -> (Text, [Param])
-compile = compSql . snd . compQuery
+compile = snd . compileWithTables
+
+-- | Compile a query into a parameterised SQL statement. Also returns all
+--   tables depended on by the query.
+compileWithTables :: Result a => Query s a -> ([TableName], (Text, [Param]))
+compileWithTables = compSql . snd . compQuery
 
 -- | Compile an @INSERT@ query.
 compileInsert :: Insert (InsertCols a)

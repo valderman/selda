@@ -32,3 +32,8 @@ data Param where
 
 instance Show Param where
   show (Param l) = "Param " <> show l
+
+instance Eq Param where
+  Param a == Param b = compLit a b == EQ
+instance Ord Param where
+  compare (Param a) (Param b) = compLit a b

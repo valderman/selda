@@ -23,6 +23,7 @@ library
     Database.Selda.Backend
     Database.Selda.Unsafe
   other-modules:
+    Database.Selda.Caching
     Database.Selda.Column
     Database.Selda.Compile
     Database.Selda.Frontend
@@ -50,7 +51,9 @@ library
   build-depends:
       base       >=4.8 && <5
     , exceptions >=0.8 && <0.9
+    , hashable   >=1.1 && <1.3
     , mtl        >=2.0 && <2.3
+    , psqueues   >=0.2 && <0.3
     , text       >=1.0 && <1.3
     , time       >=1.6 && <1.9
   if impl(ghc < 7.11)

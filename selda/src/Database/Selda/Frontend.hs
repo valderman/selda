@@ -8,9 +8,10 @@ module Database.Selda.Frontend
   , deleteFrom, deleteFrom_
   , createTable, tryCreateTable
   , dropTable, tryDropTable
-  , transaction
+  , transaction, setLocalCache
   ) where
 import Database.Selda.Backend
+import Database.Selda.Caching
 import Database.Selda.Column
 import Database.Selda.Compile
 import Database.Selda.Query.Type
@@ -55,8 +56,11 @@ query q = do
 --   attribute.
 insert :: (MonadSelda m, Insert (InsertCols a))
        => Table a -> [InsertCols a] -> m Int
-insert _ [] = return 0
-insert t cs = uncurry exec $ compileInsert t cs
+insert _ [] = do
+  return 0
+insert t cs = do
+  updateLocalCache $ invalidate (tableName t)
+  uncurry exec $ compileInsert t cs
 
 -- | Like 'insert', but does not return anything.
 --   Use this when you really don't care about how many rows were inserted.
@@ -71,6 +75,7 @@ insertWithPK :: (MonadSelda m, HasAutoPrimary a, Insert (InsertCols a))
                 => Table a -> [InsertCols a] -> m Int
 insertWithPK t cs = do
   backend <- seldaBackend
+  updateLocalCache $ invalidate (tableName t)
   liftIO . uncurry (runStmtWithPK backend) $ compileInsert t cs
 
 -- | Update the given table using the given update function, for all rows
@@ -80,7 +85,9 @@ update :: (MonadSelda m, Columns (Cols s a), Result (Cols s a))
        -> (Cols s a -> Col s Bool) -- ^ Predicate.
        -> (Cols s a -> Cols s a)   -- ^ Update function.
        -> m Int
-update tbl check upd = uncurry exec $ compileUpdate tbl upd check
+update tbl check upd = do
+  updateLocalCache $ invalidate (tableName tbl)
+  uncurry exec $ compileUpdate tbl upd check
 
 -- | Like 'update', but doesn't return the number of updated rows.
 update_ :: (MonadSelda m, Columns (Cols s a), Result (Cols s a))
@@ -94,12 +101,14 @@ update_ tbl check upd = void $ update tbl check upd
 --   Returns the number of deleted rows.
 deleteFrom :: (MonadSelda m, Columns (Cols s a))
            => Table a -> (Cols s a -> Col s Bool) -> m Int
-deleteFrom tbl f = uncurry exec $ compileDelete tbl f
+deleteFrom tbl f = do
+  updateLocalCache $ invalidate (tableName tbl)
+  uncurry exec $ compileDelete tbl f
 
 -- | Like 'deleteFrom', but does not return the number of deleted rows.
 deleteFrom_ :: (MonadSelda m, Columns (Cols s a))
             => Table a -> (Cols s a -> Col s Bool) -> m ()
-deleteFrom_ tbl f = void . uncurry exec $ compileDelete tbl f
+deleteFrom_ tbl f = void $ deleteFrom tbl f
 
 -- | Create a table from the given schema.
 createTable :: MonadSelda m => Table a -> m ()
@@ -115,11 +124,11 @@ tryCreateTable tbl = do
 
 -- | Drop the given table.
 dropTable :: MonadSelda m => Table a -> m ()
-dropTable = void . flip exec [] . compileDropTable Fail
+dropTable = withInval $ void . flip exec [] . compileDropTable Fail
 
 -- | Drop the given table, if it exists.
 tryDropTable :: MonadSelda m => Table a -> m ()
-tryDropTable = void . flip exec [] . compileDropTable Ignore
+tryDropTable = withInval $ void . flip exec [] . compileDropTable Ignore
 
 -- | Perform the given computation atomically.
 --   If an exception is raised during its execution, the enture transaction
@@ -136,15 +145,40 @@ transaction m = do
       void $ exec "COMMIT" []
       return x
 
+-- | Set the maximum local cache size to @n@. A cache size of zero disables
+--   local cache altogether. By default, local caching is turned off.
+--
+--   WARNING: local caching is guaranteed to be consistent with the underlying
+--   database, ONLY under the assumption that no other process will modify it.
+setLocalCache :: MonadSelda m => Int -> m ()
+setLocalCache = updateLocalCache . setMaxItems
+
 -- | Build the final result from a list of result columns.
-queryWith :: forall s m a. (MonadIO m, Result a)
+queryWith :: forall s m a. (MonadSelda m, Result a)
           => QueryRunner (Int, [[SqlValue]]) -> Query s a -> m [Res a]
-queryWith qr =
-  liftIO . fmap (mkResults (Proxy :: Proxy a) . snd) . uncurry qr . compile
+queryWith qr q = do
+    mres <- cached qry <$> getLocalCache
+    res <- case mres of
+      Just res -> do
+        return res
+      _        -> do
+        res <- fmap snd . liftIO $ uncurry qr qry
+        updateLocalCache $ cache tables qry res
+        return res
+    return $ mkResults (Proxy :: Proxy a) res
+  where
+    (tables, qry) = compileWithTables q
 
 -- | Generate the final result of a query from a list of untyped result rows.
 mkResults :: Result a => Proxy a -> [[SqlValue]] -> [Res a]
 mkResults p = map (toRes p)
+
+-- | Run the given computation over a table after invalidating all cached
+--   results depending on that table.
+withInval :: MonadSelda m => (Table a -> m b) -> Table a -> m b
+withInval f t = do
+  updateLocalCache (invalidate $ tableName t)
+  f t
 
 -- | Execute a statement without a result.
 exec :: MonadSelda m => Text -> [Param] -> m Int

@@ -35,8 +35,38 @@ data Lit a where
   LitTS   :: !Text    -> Lit UTCTime
   LitDate :: !Text    -> Lit Day
   LitTime :: !Text    -> Lit TimeOfDay
-  LitJust :: !(Lit a) -> Lit (Maybe b)
+  LitJust :: !(Lit a) -> Lit (Maybe a)
   LitNull :: Lit (Maybe a)
+
+instance Eq (Lit a) where
+  a == b = compLit a b == EQ
+
+instance Ord (Lit a) where
+  compare = compLit
+
+-- | Constructor tag for all literals. Used for Ord instance.
+litConTag :: Lit a -> Int
+litConTag (LitS{})    = 0
+litConTag (LitI{})    = 1
+litConTag (LitD{})    = 2
+litConTag (LitB{})    = 3
+litConTag (LitTS{})   = 4
+litConTag (LitDate{}) = 5
+litConTag (LitTime{}) = 6
+litConTag (LitJust{}) = 7
+litConTag (LitNull)   = 8
+
+-- | Compare two literals of different type for equality.
+compLit :: Lit a -> Lit b -> Ordering
+compLit (LitS x)    (LitS x')    = x `compare` x'
+compLit (LitI x)    (LitI x')    = x `compare` x'
+compLit (LitD x)    (LitD x')    = x `compare` x'
+compLit (LitB x)    (LitB x')    = x `compare` x'
+compLit (LitTS x)   (LitTS x')   = x `compare` x'
+compLit (LitDate x) (LitDate x') = x `compare` x'
+compLit (LitTime x) (LitTime x') = x `compare` x'
+compLit (LitJust x) (LitJust x') = x `compLit` x'
+compLit a           b            = litConTag a `compare` litConTag b
 
 -- | Some value that is representable in SQL.
 data SqlValue where
