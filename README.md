@@ -10,12 +10,14 @@ databases. It was inspired by LINQ and
 Features
 ========
 
+* Monadic interface: no need to be a category theory wizard just to write a few
+  database queries.
+* Portable: fully functional backends for SQLite and PostgreSQL.
 * Creating, dropping and querying tables using type-safe database schemas.
-* Monadic query language with products, filtering, joins and aggregation.
+* Typed query language with products, filtering, joins and aggregation.
 * Inserting, updating and deleting rows from tables.
 * Transaction support.
 * Configurable, automatic, consistent in-process caching of query results.
-* Multiple backends: SQLite and PostgreSQL.
 * Lightweight and modular: non-essential features are optional or split into
   add-on packages.
 
@@ -498,3 +500,4 @@ Features that would be nice to have but are not yet implemented.
 * Constraints other than primary key.
 * Database schema upgrades.
 * Stack build.
+* MySQL/MariaDB backend.
