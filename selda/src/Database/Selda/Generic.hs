@@ -6,7 +6,7 @@
 module Database.Selda.Generic
   ( ColAttribute (..), Attribute, Relation
   , genTable
-  , primary, autoPrimary, Person (..)
+  , primary, autoPrimary
   ) where
 import Control.Monad.State
 import Data.Proxy
