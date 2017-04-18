@@ -35,7 +35,7 @@ module Database.Selda
     -- * Defining schemas
   , ColSpec, TableName, ColName
   , NonNull, IsNullable, Nullable, NotNullable
-  , Auto
+  , Auto (..)
   , table, (¤), required, optional
   , primary, autoPrimary
     -- * Combining schemas
@@ -68,12 +68,12 @@ import Database.Selda.Types
 import Database.Selda.Unsafe
 
 -- | Any column type that can be used with the 'min_' and 'max_' functions.
-class MinMax a
-instance {-# OVERLAPPABLE #-} Num a => MinMax a
+class SqlType a => MinMax a
+instance {-# OVERLAPPABLE #-} (SqlType a, Num a) => MinMax a
 instance MinMax Text
 instance MinMax a => MinMax (Maybe a)
 
-(.==), (./=), (.>), (.<), (.>=), (.<=) :: Col s a -> Col s a -> Col s Bool
+(.==), (./=), (.>), (.<), (.>=), (.<=) :: SqlType a => Col s a -> Col s a -> Col s Bool
 (.==) = liftC2 $ BinOp Eq
 (./=) = liftC2 $ BinOp Neq
 (.>)  = liftC2 $ BinOp Gt
@@ -111,7 +111,7 @@ descending = Desc
 -- >   name :*: _ :*: pet <- select people
 -- >   restrict (pet .== just "cat")
 -- >   return name
-just :: Col s a -> Col s (Maybe a)
+just :: SqlType a => Col s a -> Col s (Maybe a)
 just = cast
 
 -- | SQL NULL, at any type you like.
@@ -141,11 +141,11 @@ like = liftC2 $ BinOp Like
 infixl 4 `like`
 
 -- | The number of non-null values in the given column.
-count :: Col s a -> Aggr s Int
+count :: SqlType a => Col s a -> Aggr s Int
 count = aggr "COUNT"
 
 -- | The average of all values in the given column.
-avg :: Num a => Col s a -> Aggr s a
+avg :: (SqlType a, Num a) => Col s a -> Aggr s a
 avg = aggr "AVG"
 
 -- | The greatest value in the given column. Texts are compared lexically.
@@ -157,7 +157,7 @@ min_  :: MinMax a => Col s a -> Aggr s a
 min_ = aggr "MIN"
 
 -- | Sum all values in the given column.
-sum_ :: Num a => Col s a -> Aggr s a
+sum_ :: (SqlType a, Num a) => Col s a -> Aggr s a
 sum_ = aggr "SUM"
 
 -- | Round a value to the nearest integer. Equivalent to @roundTo 0@.
@@ -177,11 +177,11 @@ not_ :: Col s Bool -> Col s Bool
 not_ = liftC $ UnOp Not
 
 -- | Convert a boolean column to any numeric type.
-fromBool :: Num a => Col s Bool -> Col s a
+fromBool :: (SqlType a, Num a) => Col s Bool -> Col s a
 fromBool = cast
 
 -- | Convert an integer column to any numeric type.
-fromInt :: Num a => Col s Int -> Col s a
+fromInt :: (SqlType a, Num a) => Col s Int -> Col s a
 fromInt = cast
 
 -- | Convert any column to a string.

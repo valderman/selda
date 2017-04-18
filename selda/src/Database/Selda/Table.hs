@@ -92,10 +92,6 @@ newtype ColSpec a = ColSpec [ColInfo]
 ColSpec a ¤ ColSpec b = ColSpec (a ++ b)
 infixr 1 ¤
 
--- | Indicates an automatically incrementing column.
---   Auto columns are usually not touched in @INSERT@ queries.
-data Auto a
-
 -- | Used by 'IsNullable' to indicate a nullable type.
 data Nullable
 

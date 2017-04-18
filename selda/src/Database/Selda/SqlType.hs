@@ -1,9 +1,11 @@
-{-# LANGUAGE GADTs, OverloadedStrings, ScopedTypeVariables #-}
+{-# LANGUAGE GADTs, OverloadedStrings, ScopedTypeVariables, FlexibleInstances #-}
 -- | Types representable in Selda's subset of SQL.
 module Database.Selda.SqlType where
 import Data.Text (Text, pack, unpack)
 import Data.Time
 import Data.Proxy
+import Database.Selda.Types (Auto (..))
+import Unsafe.Coerce
 
 -- | Format string used to represent date and time when
 --   talking to the database backend.
@@ -26,7 +28,7 @@ class SqlType a where
   sqlType :: Proxy a -> Text
   fromSql :: SqlValue -> a
 
--- | An SQL mkLit.
+-- | An SQL literal.
 data Lit a where
   LitS    :: !Text    -> Lit Text
   LitI    :: !Int     -> Lit Int
@@ -146,3 +148,7 @@ instance SqlType a => SqlType (Maybe a) where
   sqlType _ = sqlType (Proxy :: Proxy a)
   fromSql (SqlNull) = Nothing
   fromSql x         = Just $ fromSql x
+instance SqlType (Auto Int) where
+  mkLit (Auto x) = unsafeCoerce (mkLit x)
+  sqlType _ = sqlType (Proxy :: Proxy Int)
+  fromSql = Auto . fromSql

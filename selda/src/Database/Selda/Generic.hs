@@ -4,9 +4,9 @@
 {-# LANGUAGE GADTs #-}
 -- | Build tables and database operations from (almost) any Haskell type.
 module Database.Selda.Generic
-  ( ColAttribute (..), Attribute, Relation
-  , genTable
-  , primary, autoPrimary
+  ( GenTable (..), Attribute, Relation
+  , genTable, toRel, (!)
+  , primary
   ) where
 import Control.Monad.State
 import Data.Proxy
@@ -15,15 +15,65 @@ import GHC.Generics hiding (R, (:*:))
 import qualified GHC.Generics as G ((:*:)(..))
 import Unsafe.Coerce
 import Database.Selda hiding (autoPrimary, primary, optional)
+import Database.Selda.Column
 import Database.Selda.Table hiding (autoPrimary, primary, optional)
 import Database.Selda.SqlType
 
+-- | A generic table. Needs to be unpacked using @gen@ before use with
+--   'select', 'insert_', etc.
+newtype GenTable a = GenTable {gen :: Table (Rel (Rep a))}
+
+-- | Convert a generic type into the corresponding database relation.
+--   A type's corresponding relation is simply the inductive tuple consisting
+--   of all of the type's fields.
+--
+-- > data Person = Person
+-- >   { id   :: Auto Int
+-- >   , name :: Text
+-- >   , age  :: Int
+-- >   , pet  :: Maybe Text
+-- >   }
+-- >   deriving Generic
+-- >
+-- > somePerson = Person 0 "Velvet" 19 Nothing
+-- > (theId :*: theName :*: theAge :*: thePet) = toRel somePerson
+toRel :: (Generic a, GRelation (Rep a)) => a -> Rel (Rep a)
+toRel = gToRel . from
+
+-- | From the given table column, get the column corresponding to the given
+--   selector function. For instance:
+--
+-- > data Person = Person
+-- >   { id   :: Auto Int
+-- >   , name :: Text
+-- >   , age  :: Int
+-- >   , pet  :: Maybe Text
+-- >   }
+-- >   deriving Generic
+-- >
+-- > people :: Table Person
+-- > people = genTable "people" [name :- primary]
+-- >
+-- > getAllAges :: Query s Int
+-- > getAllAges = do
+-- >   p <- select people
+-- >   return (p ! age)
+--
+--   Note that ONLY selector functions may be passed as the second argument of
+--   this function. Attempting to pass any non-selector function results in a
+--   runtime error.
+(!) :: (Columns (Cols s (Rel (Rep a))), Generic a, GRelation (Rep a), SqlType b)
+    => Cols s (Rel (Rep a)) -> (a -> b) -> Col s b
+cs ! f =
+    case drop (identify mkDummy f) cols of
+      (Named x _ : _) -> C (Col x)
+      (Some c : _)    -> C (unsafeCoerce c)
+      _               -> error "attempted to use a non-selector with (!)"
+  where
+    cols = fromTup cs
+
 -- | Some attribute that may be set on a table column.
 newtype Attribute = Attribute [ColAttr]
-
--- | Auto-incrementing primary key.
-autoPrimary :: Attribute
-autoPrimary = Attribute [Primary, AutoIncrement, Required]
 
 -- | A primary key which does not auto-increment.
 primary :: Attribute
@@ -32,10 +82,6 @@ primary = Attribute [Primary, Required]
 -- | A dummy of some type. Encapsulated to avoid improper use, since all of
 --   its fields are 'unsafeCoerce'd ints.
 newtype Dummy a = Dummy a
-
--- | A pair of columns and attributes.
-data ColAttribute a where
-  (:-) :: (a -> b) -> Attribute -> ColAttribute a
 
 -- | The relation corresponding to the given Haskell type.
 --   This relation simply corresponds to the fields in the data type, from
@@ -54,10 +100,13 @@ type Relation a = Rel (Rep a)
 --   All @Maybe@ fields in the table's type will be represented by nullable
 --   columns, and all non-@Maybe@ fields fill be represented by required
 --   columns.
+--   If the type has an auto-incrementing primary key, the primary key must
+--   have the type @Auto Int@.
 --   For example:
 --
 -- > data Person = Person
--- >   { name :: Text
+-- >   { id   :: Auto Int
+-- >   , name :: Text
 -- >   , age  :: Int
 -- >   , pet  :: Maybe Text
 -- >   }
@@ -67,23 +116,21 @@ type Relation a = Rel (Rep a)
 -- > people = genTable "people" [name :- primary]
 --
 --   This example will create a table with the column types
---   @Text :*: Int :*: Maybe Text@, where the first field is the primary key.
---
---   TODO: auto-incrementing columns don't have any particular type here, find
---   out just how big/small a problem this is.
-genTable :: forall a.
+--   @Auto Int :*: Text :*: Int :*: Maybe Text@, where the first field is
+--   the primary key.
+genTable :: forall a b.
             (Generic a, GRelation (Rep a))
          => TableName
-         -> [ColAttribute a]
-         -> Table a
-genTable tn attrs = Table tn (validate tn (map tidy cols))
+         -> [(a -> b, Attribute)]
+         -> GenTable a
+genTable tn attrs = GenTable $ Table tn (validate tn (map tidy cols))
   where
     dummy = mkDummy
     cols = zipWith addAttrs [0..] (tblCols (Proxy :: Proxy a))
     addAttrs n ci = ci
       { colAttrs = colAttrs ci ++ concat
           [ as
-          | f :- (Attribute as) <- attrs
+          | (f, Attribute as) <- attrs
           , identify dummy f == n
           ]
       }
@@ -108,12 +155,16 @@ mkDummy = Dummy $ to $ evalState gMkDummy 0
 identify :: Dummy a -> (a -> b) -> Int
 identify (Dummy d) f = unsafeCoerce $ f d
 
-class MaybeMaybe a where
+class Traits a where
   isMaybeType :: Proxy a -> Bool
-instance MaybeMaybe (Maybe a) where
-  isMaybeType _ = True
-instance {-# OVERLAPPABLE #-} MaybeMaybe a where
   isMaybeType _ = False
+  isAutoType :: Proxy a -> Bool
+  isAutoType _ = False
+instance Traits (Maybe a) where
+  isMaybeType _ = True
+instance Traits (Auto Int) where
+  isAutoType _ = True
+instance {-# OVERLAPPABLE #-} Traits a
 
 -- | Normalized append of two inductive tuples.
 --   Note that this will flatten any nested inductive tuples.
@@ -169,11 +220,15 @@ instance (Selector c, GRelation a) => GRelation (M1 S c a) where
         }
   gMkDummy = M1 <$> gMkDummy
 
-instance (MaybeMaybe a, SqlType a) => GRelation (K1 i a) where
+instance (Traits a, SqlType a) => GRelation (K1 i a) where
   gToRel (K1 x) = x
   gTblCols _    = [ColInfo "" (sqlType (Proxy :: Proxy a)) attrs]
     where
-      attrs
+      attrs = auto ++ optReq
+      auto
+        | isAutoType (Proxy :: Proxy a) = [Primary, AutoIncrement]
+        | otherwise                     = []
+      optReq
         | isMaybeType (Proxy :: Proxy a) = [Optional]
         | otherwise                      = [Required]
   gMkDummy = do

@@ -1,4 +1,5 @@
 {-# LANGUAGE GADTs, TypeOperators, TypeFamilies, FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 -- | Basic Selda types.
 module Database.Selda.Types where
 import Data.Text (Text)
@@ -81,3 +82,13 @@ ninth (_ :*: _ :*: _ :*: _ :*: _ :*: _ :*: _ :*: _ :*: i) = tupHead i
 tenth :: Tup j => (a :*: b :*: c :*: d :*: e :*: f :*: g :*: h :*: i :*: j)
       -> Head j
 tenth (_ :*: _ :*: _ :*: _ :*: _ :*: _ :*: _ :*: _ :*: _ :*: j) = tupHead j
+
+-- | Indicates an automatically incrementing column.
+--   Auto columns are usually not touched in @INSERT@ queries.
+newtype Auto a = Auto a
+  deriving (Eq, Ord, Num, Enum, Bounded, Integral, Real)
+
+instance Show a => Show (Auto a) where
+  show (Auto x) = show x
+instance Read a => Read (Auto a) where
+  readsPrec p s = [(Auto a, rest) | (a, rest) <- readsPrec p s]

@@ -2,7 +2,6 @@
 -- | Columns and associated utility functions.
 module Database.Selda.Column where
 import Database.Selda.SqlType
-import Database.Selda.Table (Auto)
 import Database.Selda.Types
 import Data.String
 import Data.Text (Text)
@@ -27,7 +26,7 @@ instance Columns b => Columns (Col s a :*: b) where
 instance Columns (Col s a) where
   toTup [x] = C (Col x)
   toTup []  = error "too few elements to toTup"
-  toTup _   = error "too many elements to toTup"
+  toTup xs  = C (TblCol xs)
   fromTup (C x) = [Some x]
 
 -- | A type-erased column, which may also be renamed.
@@ -58,6 +57,7 @@ fun2 f = liftC2 (Fun2 f)
 -- | Underlying column expression type, not tied to any particular query.
 data Exp a where
   Col    :: !ColName -> Exp a
+  TblCol :: ![ColName] -> Exp a
   Lit    :: !(Lit a) -> Exp a
   BinOp  :: !(BinOp a b) -> !(Exp a) -> !(Exp a) -> Exp b
   UnOp   :: !(UnOp a b) -> !(Exp a) -> Exp b
@@ -67,6 +67,7 @@ data Exp a where
 
 -- | Get all column names in the given expression.
 allNamesIn :: Exp a -> [ColName]
+allNamesIn (TblCol ns)   = ns
 allNamesIn (Col n)       = [n]
 allNamesIn (Lit _)       = []
 allNamesIn (BinOp _ a b) = allNamesIn a ++ allNamesIn b
