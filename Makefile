@@ -11,6 +11,7 @@ help:
 	@echo "sqlite      - build and install sqlite backend"
 	@echo "postgres    - build and install sqlite backend"
 	@echo "upload      - upload packages to Hackage"
+	@echo "haddock     - build Haddock docs"
 	@echo "sandbox     - create shared sandbox"
 
 build:
@@ -24,6 +25,10 @@ travischeck:
 	echo 'import Database.Selda.PostgreSQL' >> selda-tests/PGConnectInfo.hs
 	echo 'pgConnectInfo = ("test" `on` "localhost"){pgUsername = Just "postgres"}'  >> selda-tests/PGConnectInfo.hs
 	make check
+
+haddock:
+	cd selda ; cabal configure
+	cd selda ; cabal haddock
 
 check: test pgtest
 	for pkg in $(PACKAGES) ; do \
