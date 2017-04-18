@@ -1,131 +1,60 @@
-{-# LANGUAGE TypeFamilies, TypeOperators, PolyKinds, FlexibleInstances #-}
-{-# LANGUAGE DeriveGeneric, UndecidableInstances, MultiParamTypeClasses #-}
-{-# LANGUAGE FlexibleContexts, OverloadedStrings, ScopedTypeVariables #-}
-{-# LANGUAGE GADTs #-}
+{-# LANGUAGE TypeFamilies, TypeOperators, FlexibleInstances #-}
+{-# LANGUAGE UndecidableInstances, MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleContexts, ScopedTypeVariables, ConstraintKinds #-}
 -- | Build tables and database operations from (almost) any Haskell type.
+--
+--   While the types in this module may look somewhat intimidating, the rules
+--   for generic tables and queries are quite simple:
+--
+--     * Any record type with a single data constructor, where all fields are
+--       instances of 'SqlType', can be used for generic tables and queries
+--       if it derives 'Generic'.
+--     * To use the standard functions from "Database.Selda" on a generic table,
+--       it needs to be unwrapped using 'gen'.
+--     * Performing a 'select' on a generic table returns all the table's fields
+--       as an inductive tuple.
+--     * Tuples obtained this way can be handled either as any other tuple, or
+--       using the '(!)' operator together with any record selector for the
+--       tuple's corresponding type.
+--     * Relations obtained from a query can be re-assembled into their
+--       corresponding data type using 'fromRel'.
 module Database.Selda.Generic
-  ( Generic, GenTable (..), Attribute, Relation
-  , genTable, toRel, (!)
+  ( Relational, Generic
+  , GenTable (..), Attribute, Relation
+  , genTable, toRel, fromRel, (!)
   , insertGen, insertGen_, insertGenWithPK
-  , primary
+  , primaryGen
   ) where
 import Control.Monad.State
-import Data.Proxy
+import Data.Dynamic
 import Data.Text (pack)
 import GHC.Generics hiding (R, (:*:))
 import qualified GHC.Generics as G ((:*:)(..))
 import Unsafe.Coerce
-import Database.Selda hiding (autoPrimary, primary, optional)
+import Database.Selda
 import Database.Selda.Column
-import Database.Selda.Table hiding (autoPrimary, primary, optional)
+import Database.Selda.Table
 import Database.Selda.SqlType
+
+-- | Any type which has a corresponding relation.
+--   To make a @Relational@ instance for some type, simply derive 'Generic'.
+--
+--   Note that only types which have a single data constructor, and where all
+--   fields are instances of 'SqlValue' can be used with this module.
+--   Attempting to use functions in this module with any type which doesn't
+--   obey those constraints will result in a very confusing type error.
+type Relational a =
+  ( Generic a
+  , GRelation (Rep a)
+  , GFromRel (Rep a)
+  , ToDyn (Relation a)
+  , NoAuto (Relation a)
+  , Insert (InsertCols (Relation a))
+  )
 
 -- | A generic table. Needs to be unpacked using @gen@ before use with
 --   'select', 'insert', etc.
-newtype GenTable a = GenTable {gen :: Table (Rel (Rep a))}
-
--- | Convert a generic type into the corresponding database relation.
---   A type's corresponding relation is simply the inductive tuple consisting
---   of all of the type's fields.
---
--- > data Person = Person
--- >   { id   :: Auto Int
--- >   , name :: Text
--- >   , age  :: Int
--- >   , pet  :: Maybe Text
--- >   }
--- >   deriving Generic
--- >
--- > somePerson = Person 0 "Velvet" 19 Nothing
--- > (theId :*: theName :*: theAge :*: thePet) = toRel somePerson
-toRel :: (Generic a, GRelation (Rep a)) => a -> Rel (Rep a)
-toRel = gToRel . from
-
-class NoAuto a where
-  noAuto :: a -> InsertCols a
-instance NoAuto b => NoAuto (Auto a :*: b) where
-  noAuto (_ :*: b) = noAuto b
-instance InsertCols (a :*: Auto b) ~ a => NoAuto (a :*: Auto b) where
-  noAuto (a :*: _) = a
-instance {-# OVERLAPPABLE #-} ((InsertCols (a :*: b)) ~ (a :*: InsertCols b), NoAuto b) => NoAuto (a :*: b) where
-  noAuto (a :*: b) = a :*: noAuto b
-instance {-# OVERLAPPABLE #-} InsertCols a ~ a => NoAuto a where
-  noAuto a = a
-
--- | Like 'insertWithPK', but accepts a generic table and
---   its corresponding data type.
-insertGenWithPK :: ( NoAuto (Rel (Rep a))
-                   , Generic a
-                   , GRelation (Rep a)
-                   , MonadSelda m
-                   , HasAutoPrimary (Rel (Rep a))
-                   , Insert (InsertCols (Rel (Rep a)))
-                   )
-                => GenTable a -> [a] -> m Int
-insertGenWithPK t = insertWithPK (gen t) . map (noAuto . toRel)
-
--- | Like 'insert', but accepts a generic table and its corresponding data type.
-insertGen :: ( NoAuto (Rel (Rep a))
-             , Generic a
-             , GRelation (Rep a)
-             , MonadSelda m
-             , Insert (InsertCols (Rel (Rep a)))
-             )
-          => GenTable a -> [a] -> m Int
-insertGen t = insert (gen t) . map (noAuto . toRel)
-
--- | Like 'insert_', but accepts a generic table and its corresponding data type.
-insertGen_ :: ( NoAuto (Rel (Rep a))
-              , Generic a
-              , GRelation (Rep a)
-              , MonadSelda m
-              , Insert (InsertCols (Rel (Rep a)))
-              )
-           => GenTable a -> [a] -> m ()
-insertGen_ t = void . insertGen t
-
--- | From the given table column, get the column corresponding to the given
---   selector function. For instance:
---
--- > data Person = Person
--- >   { id   :: Auto Int
--- >   , name :: Text
--- >   , age  :: Int
--- >   , pet  :: Maybe Text
--- >   }
--- >   deriving Generic
--- >
--- > people :: Table Person
--- > people = genTable "people" [name :- primary]
--- >
--- > getAllAges :: Query s Int
--- > getAllAges = do
--- >   p <- select people
--- >   return (p ! age)
---
---   Note that ONLY selector functions may be passed as the second argument of
---   this function. Attempting to pass any non-selector function results in a
---   runtime error.
-(!) :: (Columns (Cols s (Rel (Rep a))), Generic a, GRelation (Rep a), SqlType b)
-    => Cols s (Rel (Rep a)) -> (a -> b) -> Col s b
-cs ! f =
-    case drop (identify mkDummy f) cols of
-      (Named x _ : _) -> C (Col x)
-      (Some c : _)    -> C (unsafeCoerce c)
-      _               -> error "attempted to use a non-selector with (!)"
-  where
-    cols = fromTup cs
-
--- | Some attribute that may be set on a table column.
-newtype Attribute = Attribute [ColAttr]
-
--- | A primary key which does not auto-increment.
-primary :: Attribute
-primary = Attribute [Primary, Required]
-
--- | A dummy of some type. Encapsulated to avoid improper use, since all of
---   its fields are 'unsafeCoerce'd ints.
-newtype Dummy a = Dummy a
+newtype GenTable a = GenTable {gen :: Table (Relation a)}
 
 -- | The relation corresponding to the given Haskell type.
 --   This relation simply corresponds to the fields in the data type, from
@@ -157,13 +86,12 @@ type Relation a = Rel (Rep a)
 -- >   deriving Generic
 -- >
 -- > people :: Table Person
--- > people = genTable "people" [name :- primary]
+-- > people = genTable "people" [(name, primary)]
 --
 --   This example will create a table with the column types
 --   @Auto Int :*: Text :*: Int :*: Maybe Text@, where the first field is
 --   the primary key.
-genTable :: forall a b.
-            (Generic a, GRelation (Rep a))
+genTable :: forall a b. Relational a
          => TableName
          -> [(a -> b, Attribute)]
          -> GenTable a
@@ -178,6 +106,130 @@ genTable tn attrs = GenTable $ Table tn (validate tn (map tidy cols))
           , identify dummy f == n
           ]
       }
+
+-- | Convert a generic type into the corresponding database relation.
+--   A type's corresponding relation is simply the inductive tuple consisting
+--   of all of the type's fields.
+--
+-- > data Person = Person
+-- >   { id   :: Auto Int
+-- >   , name :: Text
+-- >   , age  :: Int
+-- >   , pet  :: Maybe Text
+-- >   }
+-- >   deriving Generic
+-- >
+-- > somePerson = Person 0 "Velvet" 19 Nothing
+-- > (theId :*: theName :*: theAge :*: thePet) = toRel somePerson
+--
+--   This is mainly useful when inserting values into a table using 'insert'
+--   and the other functions from "Database.Selda".
+--   Note that since @toRel@ doesn't filter out auto-incrementing primary key
+--   fields, you should use 'insertGen' and friends to insert values into
+--   tables with auto-incrementing primary keys instead.
+toRel :: Relational a => a -> Relation a
+toRel = gToRel . from
+
+-- | Re-assemble a generic type from its corresponding relation. This can be
+--   done either for ad hoc queries or for queries over generic tables:
+--
+-- > data SimplePerson = SimplePerson
+-- >   { name :: Text
+-- >   , age  :: Int
+-- >   }
+-- >   deriving Generic
+-- >
+-- > demoPerson :: SimplePerson
+-- > demoPerson = fromRel ("Miyu" :*: 10)
+-- >
+-- > adhoc :: Table (Text :*: Int)
+-- > adhoc = table "adhoc" $ required "name" ¤ required "age"
+-- >
+-- > getPersons1 :: MonadSelda m => m [SimplePerson]
+-- > getPersons1 = map fromRel <$> query (select adhoc)
+-- >
+-- > generic :: GenTable SimplePerson
+-- > generic = genTable "generic" []
+-- >
+-- > getPersons2 :: MonadSelda m => m [SimplePerson]
+-- > getPersons2 = map fromRel <$> query (select (gen generic))
+--
+--   Applying @toRel@ to an inductive tuple which isn't the corresponding
+--   relation of the return type is a type error.
+fromRel :: Relational a => Relation a -> a
+fromRel = to . fst . gFromRel . toD
+
+-- | Like 'insertWithPK', but accepts a generic table and
+--   its corresponding data type.
+insertGenWithPK :: (Relational a, MonadSelda m, HasAutoPrimary (Relation a))
+                => GenTable a -> [a] -> m Int
+insertGenWithPK t = insertWithPK (gen t) . map (noAuto . toRel)
+
+-- | Like 'insert', but accepts a generic table and its corresponding data type.
+insertGen :: (Relational a, MonadSelda m)
+          => GenTable a -> [a] -> m Int
+insertGen t = insert (gen t) . map (noAuto . toRel)
+
+-- | Like 'insert_', but accepts a generic table and its corresponding data type.
+insertGen_ :: (Relational a, MonadSelda m)
+           => GenTable a -> [a] -> m ()
+insertGen_ t = void . insertGen t
+
+-- | From the given table column, get the column corresponding to the given
+--   selector function. For instance:
+--
+-- > data Person = Person
+-- >   { id   :: Auto Int
+-- >   , name :: Text
+-- >   , age  :: Int
+-- >   , pet  :: Maybe Text
+-- >   }
+-- >   deriving Generic
+-- >
+-- > people :: Table Person
+-- > people = genTable "people" [name :- primary]
+-- >
+-- > getAllAges :: Query s Int
+-- > getAllAges = do
+-- >   p <- select people
+-- >   return (p ! age)
+--
+--   Note that ONLY selector functions may be passed as the second argument of
+--   this function. Attempting to pass any non-selector function results in a
+--   runtime error.
+(!) :: (Columns (Cols s (Relation a)), Relational a, SqlType b)
+    => Cols s (Relation a) -> (a -> b) -> Col s b
+cs ! f =
+    case drop (identify mkDummy f) cols of
+      (Named x _ : _) -> C (Col x)
+      (Some c : _)    -> C (unsafeCoerce c)
+      _               -> error "attempted to use a non-selector with (!)"
+  where
+    cols = fromTup cs
+
+-- | Some attribute that may be set on a table column.
+newtype Attribute = Attribute [ColAttr]
+
+-- | A primary key which does not auto-increment.
+primaryGen :: Attribute
+primaryGen = Attribute [Primary, Required]
+
+class NoAuto a where
+  noAuto :: a -> InsertCols a
+instance NoAuto b => NoAuto (Auto a :*: b) where
+  noAuto (_ :*: b) = noAuto b
+instance InsertCols (a :*: Auto b) ~ a => NoAuto (a :*: Auto b) where
+  noAuto (a :*: _) = a
+instance {-# OVERLAPPABLE #-}
+  ((InsertCols (a :*: b)) ~ (a :*: InsertCols b), NoAuto b) =>
+  NoAuto (a :*: b) where
+  noAuto (a :*: b) = a :*: noAuto b
+instance {-# OVERLAPPABLE #-} InsertCols a ~ a => NoAuto a where
+  noAuto a = a
+
+-- | A dummy of some type. Encapsulated to avoid improper use, since all of
+--   its fields are 'unsafeCoerce'd ints.
+newtype Dummy a = Dummy a
 
 -- | Extract all column names from the given type.
 --   If the type is not a record, the columns will be named @col_1@,
@@ -291,3 +343,30 @@ instance (Append (Rel a) (Rel b), GRelation a, GRelation b) =>
     a <- gMkDummy :: State Int (a x)
     b <- gMkDummy :: State Int (b x)
     return (a G.:*: b)
+
+
+class Typeable a => ToDyn a where
+  toD :: a -> [Dynamic]
+instance (Typeable a, ToDyn b) => ToDyn (a :*: b) where
+  toD (a :*: b) = toDyn a : toD b
+instance {-# OVERLAPPABLE #-} Typeable a => ToDyn a where
+  toD a = [toDyn a]
+
+class GFromRel f where
+  -- | Convert a value to a Haskell type from the type's corresponding relation.
+  gFromRel :: [Dynamic] -> (f a, [Dynamic])
+
+instance (GFromRel a, GFromRel b) => GFromRel (a G.:*: b) where
+  gFromRel xs =
+      (x G.:*: y, xs'')
+    where
+      (x, xs') = gFromRel xs
+      (y, xs'') = gFromRel xs'
+
+instance Typeable a => GFromRel (K1 i a) where
+  gFromRel (x:xs) = (K1 (fromDyn x (error "impossible")), xs)
+  gFromRel _      = error "impossible: too few elements to gFromRel"
+
+instance GFromRel a => GFromRel (M1 t c a) where
+  gFromRel xs = (M1 x, xs')
+    where (x, xs') = gFromRel xs
