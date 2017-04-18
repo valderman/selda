@@ -4,8 +4,9 @@
 {-# LANGUAGE GADTs #-}
 -- | Build tables and database operations from (almost) any Haskell type.
 module Database.Selda.Generic
-  ( GenTable (..), Attribute, Relation
+  ( Generic, GenTable (..), Attribute, Relation
   , genTable, toRel, (!)
+  , insertGen, insertGen_, insertGenWithPK
   , primary
   ) where
 import Control.Monad.State
@@ -20,7 +21,7 @@ import Database.Selda.Table hiding (autoPrimary, primary, optional)
 import Database.Selda.SqlType
 
 -- | A generic table. Needs to be unpacked using @gen@ before use with
---   'select', 'insert_', etc.
+--   'select', 'insert', etc.
 newtype GenTable a = GenTable {gen :: Table (Rel (Rep a))}
 
 -- | Convert a generic type into the corresponding database relation.
@@ -39,6 +40,49 @@ newtype GenTable a = GenTable {gen :: Table (Rel (Rep a))}
 -- > (theId :*: theName :*: theAge :*: thePet) = toRel somePerson
 toRel :: (Generic a, GRelation (Rep a)) => a -> Rel (Rep a)
 toRel = gToRel . from
+
+class NoAuto a where
+  noAuto :: a -> InsertCols a
+instance NoAuto b => NoAuto (Auto a :*: b) where
+  noAuto (_ :*: b) = noAuto b
+instance InsertCols (a :*: Auto b) ~ a => NoAuto (a :*: Auto b) where
+  noAuto (a :*: _) = a
+instance {-# OVERLAPPABLE #-} ((InsertCols (a :*: b)) ~ (a :*: InsertCols b), NoAuto b) => NoAuto (a :*: b) where
+  noAuto (a :*: b) = a :*: noAuto b
+instance {-# OVERLAPPABLE #-} InsertCols a ~ a => NoAuto a where
+  noAuto a = a
+
+-- | Like 'insertWithPK', but accepts a generic table and
+--   its corresponding data type.
+insertGenWithPK :: ( NoAuto (Rel (Rep a))
+                   , Generic a
+                   , GRelation (Rep a)
+                   , MonadSelda m
+                   , HasAutoPrimary (Rel (Rep a))
+                   , Insert (InsertCols (Rel (Rep a)))
+                   )
+                => GenTable a -> [a] -> m Int
+insertGenWithPK t = insertWithPK (gen t) . map (noAuto . toRel)
+
+-- | Like 'insert', but accepts a generic table and its corresponding data type.
+insertGen :: ( NoAuto (Rel (Rep a))
+             , Generic a
+             , GRelation (Rep a)
+             , MonadSelda m
+             , Insert (InsertCols (Rel (Rep a)))
+             )
+          => GenTable a -> [a] -> m Int
+insertGen t = insert (gen t) . map (noAuto . toRel)
+
+-- | Like 'insert_', but accepts a generic table and its corresponding data type.
+insertGen_ :: ( NoAuto (Rel (Rep a))
+              , Generic a
+              , GRelation (Rep a)
+              , MonadSelda m
+              , Insert (InsertCols (Rel (Rep a)))
+              )
+           => GenTable a -> [a] -> m ()
+insertGen_ t = void . insertGen t
 
 -- | From the given table column, get the column corresponding to the given
 --   selector function. For instance:
