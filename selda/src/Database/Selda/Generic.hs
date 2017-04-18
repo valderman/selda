@@ -1,5 +1,5 @@
 {-# LANGUAGE TypeFamilies, TypeOperators, FlexibleInstances #-}
-{-# LANGUAGE UndecidableInstances, MultiParamTypeClasses #-}
+{-# LANGUAGE UndecidableInstances, MultiParamTypeClasses, OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts, ScopedTypeVariables, ConstraintKinds #-}
 -- | Build tables and database operations from (almost) any Haskell type.
 --
