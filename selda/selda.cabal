@@ -46,6 +46,7 @@ library
   exposed-modules:
     Database.Selda
     Database.Selda.Backend
+    Database.Selda.Generic
     Database.Selda.Unsafe
   other-modules:
     Database.Selda.Caching
