@@ -135,7 +135,10 @@ true, false :: Col s Bool
 true = literal True
 false = literal False
 
--- | The SQL @LIKE@ operator; matches strings with wildcards.
+-- | The SQL @LIKE@ operator; matches strings with @%@ wildcards.
+--   For instance:
+--
+-- > "%gon" `like` "dragon" .== true
 like :: Col s Text -> Col s Text -> Col s Bool
 like = liftC2 $ BinOp Like
 infixl 4 `like`

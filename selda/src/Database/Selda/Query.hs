@@ -49,11 +49,11 @@ restrict (C p) = Query $ do
 --   they return any non-aggregate columns. Attempting to do either results in
 --   a type error.
 --
---   The SQL @HAVING@ keyword can be implemented by combining @aggregte@
+--   The SQL @HAVING@ keyword can be implemented by combining @aggregate@
 --   and 'restrict':
 --
 -- > -- Find the number of people living on every address, for all addresses
--- < -- with more than one tenant:
+-- > -- with more than one tenant:
 -- > -- SELECT COUNT(name) AS c, address FROM housing GROUP BY name HAVING c > 1
 -- >
 -- > numPpl = do
@@ -97,8 +97,8 @@ aggregate q = Query $ do
 -- >                             (select addresses)
 -- >   return (name :*: address)
 leftJoin :: (Columns a, Columns (OuterCols a), Columns (JoinCols a))
-            -- | Predicate determining which lines to join.
          => (OuterCols a -> Col s Bool)
+            -- ^ Predicate determining which lines to join.
             -- | Right-hand query to join.
          -> Query (Inner s) a
          -> Query s (JoinCols a)

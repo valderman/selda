@@ -84,7 +84,8 @@ tenth :: Tup j => (a :*: b :*: c :*: d :*: e :*: f :*: g :*: h :*: i :*: j)
 tenth (_ :*: _ :*: _ :*: _ :*: _ :*: _ :*: _ :*: _ :*: _ :*: j) = tupHead j
 
 -- | Indicates an automatically incrementing column.
---   Auto columns are usually not touched in @INSERT@ queries.
+--   Auto columns are ignored by 'insert' and friends, and are always assigned
+--   the next value in their corresponding sequence upon insert.
 newtype Auto a = Auto a
   deriving (Eq, Ord, Num, Enum, Bounded, Integral, Real)
 

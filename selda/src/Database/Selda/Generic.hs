@@ -65,7 +65,7 @@ newtype GenTable a = GenTable {gen :: Table (Relation a)}
 -- >   , baz :: Text
 -- >   }
 --
---   In this example, @Relation Foo@ is @(Int :*: Text)@, aas the first field
+--   In this example, @Relation Foo@ is @(Int :*: Text)@, as the first field
 --   of @Foo@ has type @Int@, and the second has type @Text@.
 type Relation a = Rel (Rep a)
 
@@ -85,7 +85,7 @@ type Relation a = Rel (Rep a)
 -- >   }
 -- >   deriving Generic
 -- >
--- > people :: Table Person
+-- > people :: GenTable Person
 -- > people = genTable "people" [(name, primary)]
 --
 --   This example will create a table with the column types
@@ -196,7 +196,7 @@ insertGen_ t = void . insertGen t
 --
 --   Note that ONLY selector functions may be passed as the second argument of
 --   this function. Attempting to pass any non-selector function results in a
---   runtime error.
+--   Haskell runtime error.
 (!) :: (Columns (Cols s (Relation a)), Relational a, SqlType b)
     => Cols s (Relation a) -> (a -> b) -> Col s b
 cs ! f =

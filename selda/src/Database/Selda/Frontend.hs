@@ -22,7 +22,8 @@ import Data.Text (Text)
 import Control.Monad
 import Control.Monad.Catch
 
--- | Run a query within a Selda transformer.
+-- | Run a query within a Selda monad. In practice, this is often a 'SeldaT'
+--   transformer on top of some other monad.
 --   Selda transformers are entered using backend-specific @withX@ functions,
 --   such as 'withSQLite' from the SQLite backend.
 query :: (MonadSelda m, Result a) => Query s a -> m [Res a]
