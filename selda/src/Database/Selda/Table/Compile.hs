@@ -9,7 +9,7 @@ import qualified Data.Text as Text
 data OnError = Fail | Ignore
   deriving (Eq, Ord, Show)
 
--- | Compile a @CREATAE TABLE@ query from a table definition.
+-- | Compile a @CREATE TABLE@ query from a table definition.
 compileCreateTable :: (Text -> [ColAttr] -> Maybe Text) -> OnError -> Table a -> Text
 compileCreateTable customColType ifex tbl = mconcat
   [ "CREATE TABLE ", ifNotExists ifex, tableName tbl, "("
