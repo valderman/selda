@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeOperators, OverloadedStrings, CPP #-}
+{-# LANGUAGE TypeOperators, OverloadedStrings, CPP, DeriveGeneric #-}
 module Main where
 import Control.Monad
 import Control.Monad.Catch
@@ -10,6 +10,7 @@ import Test.HUnit
 import Test.HUnit.Text
 import Database.Selda
 import Database.Selda.Backend
+import Database.Selda.Generic
 import Data.Time
 
 #ifdef POSTGRES
@@ -20,6 +21,16 @@ import PGConnectInfo (pgConnectInfo)
 #else
 import Database.Selda.SQLite
 #endif
+
+data Person = Person
+  { name :: Text
+  , age  :: Int
+  , pet  :: Maybe Text
+  , cash :: Double
+  } deriving (Generic, Show, Ord, Eq)
+
+genPeople :: GenTable Person
+genPeople = genTable "genpeople" [(name, primaryGen)]
 
 people :: Table (Text :*: Int :*: Maybe Text :*: Double)
 people =
@@ -50,6 +61,13 @@ times =
   ¤ required "day"
   ¤ required "local_tod"
 
+genPeopleItems =
+  [ Person "Link"      125 (Just "horse")  13506
+  , Person "Velvet"     19 Nothing         5.55
+  , Person "Kobayashi"  23 (Just "dragon") 103707.55
+  , Person "Miyu"       10 Nothing         (-500)
+  ]
+
 peopleItems =
   [ "Link"      :*: 125 :*: Just "horse"  :*: 13506
   , "Velvet"    :*: 19  :*: Nothing       :*: 5.55
@@ -70,16 +88,19 @@ commentItems =
 
 setup :: SeldaT IO ()
 setup = do
+  createTable (gen genPeople)
   createTable people
   createTable addresses
   createTable comments
   createTable times
+  insert_ (gen genPeople) peopleItems
   insert_ people peopleItems
   insert_ addresses addressItems
   insert_ comments commentItems
 
 teardown :: SeldaT IO ()
 teardown = do
+  tryDropTable (gen genPeople)
   tryDropTable people
   tryDropTable addresses
   tryDropTable comments
@@ -125,7 +146,8 @@ ass :: String -> Bool -> SeldaT IO ()
 ass s pred = liftIO $ assertBool s pred
 
 allTests f = TestList
-  [ "query tests"             ~: queryTests run
+  [ "non-database tests"      ~: noDBTests
+  , "query tests"             ~: queryTests run
   , "mutable tests"           ~: freshEnvTests (freshEnv f)
   , "mutable tests (caching)" ~: freshEnvTests caching
   ]
@@ -136,6 +158,17 @@ allTests f = TestList
 #else
     run = withSQLite f
 #endif
+
+
+-- Tests that don't even touch the database
+noDBTests = test
+  [ "id == fromRel . toRel" ~: fromRelToRelId
+  ]
+
+fromRelToRelId =
+    assertEqual "fromRel . toRel /= id" genPeopleItems xs
+  where
+    xs = map (fromRel . toRel) genPeopleItems
 
 -- Tests that don't mutate the database
 
@@ -154,6 +187,11 @@ queryTests run = test
   , "nested left join" ~: run nestedLeftJoin
   , "order + limit" ~: run orderLimit
   , "aggregate with doubles" ~: run aggregateWithDoubles
+  , "generic query on ad hoc table" ~: run genQueryAdHocTable
+  , "generic query on generic table" ~: run genQueryGenTable
+  , "ad hoc query on generic table" ~: run adHocQueryGenTable
+  , "(!) with const function fails" ~: run constIndexFail
+  , "(!) with non-selector fails" ~: run nonSelectorIndexFail
   , "teardown succeeds" ~: run teardown
   ]
 
@@ -283,23 +321,64 @@ aggregateWithDoubles = do
   where
     ans = sum (map fourth peopleItems)/fromIntegral (length peopleItems)
 
+genQueryAdHocTable = do
+  ppl <- map fromRel <$> query (select people)
+  assEq "wrong results from fromRel" (sort genPeopleItems) (sort ppl)
+
+genQueryGenTable = do
+    ppl1 <- query $ do
+      person <- select $ gen genPeople
+      restrict (person ! cash .> 0)
+      return (person ! name :*: person ! age)
+    assEq "query gave wrong result" (sort ppl2) (sort ppl1)
+  where
+    ppl2 = [name p :*: age p | p <- genPeopleItems, cash p > 0]
+
+adHocQueryGenTable = do
+    ppl1 <- query $ do
+      name :*: age :*: pet :*: cash <- select $ gen genPeople
+      restrict (cash .> 0)
+      return (name :*: age)
+    assEq "query gave wrong result" (sort ppl2) (sort ppl1)
+  where
+    ppl2 = [name p :*: age p | p <- genPeopleItems, cash p > 0]
+
+constIndexFail = assertFail $ do
+  query $ do
+    person <- select $ gen genPeople
+    restrict (person ! badCash .> 0)
+    return person
+  where
+    badCash :: Person -> Int
+    badCash _ = 10
+
+nonSelectorIndexFail = assertFail $ do
+  query $ do
+    person <- select $ gen genPeople
+    restrict (person ! ((+10) . cash) .> 0)
+    return person
+
 
 -- Tests that mutate the database
 
 freshEnvTests freshEnv = test
-  [ "tryDrop never fails"           ~: freshEnv tryDropNeverFails
-  , "tryCreate never fails"         ~: freshEnv tryCreateNeverFails
-  , "drop fails on missing"         ~: freshEnv dropFailsOnMissing
-  , "create fails on duplicate"     ~: freshEnv createFailsOnDuplicate
-  , "auto primary increments"       ~: freshEnv autoPrimaryIncrements
-  , "insert returns number of rows" ~: freshEnv insertReturnsNumRows
-  , "update updates table"          ~: freshEnv updateUpdates
-  , "insert time values"            ~: freshEnv insertTime
-  , "transaction completes"         ~: freshEnv transactionCompletes
-  , "transaction rolls back"        ~: freshEnv transactionRollsBack
-  , "queries are consistent"        ~: freshEnv consistentQueries
-  , "delete deletes"                ~: freshEnv deleteDeletes
-  , "delete everything"             ~: freshEnv deleteEverything
+  [ "tryDrop never fails"            ~: freshEnv tryDropNeverFails
+  , "tryCreate never fails"          ~: freshEnv tryCreateNeverFails
+  , "drop fails on missing"          ~: freshEnv dropFailsOnMissing
+  , "create fails on duplicate"      ~: freshEnv createFailsOnDuplicate
+  , "auto primary increments"        ~: freshEnv autoPrimaryIncrements
+  , "insert returns number of rows"  ~: freshEnv insertReturnsNumRows
+  , "update updates table"           ~: freshEnv updateUpdates
+  , "insert time values"             ~: freshEnv insertTime
+  , "transaction completes"          ~: freshEnv transactionCompletes
+  , "transaction rolls back"         ~: freshEnv transactionRollsBack
+  , "queries are consistent"         ~: freshEnv consistentQueries
+  , "delete deletes"                 ~: freshEnv deleteDeletes
+  , "generic delete"                 ~: freshEnv genericDelete
+  , "generic update"                 ~: freshEnv genericUpdate
+  , "generic insert"                 ~: freshEnv genericInsert
+  , "ad hoc insert in generic table" ~: freshEnv adHocInsertInGenericTable
+  , "delete everything"              ~: freshEnv deleteEverything
   ]
 
 tryDropNeverFails = teardown
@@ -428,3 +507,39 @@ deleteEverything = do
       (name :*: age :*: _ :*: cash) <- select people
       restrict (round_ cash .> age)
       return name
+
+genericDelete = do
+  setup
+  deleteFrom_ (gen genPeople) (\p -> p ! cash .> 0)
+  monies <- query $ do
+    p <- select (gen genPeople)
+    return (p ! cash)
+  ass "deleted wrong items" $ all (<= 0) monies
+
+genericUpdate = do
+  setup
+  update_ (gen genPeople) (\p -> p ! cash .> 0)
+                          (\p -> p ! name :*: p ! age :*: p ! pet :*: 0)
+  monies <- query $ do
+    p <- select (gen genPeople)
+    return (p ! cash)
+  ass "update failed" $ all (<= 0) monies
+
+genericInsert = do
+  setup
+  q1 <- query $ select (gen genPeople)
+  deleteFrom_ (gen genPeople) (const true)
+  insertGen_ genPeople genPeopleItems
+  q2 <- query $ select (gen genPeople)
+  assEq "insert failed" (sort q1) (sort q2)
+
+adHocInsertInGenericTable = do
+  setup
+  insert_ (gen genPeople) [val]
+  [val'] <- query $ do
+    p <- select (gen genPeople)
+    restrict (p ! name .== "Saber")
+    return p
+  assEq "insert failed" val val'
+  where
+    val = "Saber" :*: 1537 :*: Nothing :*: 0
