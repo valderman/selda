@@ -33,6 +33,7 @@ haddock:
 check: test pgtest haddock
 	for pkg in $(PACKAGES) ; do \
 	  cd $$pkg ; \
+	  cabal clean ; \
 	  cabal check ; \
 	  cabal sdist ; \
 	  cd .. ; \
