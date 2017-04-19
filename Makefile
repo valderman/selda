@@ -30,7 +30,7 @@ haddock:
 	cd selda ; cabal configure
 	cd selda ; cabal haddock
 
-check: test pgtest
+check: test pgtest haddock
 	for pkg in $(PACKAGES) ; do \
 	  cd $$pkg ; \
 	  cabal check ; \
