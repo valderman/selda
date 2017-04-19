@@ -160,15 +160,11 @@ Insertions come in two variants: the "plain" version which reports back the
 number of inserted rows, and one appended with an underscore which returns `()`.
 Use the latter to explicitly indicate your intent to ignore the return value.
 
-There is one gotcha when inserting tuples: auto-incrementing primary keys.
-When inserting data into a table with such a primary key, *the primary key
-column must be omitted from any inserted tuples* to avoid a type error.
-The reason for this is that it's usually a bad idea to set auto-incrementing
-keys manually. The following example inserts a few rows into a table with an
+The following example inserts a few rows into a table with an
 auto-incrementing primary key:
 
 ```
-people' :: Table (Auto Int :*: Text :*: Int :*: Maybe Text)
+people' :: Table (Int :*: Text :*: Int :*: Maybe Text)
 people' = table "people_with_ids"
         $ autoPrimary "id"
         ¤ required "name"
@@ -178,15 +174,15 @@ people' = table "people_with_ids"
 populate' :: SeldaT IO ()
 populate' = do
   insert_ people'
-    [ "Link"      :*: 125 :*: Just "horse"
-    , "Velvet"    :*: 19  :*: Nothing
-    , "Kobayashi" :*: 23  :*: Just "dragon"
-    , "Miyu"      :*: 10  :*: Nothing
+    [ def :*: "Link"      :*: 125 :*: Just "horse"
+    , def :*: "Velvet"    :*: 19  :*: Nothing
+    , def :*: "Kobayashi" :*: 23  :*: Just "dragon"
+    , def :*: "Miyu"      :*: 10  :*: Nothing
     ]
 ```
 
-Note that the tuple list passed to `insert_` is the same as for the previous
-example, even though our new table has an additional field `id`.
+Note the use of the `def` value for the `id` field. This indicates that the
+default value for the column should be used in lieu of any user-provided value.
 Since the `id` field is an auto-incrementing primary key, it will automatically
 be assigned a unique, increasing value.
 Thus, the resulting table would look like this:
@@ -200,7 +196,9 @@ id | name      | age | pet
  3 | Miyu      | 10  |
 ```
 
-If you want manual control over your primary keys, do not use `autoPrimary`.
+Also note that `def` can *only* be used for columns that have default values.
+Currently, only auto-incrementing primary keys can have defaults.
+Attempting to use `def` in any other context results in a runtime error.
 
 
 Updating rows
