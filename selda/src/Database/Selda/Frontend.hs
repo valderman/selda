@@ -57,9 +57,10 @@ insert :: (MonadSelda m, Insert a) => Table a -> [a] -> m Int
 insert _ [] = do
   return 0
 insert t cs = do
-  liftIO $ invalidate (tableName t)
   kw <- defaultKeyword <$> seldaBackend
-  uncurry exec $ compileInsert kw t cs
+  res <- uncurry exec $ compileInsert kw t cs
+  liftIO $ invalidate (tableName t)
+  return res
 
 -- | Like 'insert', but does not return anything.
 --   Use this when you really don't care about how many rows were inserted.
@@ -73,8 +74,9 @@ insertWithPK :: (MonadSelda m, Insert a) => Table a -> [a] -> m Int
 insertWithPK t cs = do
   backend <- seldaBackend
   liftIO $ do
+    res <- uncurry (runStmtWithPK backend) $ compileInsert (defaultKeyword backend) t cs
     invalidate (tableName t)
-    uncurry (runStmtWithPK backend) $ compileInsert (defaultKeyword backend) t cs
+    return res
 
 -- | Update the given table using the given update function, for all rows
 --   matching the given predicate. Returns the number of updated rows.
@@ -84,8 +86,9 @@ update :: (MonadSelda m, Columns (Cols s a), Result (Cols s a))
        -> (Cols s a -> Cols s a)   -- ^ Update function.
        -> m Int
 update tbl check upd = do
+  res <- uncurry exec $ compileUpdate tbl upd check
   liftIO $ invalidate (tableName tbl)
-  uncurry exec $ compileUpdate tbl upd check
+  return res
 
 -- | Like 'update', but doesn't return the number of updated rows.
 update_ :: (MonadSelda m, Columns (Cols s a), Result (Cols s a))
@@ -100,8 +103,9 @@ update_ tbl check upd = void $ update tbl check upd
 deleteFrom :: (MonadSelda m, Columns (Cols s a))
            => Table a -> (Cols s a -> Col s Bool) -> m Int
 deleteFrom tbl f = do
+  res <- uncurry exec $ compileDelete tbl f
   liftIO $ invalidate (tableName tbl)
-  uncurry exec $ compileDelete tbl f
+  return res
 
 -- | Like 'deleteFrom', but does not return the number of deleted rows.
 deleteFrom_ :: (MonadSelda m, Columns (Cols s a))
@@ -180,8 +184,9 @@ mkResults p = map (toRes p)
 --   results depending on that table.
 withInval :: MonadSelda m => (Table a -> m b) -> Table a -> m b
 withInval f t = do
+  res <- f t
   liftIO $ invalidate $ tableName t
-  f t
+  return res
 
 -- | Execute a statement without a result.
 exec :: MonadSelda m => Text -> [Param] -> m Int
