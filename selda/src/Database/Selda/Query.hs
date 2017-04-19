@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleContexts, OverloadedStrings #-}
 -- | Query monad and primitive operations.
 module Database.Selda.Query where
 import Database.Selda.Column
@@ -19,6 +19,30 @@ select (Table name cs) = Query $ do
     return $ toTup [n | Named n _ <- rns]
   where
     cs' = map colName cs
+
+-- | Query an ad hoc table of type @a@. Each element in the given list represents
+--   one row in the ad hoc table.
+selectValues :: (Insert a, Columns (Cols s a)) => [a] -> Query s (Cols s a)
+selectValues [] = Query $ do
+  st <- get
+  put $ st {sources = SQL [] EmptyTable [] [] [] Nothing : sources st}
+  return $ toTup (repeat "NULL")
+selectValues (row:rows) = Query $ do
+    names <- mapM (const freshName) rowlist
+    let rns = [Named n (Col n) | n <- names]
+        r = mkFirstRow names
+    st <- get
+    put $ st {sources = SQL rns (Values r rs) [] [] [] Nothing : sources st}
+    return $ toTup [n | Named n _ <- rns]
+  where
+    rowlist = map noDef $ params row
+    mkFirstRow ns =
+      [ Named n (Lit l)
+      | (Param l, n) <- zip rowlist ns
+      ]
+    rs = map (map noDef . params) rows
+    noDef Nothing  = error "default value given to selectValues"
+    noDef (Just x) = x
 
 -- | Restrict the query somehow. Roughly equivalent to @WHERE@.
 restrict :: Col s Bool -> Query s ()

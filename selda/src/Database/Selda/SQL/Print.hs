@@ -109,6 +109,9 @@ ppSql (SQL cs src r gs ord lim) = do
     result []  = "1"
     result cs' = Text.intercalate "," cs'
 
+    ppSrc EmptyTable = do
+      qn <- freshQueryName
+      pure $ " FROM (SELECT NULL LIMIT 0) AS " <> qn
     ppSrc (TableName n)  = do
       dependOn n
       pure $ " FROM " <> n
@@ -120,6 +123,16 @@ ppSql (SQL cs src r gs ord lim) = do
         qn <- freshQueryName
         pure (q <> " AS " <> qn)
       pure $ " FROM " <> Text.intercalate "," qs
+    ppSrc (Values row rows) = do
+      row' <- Text.intercalate ", " <$> mapM ppSomeCol row
+      rows' <- mapM ppRow rows
+      qn <- freshQueryName
+      pure $ mconcat
+        [ " FROM (SELECT "
+        , Text.intercalate " UNION ALL SELECT " (row':rows')
+        , ") AS "
+        , qn
+        ]
     ppSrc (LeftJoin on left right) = do
       l' <- ppSql left
       r' <- ppSql right
@@ -131,6 +144,10 @@ ppSql (SQL cs src r gs ord lim) = do
         , " LEFT JOIN (", r', ") AS ", rqn
         , " ON ", on'
         ]
+
+    ppRow xs = do
+      ls <- sequence [ppLit l | Param l <- xs]
+      pure $ Text.intercalate ", " ls
 
     ppRestricts [] = pure ""
     ppRestricts rs = ppCols rs >>= \rs' -> pure $ " WHERE " <> rs'

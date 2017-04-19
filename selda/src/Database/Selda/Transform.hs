@@ -10,7 +10,9 @@ import Database.Selda.Types
 removeDeadCols :: [ColName] -> SQL -> SQL
 removeDeadCols live sql =
     case source sql' of
+      EmptyTable      -> sql'
       TableName _     -> sql'
+      Values  _ _     -> sql'
       Product qs      -> sql' {source = Product $ map noDead qs}
       LeftJoin on l r -> sql' {source = LeftJoin on (noDead l) (noDead r)}
   where

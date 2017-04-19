@@ -5,6 +5,7 @@ import Data.Monoid
 import Data.Text (pack)
 import Database.Selda.SQL
 import Database.Selda.Column
+import Database.Selda.Types (ColName)
 
 -- | An SQL query.
 newtype Query s a = Query {unQ :: State GenState a}
@@ -47,9 +48,8 @@ initState = GenState
 -- | Generate a unique name for the given column.
 rename :: SomeCol -> State GenState SomeCol
 rename (Some col) = do
-    st <- get
-    put $ st {nameSupply = succ $ nameSupply st}
-    return $ Named (newName $ nameSupply st) col
+    n <- freshId
+    return $ Named (newName n) col
   where
     newName ns =
       case col of
@@ -57,3 +57,16 @@ rename (Some col) = do
         _     -> "tmp_" <> pack (show ns)
 rename col@(Named _ _) = do
   return col
+
+-- | Get a guaranteed unique identifier.
+freshId :: State GenState Int
+freshId = do
+  st <- get
+  put $ st {nameSupply = succ $ nameSupply st}
+  return (nameSupply st)
+
+-- | Get a guaranteed unique column name.
+freshName :: State GenState ColName
+freshName = do
+  n <- freshId
+  return $ "tmp_" <> pack (show n)

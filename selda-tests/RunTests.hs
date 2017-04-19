@@ -192,6 +192,9 @@ queryTests run = test
   , "ad hoc query on generic table" ~: run adHocQueryGenTable
   , "(!) with const function fails" ~: run constIndexFail
   , "(!) with non-selector fails" ~: run nonSelectorIndexFail
+  , "select from value table" ~: run selectVals
+  , "select from empty value table" ~: run selectEmptyValues
+  , "aggregate from empty value table" ~: run aggregateEmptyValues
   , "teardown succeeds" ~: run teardown
   ]
 
@@ -358,6 +361,25 @@ nonSelectorIndexFail = assertFail $ do
     restrict (person ! ((+10) . cash) .> 0)
     return person
 
+selectVals = do
+  vals <- query $ selectValues peopleItems
+  assEq "wrong columns returned" (sort peopleItems) (sort vals)
+
+selectEmptyValues = do
+  res <- query $ do
+    ppl <- select people
+    vals <- selectValues ([] :: [Maybe Text])
+    cs <- select comments
+    return cs
+  assEq "result set wasn't empty" [] res
+
+aggregateEmptyValues = do
+  [res] <- query $ aggregate $ do
+    ppl <- select people
+    vals <- selectValues ([] :: [Int :*: Int])
+    id :*: _ <- select comments
+    return (count id)
+  assEq "wrong count for empty result set" 0 res
 
 -- Tests that mutate the database
 

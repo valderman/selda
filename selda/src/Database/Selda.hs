@@ -13,7 +13,8 @@ module Database.Selda
   , Text, Cols, Columns
   , Order (..)
   , (:*:)(..)
-  , select, restrict, limit, order
+  , select, selectValues
+  , restrict, limit, order
   , ascending, descending
     -- * Expressions over columns
   , (.==), (./=), (.>), (.<), (.>=), (.<=), like
@@ -59,7 +60,7 @@ import Database.Selda.Frontend
 import Database.Selda.Inner
 import Database.Selda.Query
 import Database.Selda.Query.Type
-import Database.Selda.SQL (Order (..))
+import Database.Selda.SQL
 import Database.Selda.SqlType
 import Database.Selda.Table
 import Database.Selda.Table.Compile

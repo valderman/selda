@@ -22,7 +22,7 @@ sqlTimeFormat = "%H:%M:%S%Q"
 
 -- | Any datatype representable in (Selda's subset of) SQL.
 class SqlType a where
-  mkLit :: a -> Lit a
+  mkLit   :: a -> Lit a
   sqlType :: Proxy a -> Text
   fromSql :: SqlValue -> a
 
@@ -99,16 +99,19 @@ instance SqlType Int where
   sqlType _ = "INTEGER"
   fromSql (SqlInt x) = x
   fromSql v          = error $ "fromSql: int column with non-int value: " ++ show v
+
 instance SqlType Double where
   mkLit = LitD
   sqlType _ = "DOUBLE"
   fromSql (SqlFloat x) = x
   fromSql v            = error $ "fromSql: float column with non-float value: " ++ show v
+
 instance SqlType Text where
   mkLit = LitS
   sqlType _ = "TEXT"
   fromSql (SqlString x) = x
   fromSql v             = error $ "fromSql: text column with non-text value: " ++ show v
+
 instance SqlType Bool where
   mkLit = LitB
   sqlType _ = "INT"
@@ -116,6 +119,7 @@ instance SqlType Bool where
   fromSql (SqlInt 0)  = False
   fromSql (SqlInt _)  = True
   fromSql v           = error $ "fromSql: bool column with non-bool value: " ++ show v
+
 instance SqlType UTCTime where
   mkLit = LitTS . pack . formatTime defaultTimeLocale sqlDateTimeFormat
   sqlType _             = "DATETIME"
@@ -124,6 +128,7 @@ instance SqlType UTCTime where
       Just t -> t
       _      -> error $ "fromSql: bad datetime string: " ++ unpack s
   fromSql v             = error $ "fromSql: datetime column with non-datetime value: " ++ show v
+
 instance SqlType Day where
   mkLit = LitDate . pack . formatTime defaultTimeLocale sqlDateFormat
   sqlType _             = "DATE"
@@ -132,6 +137,7 @@ instance SqlType Day where
       Just t -> t
       _      -> error $ "fromSql: bad date string: " ++ unpack s
   fromSql v             = error $ "fromSql: date column with non-date value: " ++ show v
+
 instance SqlType TimeOfDay where
   mkLit = LitTime . pack . formatTime defaultTimeLocale sqlTimeFormat
   sqlType _             = "TIME"
@@ -140,6 +146,7 @@ instance SqlType TimeOfDay where
       Just t -> t
       _      -> error $ "fromSql: bad time string: " ++ unpack s
   fromSql v             = error $ "fromSql: time column with non-time value: " ++ show v
+
 instance SqlType a => SqlType (Maybe a) where
   mkLit (Just x) = LitJust $ mkLit x
   mkLit Nothing  = LitNull
