@@ -28,14 +28,13 @@ module Database.Selda
   , aggregate, groupBy
   , count, avg, sum_, max_, min_
     -- * Modifying tables
-  , Insert, InsertCols, HasAutoPrimary
-  , insert, insert_, insertWithPK
+  , Insert
+  , insert, insert_, insertWithPK, def
   , update, update_
   , deleteFrom, deleteFrom_
     -- * Defining schemas
   , ColSpec, TableName, ColName
   , NonNull, IsNullable, Nullable, NotNullable
-  , Auto (..)
   , table, (¤), required, optional
   , primary, autoPrimary
     -- * Combining schemas
@@ -66,6 +65,7 @@ import Database.Selda.Table
 import Database.Selda.Table.Compile
 import Database.Selda.Types
 import Database.Selda.Unsafe
+import Control.Exception (throw)
 
 -- | Any column type that can be used with the 'min_' and 'max_' functions.
 class SqlType a => MinMax a
@@ -100,6 +100,15 @@ infixr 2 .||
 ascending, descending :: Order
 ascending = Asc
 descending = Desc
+
+-- | The default value for a column during insertion.
+--   For an auto-incrementing primary key, the default value is the next key.
+--
+--   Using @def@ in any other context than insertion results in a runtime error.
+--   Likewise, if @def@ is given for a column that does not have a default
+--   value, the insertion will fail.
+def :: SqlType a => a
+def = throw DefaultValueException
 
 -- | Lift a non-nullable column to a nullable one.
 --   Useful for creating expressions over optional columns:

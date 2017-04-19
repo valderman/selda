@@ -42,14 +42,6 @@ instance {-# OVERLAPPABLE #-} ((a :+++: b) ~ (a :*: b)) =>
          ComposeSpec ColSpec a b where
   ColSpec a +++ ColSpec b = ColSpec $ a ++ b
 
--- | Insertion over all non-autoincrementing required columns.
---   Autoincrementing primary keys are automatically assigned their value.
-type family InsertCols a where
-  InsertCols (Auto a :*: b)  = InsertCols b
-  InsertCols (a :*: Auto b)  = a
-  InsertCols (a :*: b)       = a :*: InsertCols b
-  InsertCols a               = a
-
 -- | A database table.
 --   Tables are parameterized over their column types. For instance, a table
 --   containing one string and one integer, in that order, would have the type
@@ -103,12 +95,6 @@ type family IsNullable a where
   IsNullable (Maybe a) = Nullable
   IsNullable a         = NotNullable
 
--- | Any table type that has an auto-incrementing primary key.
-class HasAutoPrimary a
-instance HasAutoPrimary (Auto a)
-instance HasAutoPrimary (Auto a :*: b)
-instance {-# OVERLAPPABLE #-} HasAutoPrimary b => HasAutoPrimary (a :*: b)
-
 -- | Any SQL type which is NOT nullable.
 class SqlType a => NonNull a
 instance (SqlType a, IsNullable a ~ NotNullable) => NonNull a
@@ -136,7 +122,7 @@ primary = addAttr Primary . required
 
 -- | Automatically increment the given attribute if not specified during insert.
 --   Also adds the @PRIMARY KEY@ attribute on the column.
-autoPrimary :: ColName -> ColSpec (Auto Int)
+autoPrimary :: ColName -> ColSpec Int
 autoPrimary n = ColSpec [c {colAttrs = [Primary, AutoIncrement, Required]}]
   where ColSpec [c] = newCol n :: ColSpec Int
 

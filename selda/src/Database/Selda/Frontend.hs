@@ -32,8 +32,9 @@ query q = do
   queryWith (runStmt backend) q
 
 -- | Insert the given values into the given table. All columns of the table
---   must be present, EXCEPT any auto-incrementing primary keys ('autoPrimary'
---   columns), which are always assigned their default value.
+--   must be present. If your table has an auto-incrementing primary key,
+--   use the special value 'def' for that column to get the auto-incrementing
+--   behavior.
 --   Returns the number of rows that were inserted.
 --
 --   To insert a list of tuples into a table with auto-incrementing primary key:
@@ -47,37 +48,32 @@ query q = do
 -- >
 -- > main = withSQLite "my_database.sqlite" $ do
 -- >   insert_ people
--- >     [ "Link"  :*: 125 :*: Just "horse"
--- >     , "Zelda" :*: 119 :*: Nothing
+-- >     [ def :*: "Link"  :*: 125 :*: Just "horse"
+-- >     , def :*: "Zelda" :*: 119 :*: Nothing
 -- >     , ...
 -- >     ]
---
---   Again, note that ALL non-auto-incrementing fields must be present in the
---   tuples to be inserted, including primary keys without the auto-increment
---   attribute.
-insert :: (MonadSelda m, Insert (InsertCols a))
-       => Table a -> [InsertCols a] -> m Int
+insert :: (MonadSelda m, Insert a) => Table a -> [a] -> m Int
 insert _ [] = do
   return 0
 insert t cs = do
   liftIO $ invalidate (tableName t)
-  uncurry exec $ compileInsert t cs
+  kw <- defaultKeyword <$> seldaBackend
+  uncurry exec $ compileInsert kw t cs
 
 -- | Like 'insert', but does not return anything.
 --   Use this when you really don't care about how many rows were inserted.
-insert_ :: (MonadSelda m, Insert (InsertCols a))
-        => Table a -> [InsertCols a] -> m ()
+insert_ :: (MonadSelda m, Insert a) => Table a -> [a] -> m ()
 insert_ t cs = void $ insert t cs
 
 -- | Like 'insert', but returns the primary key of the last inserted row.
 --   Attempting to run this operation on a table without an auto-incrementing
 --   primary key is a type error.
-insertWithPK :: (MonadSelda m, HasAutoPrimary a, Insert (InsertCols a))
-                => Table a -> [InsertCols a] -> m Int
+insertWithPK :: (MonadSelda m, Insert a) => Table a -> [a] -> m Int
 insertWithPK t cs = do
   backend <- seldaBackend
-  liftIO $ invalidate (tableName t)
-  liftIO . uncurry (runStmtWithPK backend) $ compileInsert t cs
+  liftIO $ do
+    invalidate (tableName t)
+    uncurry (runStmtWithPK backend) $ compileInsert (defaultKeyword backend) t cs
 
 -- | Update the given table using the given update function, for all rows
 --   matching the given predicate. Returns the number of updated rows.

@@ -46,7 +46,7 @@ addresses =
   $ required "name"
   ¤ required "city"
 
-comments :: Table (Auto Int :*: Maybe Text :*: Text)
+comments :: Table (Int :*: Maybe Text :*: Text)
 comments =
     table "comments"
   $ autoPrimary "id"
@@ -96,7 +96,7 @@ setup = do
   insert_ (gen genPeople) peopleItems
   insert_ people peopleItems
   insert_ addresses addressItems
-  insert_ comments commentItems
+  insert_ comments (map (def :*:) commentItems)
 
 teardown :: SeldaT IO ()
 teardown = do
@@ -379,6 +379,8 @@ freshEnvTests freshEnv = test
   , "generic insert"                 ~: freshEnv genericInsert
   , "ad hoc insert in generic table" ~: freshEnv adHocInsertInGenericTable
   , "delete everything"              ~: freshEnv deleteEverything
+  , "def fails on non-def column"    ~: freshEnv defOnNonDefColumn
+  , "override auto-increment"        ~: freshEnv overrideAutoIncrement
   ]
 
 tryDropNeverFails = teardown
@@ -388,8 +390,8 @@ createFailsOnDuplicate = createTable people >> assertFail (createTable people)
 
 autoPrimaryIncrements = do
   setup
-  k <- insertWithPK comments [Just "Kobayashi" :*: "チョロゴン" ]
-  k' <- insertWithPK comments [Nothing :*: "more anonymous spam"]
+  k <- insertWithPK comments [def :*: Just "Kobayashi" :*: "チョロゴン" ]
+  k' <- insertWithPK comments [def :*: Nothing :*: "more anonymous spam"]
   [name] <- query $ do
     id :*: name :*: _ <- select comments
     restrict (id .== int k)
@@ -400,18 +402,18 @@ autoPrimaryIncrements = do
 insertReturnsNumRows = do
   setup
   rows <- insert comments
-    [ Just "Kobayashi" :*: "チョロゴン"
-    , Nothing :*: "more anonymous spam"
-    , Nothing :*: "even more spam"
+    [ def :*: Just "Kobayashi" :*: "チョロゴン"
+    , def :*: Nothing :*: "more anonymous spam"
+    , def :*: Nothing :*: "even more spam"
     ]
   assEq "insert returns wrong number of inserted rows" 3 rows
 
 updateUpdates = do
   setup
   insert_ comments
-    [ Just "Kobayashi" :*: "チョロゴン"
-    , Nothing :*: "more anonymous spam"
-    , Nothing :*: "even more spam"
+    [ def :*: Just "Kobayashi" :*: "チョロゴン"
+    , def :*: Nothing :*: "more anonymous spam"
+    , def :*: Nothing :*: "even more spam"
     ]
   rows <- update comments (isNull . second)
                           (\(id :*: _ :*: c) -> (id :*: just "anon" :*: c))
@@ -435,10 +437,10 @@ insertTime = do
 transactionCompletes = do
   setup
   transaction $ do
-    insert_ comments [Just "Kobayashi" :*: c1]
+    insert_ comments [def :*: Just "Kobayashi" :*: c1]
     insert_ comments
-      [ Nothing :*: "more anonymous spam"
-      , Just "Kobayashi" :*: c2
+      [ def :*: Nothing :*: "more anonymous spam"
+      , def :*: Just "Kobayashi" :*: c2
       ]
   cs <- query $ do
     _ :*: name :*: comment <- select comments
@@ -453,10 +455,10 @@ transactionCompletes = do
 transactionRollsBack = do
   setup
   res <- try $ transaction $ do
-    insert_ comments [Just "Kobayashi" :*: c1]
+    insert_ comments [def :*: Just "Kobayashi" :*: c1]
     insert_ comments
-      [ Nothing :*: "more anonymous spam"
-      , Just "Kobayashi" :*: c2
+      [ def :*: Nothing :*: "more anonymous spam"
+      , def :*: Just "Kobayashi" :*: c2
       ]
     fail "nope"
   case res of
@@ -543,3 +545,17 @@ adHocInsertInGenericTable = do
   assEq "insert failed" val val'
   where
     val = "Saber" :*: 1537 :*: Nothing :*: 0
+
+defOnNonDefColumn = do
+  setup
+  assertFail $ do
+    insert_ comments [def :*: def :*: "hello"]
+
+overrideAutoIncrement = do
+  setup
+  insert_ comments [123 :*: Nothing :*: "hello"]
+  num <- query $ aggregate $ do
+    id :*: _ <- select comments
+    restrict (id .== 123)
+    return (count id)
+  assEq "failed to override auto-incrementing column" [1] num

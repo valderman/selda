@@ -1,4 +1,4 @@
-{-# LANGUAGE GADTs, CPP #-}
+{-# LANGUAGE GADTs, CPP, OverloadedStrings #-}
 -- | SQLite3 backend for Selda.
 module Database.Selda.SQLite (withSQLite) where
 import Database.Selda
@@ -23,9 +23,10 @@ withSQLite file m = do
 
 sqliteBackend :: MVar () -> Database -> SeldaBackend
 sqliteBackend lock db = SeldaBackend
-  { runStmt       = \q ps -> snd <$> sqliteQueryRunner lock db q ps
-  , runStmtWithPK = \q ps -> fst <$> sqliteQueryRunner lock db q ps
-  , customColType = \_ _ -> Nothing
+  { runStmt        = \q ps -> snd <$> sqliteQueryRunner lock db q ps
+  , runStmtWithPK  = \q ps -> fst <$> sqliteQueryRunner lock db q ps
+  , customColType  = \_ _ -> Nothing
+  , defaultKeyword = "NULL"
   }
 
 sqliteQueryRunner :: MVar () -> Database -> QueryRunner (Int, (Int, [[SqlValue]]))

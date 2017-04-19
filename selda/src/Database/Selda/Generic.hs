@@ -23,7 +23,7 @@ module Database.Selda.Generic
   , GenTable (..), Attribute, Relation
   , genTable, toRel, fromRel, (!)
   , insertGen, insertGen_, insertGenWithPK
-  , primaryGen
+  , primaryGen, autoPrimaryGen
   ) where
 import Control.Monad.State
 import Data.Dynamic
@@ -48,8 +48,7 @@ type Relational a =
   , GRelation (Rep a)
   , GFromRel (Rep a)
   , ToDyn (Relation a)
-  , NoAuto (Relation a)
-  , Insert (InsertCols (Relation a))
+  , Insert (Relation a)
   )
 
 -- | A generic table. Needs to be unpacked using @gen@ before use with
@@ -73,12 +72,10 @@ type Relation a = Rel (Rep a)
 --   All @Maybe@ fields in the table's type will be represented by nullable
 --   columns, and all non-@Maybe@ fields fill be represented by required
 --   columns.
---   If the type has an auto-incrementing primary key, the primary key must
---   have the type @Auto Int@.
 --   For example:
 --
 -- > data Person = Person
--- >   { id   :: Auto Int
+-- >   { id   :: Int
 -- >   , name :: Text
 -- >   , age  :: Int
 -- >   , pet  :: Maybe Text
@@ -86,11 +83,11 @@ type Relation a = Rel (Rep a)
 -- >   deriving Generic
 -- >
 -- > people :: GenTable Person
--- > people = genTable "people" [(name, primary)]
+-- > people = genTable "people" [(name, autoPrimaryGen)]
 --
 --   This example will create a table with the column types
---   @Auto Int :*: Text :*: Int :*: Maybe Text@, where the first field is
---   the primary key.
+--   @Int :*: Text :*: Int :*: Maybe Text@, where the first field is
+--   an auto-incrementing primary key.
 genTable :: forall a b. Relational a
          => TableName
          -> [(a -> b, Attribute)]
@@ -161,18 +158,15 @@ fromRel = to . fst . gFromRel . toD
 
 -- | Like 'insertWithPK', but accepts a generic table and
 --   its corresponding data type.
-insertGenWithPK :: (Relational a, MonadSelda m, HasAutoPrimary (Relation a))
-                => GenTable a -> [a] -> m Int
-insertGenWithPK t = insertWithPK (gen t) . map (noAuto . toRel)
+insertGenWithPK :: (Relational a, MonadSelda m) => GenTable a -> [a] -> m Int
+insertGenWithPK t = insertWithPK (gen t) . map toRel
 
 -- | Like 'insert', but accepts a generic table and its corresponding data type.
-insertGen :: (Relational a, MonadSelda m)
-          => GenTable a -> [a] -> m Int
-insertGen t = insert (gen t) . map (noAuto . toRel)
+insertGen :: (Relational a, MonadSelda m) => GenTable a -> [a] -> m Int
+insertGen t = insert (gen t) . map toRel
 
 -- | Like 'insert_', but accepts a generic table and its corresponding data type.
-insertGen_ :: (Relational a, MonadSelda m)
-           => GenTable a -> [a] -> m ()
+insertGen_ :: (Relational a, MonadSelda m) => GenTable a -> [a] -> m ()
 insertGen_ t = void . insertGen t
 
 -- | From the given table column, get the column corresponding to the given
@@ -214,18 +208,9 @@ newtype Attribute = Attribute [ColAttr]
 primaryGen :: Attribute
 primaryGen = Attribute [Primary, Required]
 
-class NoAuto a where
-  noAuto :: a -> InsertCols a
-instance NoAuto b => NoAuto (Auto a :*: b) where
-  noAuto (_ :*: b) = noAuto b
-instance InsertCols (a :*: Auto b) ~ a => NoAuto (a :*: Auto b) where
-  noAuto (a :*: _) = a
-instance {-# OVERLAPPABLE #-}
-  ((InsertCols (a :*: b)) ~ (a :*: InsertCols b), NoAuto b) =>
-  NoAuto (a :*: b) where
-  noAuto (a :*: b) = a :*: noAuto b
-instance {-# OVERLAPPABLE #-} InsertCols a ~ a => NoAuto a where
-  noAuto a = a
+-- | An auto-incrementing primary key.
+autoPrimaryGen :: Attribute
+autoPrimaryGen = Attribute [Primary, AutoIncrement, Required]
 
 -- | A dummy of some type. Encapsulated to avoid improper use, since all of
 --   its fields are 'unsafeCoerce'd ints.
@@ -254,12 +239,8 @@ identify (Dummy d) f = unsafeCoerce $ f d
 class Traits a where
   isMaybeType :: Proxy a -> Bool
   isMaybeType _ = False
-  isAutoType :: Proxy a -> Bool
-  isAutoType _ = False
 instance Traits (Maybe a) where
   isMaybeType _ = True
-instance Traits (Auto Int) where
-  isAutoType _ = True
 instance {-# OVERLAPPABLE #-} Traits a
 
 -- | Normalized append of two inductive tuples.
@@ -318,12 +299,8 @@ instance (Selector c, GRelation a) => GRelation (M1 S c a) where
 
 instance (Traits a, SqlType a) => GRelation (K1 i a) where
   gToRel (K1 x) = x
-  gTblCols _    = [ColInfo "" (sqlType (Proxy :: Proxy a)) attrs]
+  gTblCols _    = [ColInfo "" (sqlType (Proxy :: Proxy a)) optReq]
     where
-      attrs = auto ++ optReq
-      auto
-        | isAutoType (Proxy :: Proxy a) = [Primary, AutoIncrement]
-        | otherwise                     = []
       optReq
         | isMaybeType (Proxy :: Proxy a) = [Optional]
         | otherwise                      = [Required]

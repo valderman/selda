@@ -11,9 +11,19 @@ import Database.Selda.Table
 import Database.Selda.Table.Compile
 import Database.Selda.Transform
 import Database.Selda.Types
+import Data.Maybe (catMaybes)
 import Data.Proxy
 import Data.Text (Text, empty)
 import Data.Typeable
+import System.IO.Unsafe
+import Control.Exception
+
+-- | Exception indicating the use of a default value.
+--   If any values throwing this during evaluation of @param xs@ will be
+--   replaced by their default value.
+data DefaultValueException = DefaultValueException
+  deriving Show
+instance Exception DefaultValueException
 
 -- | Compile a query into a parameterised SQL statement.
 compile :: Result a => Query s a -> (Text, [Param])
@@ -24,13 +34,14 @@ compile = snd . compileWithTables
 compileWithTables :: Result a => Query s a -> ([TableName], (Text, [Param]))
 compileWithTables = compSql . snd . compQuery
 
--- | Compile an @INSERT@ query.
-compileInsert :: Insert (InsertCols a)
-              => Table a -> [InsertCols a] -> (Text, [Param])
-compileInsert _ []     = (empty, [])
-compileInsert tbl rows = (compInsert tbl nrows, concat ps)
+-- | Compile an @INSERT@ query, given the keyword representing default values
+--   in the target SQL dialect, a table and a list of items corresponding
+--   to the table.
+compileInsert :: Insert a => Text -> Table a -> [a] -> (Text, [Param])
+compileInsert _ _ []     = (empty, [])
+compileInsert defkw tbl rows = (compInsert defkw tbl defs, catMaybes $ concat ps)
   where ps = map params rows
-        nrows = length rows
+        defs = map (map (maybe True (const False))) ps
 
 -- | Compile an @UPDATE@ query.
 compileUpdate :: forall s a. (Columns (Cols s a), Result (Cols s a))
@@ -67,11 +78,19 @@ compQuery q =
 -- | An extensible tuple of Haskell-level values (i.e. @Int :*: Maybe Text@)
 --   which can be inserted into a table.
 class Insert a where
-  params :: a -> [Param]
+  params :: a -> [Maybe Param]
 instance (SqlType a, Insert b) => Insert (a :*: b) where
-  params (a :*: b) = Param (mkLit a) : params b
+  params (a :*: b) = unsafePerformIO $ do
+    res <- try $ return $! a
+    case res of
+      Right a'                   -> return $ Just (Param (mkLit a')) : params b
+      Left DefaultValueException -> return $ Nothing : params b
 instance {-# OVERLAPPABLE #-} SqlType a => Insert a where
-  params a = [Param (mkLit a) ]
+  params a = unsafePerformIO $ do
+    res <- try $ return $! a
+    case res of
+      Right a'                   -> return [Just $ Param (mkLit a')]
+      Left DefaultValueException -> return [Nothing]
 
 -- | An acceptable query result type; one or more columns stitched together
 --   with @:*:@.

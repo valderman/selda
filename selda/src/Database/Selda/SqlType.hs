@@ -4,8 +4,6 @@ module Database.Selda.SqlType where
 import Data.Text (Text, pack, unpack)
 import Data.Time
 import Data.Proxy
-import Database.Selda.Types (Auto (..))
-import Unsafe.Coerce
 
 -- | Format string used to represent date and time when
 --   talking to the database backend.
@@ -148,7 +146,3 @@ instance SqlType a => SqlType (Maybe a) where
   sqlType _ = sqlType (Proxy :: Proxy a)
   fromSql (SqlNull) = Nothing
   fromSql x         = Just $ fromSql x
-instance SqlType (Auto Int) where
-  mkLit (Auto x) = unsafeCoerce (mkLit x)
-  sqlType _ = sqlType (Proxy :: Proxy Int)
-  fromSql = Auto . fromSql

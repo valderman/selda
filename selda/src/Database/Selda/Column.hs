@@ -8,9 +8,7 @@ import Data.Text (Text)
 
 -- | Convert a tuple of Haskell types to a tuple of column types.
 type family Cols s a where
-  Cols s (Auto a :*: b) = Col s a :*: Cols s b
   Cols s (a :*: b)      = Col s a :*: Cols s b
-  Cols s (Auto a)       = Col s a
   Cols s a              = Col s a
 
 -- | Any column tuple.

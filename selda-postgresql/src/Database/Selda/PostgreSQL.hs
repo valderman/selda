@@ -90,9 +90,10 @@ withPostgreSQL ci m = do
 
 pgBackend :: Connection -> SeldaBackend
 pgBackend c = SeldaBackend
-  { runStmt       = \q ps -> right <$> pgQueryRunner c False q ps
-  , runStmtWithPK = \q ps -> left <$> pgQueryRunner c True q ps
-  , customColType = pgColType
+  { runStmt        = \q ps -> right <$> pgQueryRunner c False q ps
+  , runStmtWithPK  = \q ps -> left <$> pgQueryRunner c True q ps
+  , customColType  = pgColType
+  , defaultKeyword = "DEFAULT"
   }
   where
     left (Left x) = x

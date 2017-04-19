@@ -82,14 +82,3 @@ ninth (_ :*: _ :*: _ :*: _ :*: _ :*: _ :*: _ :*: _ :*: i) = tupHead i
 tenth :: Tup j => (a :*: b :*: c :*: d :*: e :*: f :*: g :*: h :*: i :*: j)
       -> Head j
 tenth (_ :*: _ :*: _ :*: _ :*: _ :*: _ :*: _ :*: _ :*: _ :*: j) = tupHead j
-
--- | Indicates an automatically incrementing column.
---   Auto columns are ignored by 'insert' and friends, and are always assigned
---   the next value in their corresponding sequence upon insert.
-newtype Auto a = Auto a
-  deriving (Eq, Ord, Num, Enum, Bounded, Integral, Real)
-
-instance Show a => Show (Auto a) where
-  show (Auto x) = show x
-instance Read a => Read (Auto a) where
-  readsPrec p s = [(Auto a, rest) | (a, rest) <- readsPrec p s]

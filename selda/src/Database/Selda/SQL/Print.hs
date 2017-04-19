@@ -167,6 +167,7 @@ ppCols cs = do
   pure $ "(" <> Text.intercalate ") AND (" cs' <> ")"
 
 ppCol :: Exp a -> PP Text
+ppCol (TblCol xs)    = error $ "compiler bug: ppCol saw TblCol: " ++ show xs
 ppCol (Col name)     = pure name
 ppCol (Lit l)        = ppLit l
 ppCol (BinOp op a b) = ppBinOp op a b

@@ -34,7 +34,11 @@ data SeldaBackend = SeldaBackend
     -- | Generate a custom column type for the column having the given Selda
     --   type and list of attributes.
   , customColType :: Text -> [ColAttr] -> Maybe Text
-  }
+
+    -- | The keyword that represents the default value for auto-incrementing
+    --   primary keys.
+  , defaultKeyword :: Text
+}
 
 -- | Some monad with Selda SQL capabilitites.
 class MonadIO m => MonadSelda m where
