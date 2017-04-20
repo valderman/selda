@@ -30,7 +30,7 @@ data Person = Person
   } deriving (Generic, Show, Ord, Eq)
 
 genPeople :: GenTable Person
-genPeople = genTable "genpeople" [(name, primaryGen)]
+genPeople = genTable "genpeople" [name :- primaryGen]
 
 people :: Table (Text :*: Int :*: Maybe Text :*: Double)
 people =
