@@ -1,5 +1,5 @@
 {-# LANGUAGE GADTs, TypeOperators, TypeFamilies, FlexibleInstances #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, MultiParamTypeClasses #-}
 -- | Basic Selda types.
 module Database.Selda.Types where
 import Data.Text (Text)
@@ -82,3 +82,18 @@ ninth (_ :*: _ :*: _ :*: _ :*: _ :*: _ :*: _ :*: _ :*: i) = tupHead i
 tenth :: Tup j => (a :*: b :*: c :*: d :*: e :*: f :*: g :*: h :*: i :*: j)
       -> Head j
 tenth (_ :*: _ :*: _ :*: _ :*: _ :*: _ :*: _ :*: _ :*: _ :*: j) = tupHead j
+
+-- | Normalized append of two inductive tuples.
+--   Note that this will flatten any nested inductive tuples.
+type family a :++: b where
+  (a :*: b) :++: c = a :*: (b :++: c)
+  a         :++: b = a :*: b
+
+class Append a b where
+  app :: a -> b -> a :++: b
+
+instance {-# OVERLAPPING #-} Append b c => Append (a :*: b) c where
+  app (a :*: b) c = a :*: app b c
+
+instance ((a :*: b) ~ (a :++: b)) => Append a b where
+  app a b = a :*: b

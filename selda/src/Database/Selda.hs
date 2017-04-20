@@ -34,12 +34,11 @@ module Database.Selda
   , update, update_
   , deleteFrom, deleteFrom_
     -- * Defining schemas
-  , ColSpec, TableName, ColName
+  , TableSpec, ColSpecs, ColSpec, TableName, ColName
   , NonNull, IsNullable, Nullable, NotNullable
+  , Append (..), (:++:)
   , table, required, optional
   , primary, autoPrimary
-    -- * Combining schemas
-  , ComposeSpec, (:+++:), (+++)
     -- * Creating and dropping tables
   , createTable, tryCreateTable
   , dropTable, tryDropTable

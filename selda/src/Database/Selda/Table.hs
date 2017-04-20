@@ -1,5 +1,4 @@
-{-# LANGUAGE GADTs, TypeOperators, OverloadedStrings #-}
-{-# LANGUAGE MultiParamTypeClasses, TypeFamilies, RankNTypes #-}
+{-# LANGUAGE TypeOperators, TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances, FlexibleInstances, ScopedTypeVariables #-}
 -- | Selda table definition language.
 module Database.Selda.Table where
@@ -9,38 +8,6 @@ import Data.Text (Text, unpack, intercalate)
 import Data.Proxy
 import Data.List (sort, group)
 import Data.Monoid
-
-type family a :+++: b where
-  (a :*: b) :+++: c = a :*: (b :+++: c)
-  a :+++: b         = a :*: b
-infixr 5 :+++:
-infixr 5 +++
-
-class ComposeSpec t a b where
-  -- | Combine the given tables or column specifications into a new
-  --   column specification which can be used to create a new table.
-  --   Useful for building composable table specifications.
-  --
-  --   Note that this function is only suitable for combining specifications
-  --   which have a concrete type. To build a column specification from scratch,
-  --   use ':*:' instead.
-  (+++) :: t a -> t b -> ColSpec (a :+++: b)
-
-instance (ComposeSpec Table a b, ComposeSpec Table b c) =>
-         ComposeSpec Table (a :*: b) c where
-  a +++ b = ColSpec $ tableCols a ++ tableCols b
-
-instance {-# OVERLAPPABLE #-} ((a :+++: b) ~ (a :*: b)) =>
-         ComposeSpec Table a b where
-  a +++ b = ColSpec $ tableCols a ++ tableCols b
-
-instance (ComposeSpec ColSpec a b, ComposeSpec ColSpec b c) =>
-         ComposeSpec ColSpec (a :*: b) c where
-  ColSpec a +++ ColSpec b = ColSpec $ a ++ b
-
-instance {-# OVERLAPPABLE #-} ((a :+++: b) ~ (a :*: b)) =>
-         ComposeSpec ColSpec a b where
-  ColSpec a +++ ColSpec b = ColSpec $ a ++ b
 
 -- | A database table.
 --   Tables are parameterized over their column types. For instance, a table
@@ -119,10 +86,12 @@ addAttr :: SqlType a => ColAttr -> ColSpec a -> ColSpec a
 addAttr attr (ColSpec [ci]) = ColSpec [ci {colAttrs = attr : colAttrs ci}]
 addAttr _ _                 = error "impossible: SqlType ColSpec with several columns"
 
+-- | An inductive tuple where each element is a column specification.
 type family ColSpecs a where
   ColSpecs (a :*: b) = ColSpec a :*: ColSpecs b
   ColSpecs a         = ColSpec a
 
+-- | An inductive tuple forming a table specification.
 class TableSpec a where
   mergeSpecs :: Proxy a -> ColSpecs a -> [ColInfo]
 instance TableSpec b => TableSpec (a :*: b) where
