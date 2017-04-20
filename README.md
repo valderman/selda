@@ -220,9 +220,9 @@ Updating rows
 -------------
 
 To update a table, pass the table and two functions to the `update` function.
-The first is a mapping over table columns, specifying how to update each row.
-The second is a predicate over table columns.
-Only rows satisfying the predicate are updated.
+The first is a predicate over table columns. The second is a mapping over table 
+columns, specifying how to update each row. Only rows satisfying the predicate 
+are updated.
 
 ```
 age10Years :: SeldaT IO ()
