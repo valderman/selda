@@ -23,7 +23,7 @@ class ComposeSpec t a b where
   --
   --   Note that this function is only suitable for combining specifications
   --   which have a concrete type. To build a column specification from scratch,
-  --   use '(¤)' instead.
+  --   use ':*:' instead.
   (+++) :: t a -> t b -> ColSpec (a :+++: b)
 
 instance (ComposeSpec Table a b, ComposeSpec Table b c) =>
@@ -70,19 +70,7 @@ newCol name = ColSpec [ColInfo
   }]
 
 -- | A table column specification.
-newtype ColSpec a = ColSpec [ColInfo]
-
--- | Combine two column specifications.
---   Table descriptions are built by chaining columns using this operator:
---
--- > people :: Table (Text :*: Int :*: Maybe Text)
--- > people = table "people" $ required "name" ¤ required "age" ¤ optional "pet"
---
---   To combine two pre-built tables into a table comprised of both tables'
---   fields, see '(+++)'.
-(¤) :: ColSpec a -> ColSpec b -> ColSpec (a :*: b)
-ColSpec a ¤ ColSpec b = ColSpec (a ++ b)
-infixr 1 ¤
+newtype ColSpec a = ColSpec {unCS :: [ColInfo]}
 
 -- | Used by 'IsNullable' to indicate a nullable type.
 data Nullable
@@ -131,11 +119,22 @@ addAttr :: SqlType a => ColAttr -> ColSpec a -> ColSpec a
 addAttr attr (ColSpec [ci]) = ColSpec [ci {colAttrs = attr : colAttrs ci}]
 addAttr _ _                 = error "impossible: SqlType ColSpec with several columns"
 
+type family ColSpecs a where
+  ColSpecs (a :*: b) = ColSpec a :*: ColSpecs b
+  ColSpecs a         = ColSpec a
+
+class TableSpec a where
+  mergeSpecs :: Proxy a -> ColSpecs a -> [ColInfo]
+instance TableSpec b => TableSpec (a :*: b) where
+  mergeSpecs _ (ColSpec a :*: b) = a ++ mergeSpecs (Proxy :: Proxy b) b
+instance {-# OVERLAPPABLE #-} ColSpecs a ~ ColSpec a => TableSpec a where
+  mergeSpecs _ (ColSpec a) = a
+
 -- | A table with the given name and columns.
-table :: TableName -> ColSpec a -> Table a
-table name (ColSpec cs) = Table
+table :: forall a. TableSpec a => TableName -> ColSpecs a -> Table a
+table name cs = Table
   { tableName = name
-  , tableCols = validate name $ map tidy cs
+  , tableCols = validate name $ map tidy $ mergeSpecs (Proxy :: Proxy a) cs
   }
 
 -- | Remove duplicate attributes.

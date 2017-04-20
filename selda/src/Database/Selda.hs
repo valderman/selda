@@ -36,7 +36,7 @@ module Database.Selda
     -- * Defining schemas
   , ColSpec, TableName, ColName
   , NonNull, IsNullable, Nullable, NotNullable
-  , table, (¤), required, optional
+  , table, required, optional
   , primary, autoPrimary
     -- * Combining schemas
   , ComposeSpec, (:+++:), (+++)

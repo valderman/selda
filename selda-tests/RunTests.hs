@@ -34,32 +34,32 @@ genPeople = genTable "genpeople" [name :- primaryGen]
 
 people :: Table (Text :*: Int :*: Maybe Text :*: Double)
 people =
-    table "people"
-  $ primary "name"
-  ¤ required "age"
-  ¤ optional "pet"
-  ¤ required "cash"
+      table "people"
+  $   primary "name"
+  :*: required "age"
+  :*: optional "pet"
+  :*: required "cash"
 
 addresses :: Table (Text :*: Text)
 addresses =
-    table "addresses"
-  $ required "name"
-  ¤ required "city"
+      table "addresses"
+  $   required "name"
+  :*: required "city"
 
 comments :: Table (Int :*: Maybe Text :*: Text)
 comments =
-    table "comments"
-  $ autoPrimary "id"
-  ¤ optional "author"
-  ¤ required "comment"
+      table "comments"
+  $   autoPrimary "id"
+  :*: optional "author"
+  :*: required "comment"
 
 times :: Table (Text :*: UTCTime :*: Day :*: TimeOfDay)
 times =
-    table "times"
-  $ required "description"
-  ¤ required "time"
-  ¤ required "day"
-  ¤ required "local_tod"
+      table "times"
+  $   required "description"
+  :*: required "time"
+  :*: required "day"
+  :*: required "local_tod"
 
 genPeopleItems =
   [ Person "Link"      125 (Just "horse")  13506

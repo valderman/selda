@@ -247,21 +247,6 @@ instance Traits (Maybe a) where
   isMaybeType _ = True
 instance {-# OVERLAPPABLE #-} Traits a
 
--- | Normalized append of two inductive tuples.
---   Note that this will flatten any nested inductive tuples.
-type family a :++: b where
-  (a :*: b) :++: c = a :*: (b :++: c)
-  a         :++: b = a :*: b
-
-class Append a b where
-  app :: a -> b -> a :++: b
-
-instance {-# OVERLAPPING #-} Append b c => Append (a :*: b) c where
-  app (a :*: b) c = a :*: app b c
-
-instance ((a :*: b) ~ (a :++: b)) => Append a b where
-  app a b = a :*: b
-
 -- | The relation corresponding to the given type.
 type family Rel (rep :: * -> *) where
   Rel (M1 t c a)  = Rel a

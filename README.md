@@ -56,17 +56,17 @@ To work productively with Selda, you will need to enable the `TypeOperators` and
 `OverloadedStrings` extensions.
 
 Table schemas are defined as the product of one or more columns, stitched
-together using the `¤` operator.
+together using the `:*:` operator.
 A table is parameterized over the types of its columns, with the column types
-separated by the `:*:` operator. This, by the way, is why you need
+also separated by the `:*:` operator. This, by the way, is why you need
 `TypeOperators`.
 
 ```
 people :: Table (Text :*: Int :*: Maybe Text)
-people = table "people" $ primary "name" ¤ required "age" ¤ optional "pet"
+people = table "people" $ primary "name" :*: required "age" :*: optional "pet"
 
 addresses :: Table (Text :*: Text)
-addresses = table "addresses" $ required "name" ¤ required "city"
+addresses = table "addresses" $ required "name" :*: required "city"
 ```
 
 Columns may be either `required` or `optional`.
@@ -181,10 +181,10 @@ auto-incrementing primary key:
 ```
 people' :: Table (Int :*: Text :*: Int :*: Maybe Text)
 people' = table "people_with_ids"
-        $ autoPrimary "id"
-        ¤ required "name"
-        ¤ required "age"
-        ¤ optional "pet"
+  $   autoPrimary "id"
+  :*: required "name"
+  :*: required "age"
+  :*: optional "pet"
 
 populate' :: SeldaT IO ()
 populate' = do
