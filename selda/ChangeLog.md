@@ -1,5 +1,10 @@
 # Revision history for selda
 
+## 0.1.2.0 -- 2017-04-20
+
+* Replace `¤` with `:*:` in table definitions.
+
+
 ## 0.1.1.1 -- 2017-04-20
 
 * Generic tables, queries and mutation.
