@@ -4,6 +4,7 @@
 
 * Generic tables, queries and mutation.
 * Select from inline tables.
+* Tutorial updates.
 * Minor bugfixes.
 
 

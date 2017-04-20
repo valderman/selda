@@ -437,7 +437,7 @@ The solution to this problem is *transactions*: a mechanism by which
 enjoys. Using transactions in Selda is super easy:
 
 ```
-transferMoney :: Text -> Text -> Double -> SeldaT s ()
+transferMoney :: Text -> Text -> Double -> SeldaT IO ()
 transferMoney from to amount = do
   transaction $ do
     update_ accounts (\(owner :*: _) -> owner .== text from)
@@ -498,6 +498,88 @@ It is perfectly fine, however, to have multiple *threads* within the same
 application modifying the same database as long as they're all using Selda
 to do it, as the cache shared between all Selda computations
 running in the same process.
+
+
+Generic tables and queries
+==========================
+
+Selda also supports building tables and queries from (almost) arbytrary
+data types, using the `Database.Selda.Generic` module.
+Re-implementing the ad hoc `people` and `addresses` tables from before in a
+more disciplined manner in this way is quite easy:
+
+```
+data Person = Person
+  { personName :: Text
+  , age        :: Int
+  , pet        :: Maybe Int
+  } deriving Generic
+
+data Address = Address
+  { addrName :: Text
+  , city     :: Text
+  } deriving Generic
+
+
+people :: GenTable Person
+people = genTable "people" [personName :- primaryGen]
+
+addresses :: GenTable Address
+addresses = genTable "addresses" [personName :- primaryGen]
+```
+
+This will declare two tables with the same structure as their ad hoc
+predecessors. Creating the tables is similarly easy:
+
+```
+create :: SeldaT IO ()
+create = do
+  createTable (gen people)
+  createTable (gen addresses)
+```
+
+Note the use of the `gen` function here, to extract the underlying table of
+columns from the generic table.
+
+With generic tables, you can use the table's datatype's record selectors
+together with the `!` operator to access its columns in queries.
+
+```
+genericGrownups :: Query s (Col s Text)
+genericGrownups = do
+  person <- select (gen people)
+  restrict (person ! age .> 20)
+  return (person ! personName)
+```
+
+However, queries over generic tables aren't magic; they still consist of the
+same collections of columns as queries over non-generic tables.
+
+```
+genericGrownups2 :: Query s (Col s Text)
+genericGrownups2 = do
+  (name :*: age :*: _) <- select (gen people)
+  restrict (age .> 20)
+  return name
+```
+
+Finally, with generics it's also quite easy to re-assemble Haskell objects
+from the results of a query using the `fromRel` function.
+
+```
+getPeopleOfAge :: Int -> SeldaT IO [Person]
+getPeopleOfAge yrs = do
+  ps <- query $ do
+    p <- select (gen people)
+    restrict (p ! age .== yrs)
+    return p
+  return (map fromRel ps)
+```
+
+And with that, we conclude this tutorial. Hopefully it has been enough to get
+you comfortable started using Selda.
+For a more detailed API reference, please see Selda's
+[Haddock documentation](http://hackage.haskell.org/package/selda).
 
 
 TODOs
