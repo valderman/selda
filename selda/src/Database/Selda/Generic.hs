@@ -1,6 +1,7 @@
 {-# LANGUAGE TypeFamilies, TypeOperators, FlexibleInstances #-}
 {-# LANGUAGE UndecidableInstances, MultiParamTypeClasses, OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts, ScopedTypeVariables, ConstraintKinds #-}
+{-# LANGUAGE GADTs #-}
 -- | Build tables and database operations from (almost) any Haskell type.
 --
 --   While the types in this module may look somewhat intimidating, the rules
@@ -20,7 +21,7 @@
 --       corresponding data type using 'fromRel'.
 module Database.Selda.Generic
   ( Relational, Generic
-  , GenTable (..), Attribute, Relation
+  , GenAttr (..), GenTable (..), Attribute, Relation
   , genTable, toRel, fromRel, (!)
   , insertGen, insertGen_, insertGenWithPK
   , primaryGen, autoPrimaryGen
@@ -68,6 +69,12 @@ newtype GenTable a = GenTable {gen :: Table (Relation a)}
 --   of @Foo@ has type @Int@, and the second has type @Text@.
 type Relation a = Rel (Rep a)
 
+-- | A generic column attribute.
+--   Essentially a pair or a record selector over the type @a@ and a column
+--   attribute.
+data GenAttr a where
+  (:-) :: (a -> b) -> Attribute -> GenAttr a
+
 -- | Generate a table from the given table name and list of column attributes.
 --   All @Maybe@ fields in the table's type will be represented by nullable
 --   columns, and all non-@Maybe@ fields fill be represented by required
@@ -90,7 +97,7 @@ type Relation a = Rel (Rep a)
 --   an auto-incrementing primary key.
 genTable :: forall a b. Relational a
          => TableName
-         -> [(a -> b, Attribute)]
+         -> [GenAttr a]
          -> GenTable a
 genTable tn attrs = GenTable $ Table tn (validate tn (map tidy cols))
   where
@@ -99,7 +106,7 @@ genTable tn attrs = GenTable $ Table tn (validate tn (map tidy cols))
     addAttrs n ci = ci
       { colAttrs = colAttrs ci ++ concat
           [ as
-          | (f, Attribute as) <- attrs
+          | f :- Attribute as <- attrs
           , identify dummy f == n
           ]
       }
