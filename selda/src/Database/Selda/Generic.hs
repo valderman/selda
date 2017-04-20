@@ -95,7 +95,7 @@ data GenAttr a where
 --   This example will create a table with the column types
 --   @Int :*: Text :*: Int :*: Maybe Text@, where the first field is
 --   an auto-incrementing primary key.
-genTable :: forall a b. Relational a
+genTable :: forall a. Relational a
          => TableName
          -> [GenAttr a]
          -> GenTable a
