@@ -15,7 +15,7 @@
 --     * Performing a 'select' on a generic table returns all the table's fields
 --       as an inductive tuple.
 --     * Tuples obtained this way can be handled either as any other tuple, or
---       using the '(!)' operator together with any record selector for the
+--       using the '!' operator together with any record selector for the
 --       tuple's corresponding type.
 --     * Relations obtained from a query can be re-assembled into their
 --       corresponding data type using 'fromRel'.
@@ -116,7 +116,7 @@ genTable tn attrs = GenTable $ Table tn (validate tn (map tidy cols))
 --   of all of the type's fields.
 --
 -- > data Person = Person
--- >   { id   :: Auto Int
+-- >   { id   :: Int
 -- >   , name :: Text
 -- >   , age  :: Int
 -- >   , pet  :: Maybe Text
@@ -128,9 +128,6 @@ genTable tn attrs = GenTable $ Table tn (validate tn (map tidy cols))
 --
 --   This is mainly useful when inserting values into a table using 'insert'
 --   and the other functions from "Database.Selda".
---   Note that since @toRel@ doesn't filter out auto-incrementing primary key
---   fields, you should use 'insertGen' and friends to insert values into
---   tables with auto-incrementing primary keys instead.
 toRel :: Relational a => a -> Relation a
 toRel = gToRel . from
 
@@ -180,7 +177,7 @@ insertGen_ t = void . insertGen t
 --   selector function. For instance:
 --
 -- > data Person = Person
--- >   { id   :: Auto Int
+-- >   { id   :: Int
 -- >   , name :: Text
 -- >   , age  :: Int
 -- >   , pet  :: Maybe Text
