@@ -139,13 +139,9 @@ invalidate' tbl rc
 
 -- | Set the maximum number of items allowed in the cache.
 setMaxItems :: Int -> IO ()
-setMaxItems n = atomicModifyIORef' theCache $ \c -> (setMaxItems' n c, ())
+setMaxItems n = atomicModifyIORef' theCache $ \_ -> (setMaxItems' n, ())
 
--- | The the maximum number of items for the cache.
-getMaxItems :: IO Int
-getMaxItems = maxItems <$> readIORef theCache
-
-setMaxItems' :: Int -> ResultCache -> ResultCache
-setMaxItems' 0 _  = emptyCache
-setMaxItems' n rc = emptyCache {maxItems = n}
+setMaxItems' :: Int -> ResultCache
+setMaxItems' 0 = emptyCache
+setMaxItems' n = emptyCache {maxItems = n}
 #endif

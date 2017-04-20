@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeOperators, TypeFamilies #-}
+{-# LANGUAGE TypeOperators, TypeFamilies, OverloadedStrings #-}
 {-# LANGUAGE UndecidableInstances, FlexibleInstances, ScopedTypeVariables #-}
 -- | Selda table definition language.
 module Database.Selda.Table where
