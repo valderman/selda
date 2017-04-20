@@ -22,15 +22,30 @@ Features
   add-on packages.
 
 
+Getting started
+===============
+
+Install the `selda` package from Hackage, as well as at least one of the
+backends:
+
+    $ cabal update
+    $ cabal install selda selda-sqlite selda-postgresql
+
+Then, read the [tutorial](#tutorial).
+The [API documentation](http://hackage.haskell.org/package/selda) will probably
+also come in handy.
+
+
 Requirements
 ============
 
-Selda requires SQLite 3.7.11+, or PostgreSQL 9+.
+Selda requires GHC 7.10+, as well as SQLite 3.7.11+ or PostgreSQL 9+.
 To build the SQLite backend, you need a C compiler installed.
 To build the PostgreSQL backend, you need the `libpq` development libraries
 installed (`libpq-dev` on Debian-based Linux distributions).
 
 
+<span id="tutorial"></span>
 A brief tutorial
 ================
 
