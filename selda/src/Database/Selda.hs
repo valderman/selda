@@ -82,6 +82,7 @@ instance MinMax a => MinMax (Maybe a)
 (.>=) = liftC2 $ BinOp Gte
 (.<=) = liftC2 $ BinOp Lte
 infixl 4 .==
+infixl 4 ./=
 infixl 4 .>
 infixl 4 .<
 infixl 4 .>=
