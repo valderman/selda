@@ -1,10 +1,15 @@
-What is Selda?
+selda
 ==============
 [![Build Status](https://travis-ci.org/valderman/selda.svg?branch=master)](https://travis-ci.org/valderman/selda)
 <a href="https://www.irccloud.com/invite?channel=%23selda&amp;hostname=irc.freenode.net&amp;port=6697&amp;ssl=1" target="_blank"><img src="https://img.shields.io/badge/IRC-%23selda-1e72ff.svg?style=flat"  height="20"></a>
+![Hackage Dependencies](https://img.shields.io/hackage-deps/v/stripe-haskell.svg)
+![MIT License](http://img.shields.io/badge/license-MIT-brightgreen.svg)
 
+
+What is Selda?
+==============
 Selda is an embedded domain-specific language for interacting with relational
-databases. It was inspired by LINQ and
+databases. It was inspired by [LINQ](https://en.wikipedia.org/wiki/Language_Integrated_Query) and
 [Opaleye](http://hackage.haskell.org/package/opaleye).
 
 
@@ -504,7 +509,7 @@ running in the same process.
 Generic tables and queries
 ==========================
 
-Selda also supports building tables and queries from (almost) arbytrary
+Selda also supports building tables and queries from (almost) arbitrary
 data types, using the `Database.Selda.Generic` module.
 Re-implementing the ad hoc `people` and `addresses` tables from before in a
 more disciplined manner in this way is quite easy:
