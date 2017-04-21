@@ -242,13 +242,13 @@ Deleting rows
 -------------
 
 Deleting rows is quite similar to updating them. The only difference is that
-the `delete` operation takes a table and a predicate, specifying which rows
+the `deleteFrom` operation takes a table and a predicate, specifying which rows
 to delete.
 The following example deletes all minors from the `people` table:
 
 ```
 byeMinors :: SeldaT IO ()
-byeMinors = delete_ people (\(_ :*: age :*: _) -> age .< 20)
+byeMinors = deleteFrom_ people (\(_ :*: age :*: _) -> age .< 20)
 ```
 
 
