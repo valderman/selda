@@ -4,7 +4,6 @@
 module Database.Selda.Types where
 import Data.Dynamic
 import Data.Text (Text)
-import Data.Typeable
 
 -- | Name of a database column.
 type ColName = Text

@@ -6,7 +6,7 @@ import Data.List (foldl')
 import Data.Monoid
 import Data.Text (Text, intercalate, pack)
 import qualified Data.Text as Text
-import Database.Selda.SQL
+import Database.Selda.SQL hiding (params)
 
 data OnError = Fail | Ignore
   deriving (Eq, Ord, Show)
@@ -45,12 +45,18 @@ compileDropTable _ t    = Text.unwords ["DROP TABLE IF EXISTS",tableName t]
 --   parameters to be passed to the backend.
 compInsert :: Text -> Table a -> [[Either Param Param]] -> (Text, [Param])
 compInsert defaultKeyword tbl defs =
-    (Text.unwords ["INSERT INTO", tableName tbl, names, "VALUES", values], ps)
+    (query, parameters)
   where
     colNames = map colName $ tableCols tbl
-    names = "(" <>  Text.intercalate ", " colNames <> ")"
     values = Text.intercalate ", " vals
-    (vals, ps) = mkRows 1 defs [] []
+    (vals, parameters) = mkRows 1 defs [] []
+    query = Text.unwords
+      [ "INSERT INTO"
+      , tableName tbl
+      , "(" <>  Text.intercalate ", " colNames <> ")"
+      , "VALUES"
+      , values
+      ]
 
     -- Build all rows: just recurse over the list of defaults (which encodes
     -- the # of elements in total as well), building each row, keeping track
@@ -58,15 +64,13 @@ compInsert defaultKeyword tbl defs =
     mkRows n (ps:pss) rts paramss =
       case mkRow n ps (tableCols tbl) of
         (n', names, params) -> mkRows n' pss (rowText:rts) (params:paramss)
-          where rowText = mkRowText (reverse names)
+          where rowText = "(" <> Text.intercalate ", " (reverse names) <> ")"
     mkRows _ _ rts ps =
       (reverse rts, reverse $ concat ps)
 
-    mkRowText vals = "(" <> Text.intercalate ", " vals <> ")"
-
     -- Build a row: use the NULL/DEFAULT keyword for default rows, otherwise
     -- use a parameter.
-    mkRow n params names = foldl' mkCols (n, [], []) (zip params names)
+    mkRow n ps names = foldl' mkCols (n, [], []) (zip ps names)
 
     -- Build a column: default values only available for for auto-incrementing
     -- primary keys.
@@ -76,7 +80,7 @@ compInsert defaultKeyword tbl defs =
         (n, defaultKeyword, ps)
       | otherwise =
         (n+1, pack ('$':show n), def:ps)
-    mkCol n (Right val) col ps =
+    mkCol n (Right val) _ ps =
         (n+1, pack ('$':show n), val:ps)
 
     -- Create a colum and return the next parameter id, plus the column itself.

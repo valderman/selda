@@ -11,7 +11,6 @@ import Database.Selda.Table
 import Database.Selda.Table.Compile
 import Database.Selda.Transform
 import Database.Selda.Types
-import Data.Maybe (catMaybes)
 import Data.Proxy
 import Data.Text (Text, empty)
 import Data.Typeable
