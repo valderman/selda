@@ -3,6 +3,8 @@
 module Database.Selda.PostgreSQL
   ( PGConnectInfo (..), PGConnectException (..)
   , withPostgreSQL, on, auth
+  , pgBackend
+  , pgConnString
   ) where
 import Data.Monoid
 import qualified Data.Text as T
@@ -88,6 +90,7 @@ withPostgreSQL ci m = do
       [ "unable to connect to postgres server: " ++ show f
       ]
 
+-- | Create a `SeldaBackend` for PostgreSQL `Connection`
 pgBackend :: Connection -> SeldaBackend
 pgBackend c = SeldaBackend
   { runStmt        = \q ps -> right <$> pgQueryRunner c False q ps
@@ -101,6 +104,7 @@ pgBackend c = SeldaBackend
     right (Right x) = x
     right _         = error "impossible"
 
+-- | Convert `PGConnectInfo` into `ByteString`
 pgConnString :: PGConnectInfo -> BS.ByteString
 pgConnString PGConnectInfo{..} = mconcat
   [ "host=", encodeUtf8 pgHost, " "
@@ -201,7 +205,7 @@ pgColType _ _ =
     Nothing
 
 -- | OIDs for all types used by Selda.
-boolType, intType, textType, doubleType :: Oid
+boolType, intType, textType, doubleType, dateType, timeType, timestampType :: Oid
 boolType      = Oid 16
 intType       = Oid 20
 textType      = Oid 25
