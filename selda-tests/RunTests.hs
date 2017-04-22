@@ -401,8 +401,9 @@ freshEnvTests freshEnv = test
   , "generic insert"                 ~: freshEnv genericInsert
   , "ad hoc insert in generic table" ~: freshEnv adHocInsertInGenericTable
   , "delete everything"              ~: freshEnv deleteEverything
-  , "def fails on non-def column"    ~: freshEnv defOnNonDefColumn
   , "override auto-increment"        ~: freshEnv overrideAutoIncrement
+  , "insert all defaults"            ~: freshEnv insertAllDefaults
+  , "insert some defaults"           ~: freshEnv insertSomeDefaults
   ]
 
 tryDropNeverFails = teardown
@@ -568,11 +569,6 @@ adHocInsertInGenericTable = do
   where
     val = "Saber" :*: 1537 :*: Nothing :*: 0
 
-defOnNonDefColumn = do
-  setup
-  assertFail $ do
-    insert_ comments [def :*: def :*: "hello"]
-
 overrideAutoIncrement = do
   setup
   insert_ comments [123 :*: Nothing :*: "hello"]
@@ -581,3 +577,21 @@ overrideAutoIncrement = do
     restrict (id .== 123)
     return (count id)
   assEq "failed to override auto-incrementing column" [1] num
+
+insertAllDefaults = do
+  setup
+  pk <- insertWithPK comments [def :*: def :*: def]
+  res <- query $ do
+    comment@(id :*: _) <- select comments
+    restrict (id .== int pk)
+    return comment
+  assEq "wrong default values inserted" [pk :*: Nothing :*: ""] res
+
+insertSomeDefaults = do
+  setup
+  insert_ people ["Celes" :*: def :*: Just "chocobo" :*: def]
+  res <- query $ do
+    person@(id :*: n :*: pet :*: c) <- select people
+    restrict (pet .== just "chocobo")
+    return person
+  assEq "wrong values inserted" ["Celes" :*: 0 :*: Just "chocobo" :*: 0] res

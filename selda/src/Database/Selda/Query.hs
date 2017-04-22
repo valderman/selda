@@ -28,21 +28,21 @@ selectValues [] = Query $ do
   put $ st {sources = SQL [] EmptyTable [] [] [] Nothing : sources st}
   return $ toTup (repeat "NULL")
 selectValues (row:rows) = Query $ do
-    names <- mapM (const freshName) rowlist
+    names <- mapM (const freshName) firstrow
     let rns = [Named n (Col n) | n <- names]
-        r = mkFirstRow names
-    st <- get
-    put $ st {sources = SQL rns (Values r rs) [] [] [] Nothing : sources st}
+        row' = mkFirstRow names
+    s <- get
+    put $ s {sources = SQL rns (Values row' rows') [] [] [] Nothing : sources s}
     return $ toTup [n | Named n _ <- rns]
   where
-    rowlist = map noDef $ params row
+    firstrow = map defToVal $ params row
     mkFirstRow ns =
       [ Named n (Lit l)
-      | (Param l, n) <- zip rowlist ns
+      | (Param l, n) <- zip firstrow ns
       ]
-    rs = map (map noDef . params) rows
-    noDef Nothing  = error "default value given to selectValues"
-    noDef (Just x) = x
+    rows' = map (map defToVal . params) rows
+    defToVal (Left x)  = x
+    defToVal (Right x) = x
 
 -- | Restrict the query somehow. Roughly equivalent to @WHERE@.
 restrict :: Col s Bool -> Query s ()

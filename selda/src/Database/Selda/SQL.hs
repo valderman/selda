@@ -1,4 +1,4 @@
-{-# LANGUAGE GADTs, OverloadedStrings #-}
+{-# LANGUAGE GADTs, OverloadedStrings, ScopedTypeVariables #-}
 {-# LANGUAGE TypeOperators, FlexibleInstances, UndecidableInstances #-}
 -- | SQL AST and parameters for prepared statements.
 module Database.Selda.SQL where
@@ -53,16 +53,20 @@ instance Exception DefaultValueException
 -- | An inductive tuple of Haskell-level values (i.e. @Int :*: Maybe Text@)
 --   which can be inserted into a table.
 class Insert a where
-  params :: a -> [Maybe Param]
+  params :: a -> [Either Param Param]
 instance (SqlType a, Insert b) => Insert (a :*: b) where
   params (a :*: b) = unsafePerformIO $ do
     res <- try $ return $! a
-    case res of
-      Right a'                   -> return $ Just (Param (mkLit a')) : params b
-      Left DefaultValueException -> return $ Nothing : params b
+    return $ case res of
+      Right a' ->
+        Right (Param (mkLit a')) : params b
+      Left DefaultValueException ->
+        Left (Param (defaultValue :: Lit a)) : params b
 instance {-# OVERLAPPABLE #-} SqlType a => Insert a where
   params a = unsafePerformIO $ do
     res <- try $ return $! a
-    case res of
-      Right a'                   -> return [Just $ Param (mkLit a')]
-      Left DefaultValueException -> return [Nothing]
+    return $ case res of
+      Right a' ->
+        [Right $ Param (mkLit a')]
+      Left DefaultValueException ->
+        [Left $ Param (defaultValue :: Lit a)]

@@ -29,10 +29,8 @@ compileWithTables = compSql . snd . compQuery
 --   in the target SQL dialect, a table and a list of items corresponding
 --   to the table.
 compileInsert :: Insert a => Text -> Table a -> [a] -> (Text, [Param])
-compileInsert _ _ []     = (empty, [])
-compileInsert defkw tbl rows = (compInsert defkw tbl defs, catMaybes $ concat ps)
-  where ps = map params rows
-        defs = map (map (maybe True (const False))) ps
+compileInsert _ _ []         = (empty, [])
+compileInsert defkw tbl rows = compInsert defkw tbl (map params rows)
 
 -- | Compile an @UPDATE@ query.
 compileUpdate :: forall s a. (Columns (Cols s a), Result (Cols s a))

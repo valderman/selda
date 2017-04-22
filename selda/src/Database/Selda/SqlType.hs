@@ -22,9 +22,10 @@ sqlTimeFormat = "%H:%M:%S%Q"
 
 -- | Any datatype representable in (Selda's subset of) SQL.
 class SqlType a where
-  mkLit   :: a -> Lit a
-  sqlType :: Proxy a -> Text
-  fromSql :: SqlValue -> a
+  mkLit        :: a -> Lit a
+  sqlType      :: Proxy a -> Text
+  fromSql      :: SqlValue -> a
+  defaultValue :: Lit a
 
 -- | An SQL literal.
 data Lit a where
@@ -99,18 +100,21 @@ instance SqlType Int where
   sqlType _ = "INTEGER"
   fromSql (SqlInt x) = x
   fromSql v          = error $ "fromSql: int column with non-int value: " ++ show v
+  defaultValue = LitI 0
 
 instance SqlType Double where
   mkLit = LitD
   sqlType _ = "DOUBLE"
   fromSql (SqlFloat x) = x
   fromSql v            = error $ "fromSql: float column with non-float value: " ++ show v
+  defaultValue = LitD 0
 
 instance SqlType Text where
   mkLit = LitS
   sqlType _ = "TEXT"
   fromSql (SqlString x) = x
   fromSql v             = error $ "fromSql: text column with non-text value: " ++ show v
+  defaultValue = LitS ""
 
 instance SqlType Bool where
   mkLit = LitB
@@ -119,6 +123,7 @@ instance SqlType Bool where
   fromSql (SqlInt 0)  = False
   fromSql (SqlInt _)  = True
   fromSql v           = error $ "fromSql: bool column with non-bool value: " ++ show v
+  defaultValue = LitB False
 
 instance SqlType UTCTime where
   mkLit = LitTS . pack . formatTime defaultTimeLocale sqlDateTimeFormat
@@ -128,6 +133,7 @@ instance SqlType UTCTime where
       Just t -> t
       _      -> error $ "fromSql: bad datetime string: " ++ unpack s
   fromSql v             = error $ "fromSql: datetime column with non-datetime value: " ++ show v
+  defaultValue = LitTS "1970-01-01 00:00:00"
 
 instance SqlType Day where
   mkLit = LitDate . pack . formatTime defaultTimeLocale sqlDateFormat
@@ -137,6 +143,7 @@ instance SqlType Day where
       Just t -> t
       _      -> error $ "fromSql: bad date string: " ++ unpack s
   fromSql v             = error $ "fromSql: date column with non-date value: " ++ show v
+  defaultValue = LitDate "1970-01-01"
 
 instance SqlType TimeOfDay where
   mkLit = LitTime . pack . formatTime defaultTimeLocale sqlTimeFormat
@@ -146,6 +153,7 @@ instance SqlType TimeOfDay where
       Just t -> t
       _      -> error $ "fromSql: bad time string: " ++ unpack s
   fromSql v             = error $ "fromSql: time column with non-time value: " ++ show v
+  defaultValue = LitTime "00:00:00"
 
 instance SqlType a => SqlType (Maybe a) where
   mkLit (Just x) = LitJust $ mkLit x
@@ -153,3 +161,4 @@ instance SqlType a => SqlType (Maybe a) where
   sqlType _ = sqlType (Proxy :: Proxy a)
   fromSql (SqlNull) = Nothing
   fromSql x         = Just $ fromSql x
+  defaultValue = LitNull
