@@ -596,6 +596,8 @@ Features that would be nice to have but are not yet implemented.
 * If/else.
 * Examples.
 * Foreign keys.
+* Streaming
+* Type-safe migrations
 * `WHERE x IN (SELECT ...)`
 * `SELECT INTO`.
 * Constraints other than primary key.
