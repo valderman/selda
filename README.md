@@ -1,5 +1,5 @@
-selda
-==============
+Selda
+=====
 [![Build Status](https://travis-ci.org/valderman/selda.svg?branch=master)](https://travis-ci.org/valderman/selda)
 <a href="https://www.irccloud.com/invite?channel=%23selda&amp;hostname=irc.freenode.net&amp;port=6697&amp;ssl=1" target="_blank"><img src="https://img.shields.io/badge/IRC-%23selda-1e72ff.svg?style=flat"  height="20"></a>
 ![Hackage Dependencies](https://img.shields.io/hackage-deps/v/stripe-haskell.svg)
@@ -288,6 +288,51 @@ You may have noticed that in addition to the return type of a query,
 the `Query` type has an additional type parameter `s`.
 We'll cover this parameter in more detail when we get to
 aggregating queries, so for now you can just ignore it.
+
+
+Selector functions
+------------------
+
+It's often annoying to explicitly take the tuples returned by queries apart.
+For this reason, Selda provides a function `selectors` to generate
+*selector functions*: functions which can be used to access elements of
+inductive tuples similar to how record selectors are used to access fields of
+standard Haskell record types.
+
+Rewriting the previous example using selector functions:
+
+```
+(name :*: age :*: pet) <- selectors people
+
+grownups :: Query s (Col s Text)
+grownups = do
+  p <- select people
+  restrict (age p .> 20)
+  return (name p)
+
+printGrownups :: SeldaT IO ()
+printGrownups = do
+  names <- query grownups
+  liftIO (print names)
+```
+
+For added convenience, the `tableWithSelectors` function creates both a table
+and its selector functions at the same time:
+
+```
+posts :: Table (Int :*: Maybe Text :*: Text)
+(posts, postId :*: author :*: content)
+  =   tableWithSelectors "posts"
+  $   autoPrimary "id"
+  :*: optional "author"
+  :*: required "content"
+
+allAuthors :: Query s Text
+allAuthors = author <$> select posts
+```
+
+For the remainder of this tutorial however, we'll keep matching on the tuples
+explicitly.
 
 
 Products and joins
