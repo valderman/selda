@@ -291,7 +291,7 @@ aggregating queries, so for now you can just ignore it.
 
 
 Products and joins
-==================
+------------------
 
 Of course, data can be drawn from multiple tables. The unfiltered result set
 is essentially the cartesian product of all queried tables.
@@ -508,7 +508,7 @@ running in the same process.
 
 
 Generic tables and queries
-==========================
+--------------------------
 
 Selda also supports building tables and queries from (almost) arbitrary
 data types, using the `Database.Selda.Generic` module.
