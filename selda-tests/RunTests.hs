@@ -186,6 +186,7 @@ queryTests run = test
   , "aggregate with join and group" ~: run joinGroupAggregate
   , "nested left join" ~: run nestedLeftJoin
   , "order + limit" ~: run orderLimit
+  , "limit gives correct number of results" ~: run limitCorrectNumber
   , "aggregate with doubles" ~: run aggregateWithDoubles
   , "generic query on ad hoc table" ~: run genQueryAdHocTable
   , "generic query on generic table" ~: run genQueryGenTable
@@ -309,12 +310,18 @@ nestedLeftJoin = do
     velvet = "Velvet" :*: Nothing :*: Nothing
 
 orderLimit = do
-  res <- query $ do
+  res <- query $ limit 1 2 $ do
     name :*: age :*: pet :*: cash <- select people
     order cash descending
-    limit 1 2
     return name
   assEq "got wrong result" ["Link", "Velvet"] (sort res)
+
+limitCorrectNumber = do
+  res <- query $ do
+    p1 <- limit 1 2 $ select people
+    p2 <- limit 1 2 $ select people
+    return p1
+  assEq ("wrong number of results from limit") 4 (length res)
 
 aggregateWithDoubles = do
   [res] <- query $ aggregate $ do

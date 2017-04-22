@@ -155,15 +155,19 @@ groupBy (C c) = Query $ do
   put $ st {groupCols = Some c : groupCols st}
   return (Aggr c)
 
--- | Drop the first @m@ rows, then get at most @n@ of the remaining rows.
-limit :: Int -> Int -> Query s ()
-limit from to = Query $ do
+-- | Drop the first @m@ rows, then get at most @n@ of the remaining rows from the
+--   given subquery.
+limit :: Int -> Int -> Query (Inner s) a -> Query s a
+limit from to q = Query $ do
+  (lim_st, res) <- isolate q
   st <- get
-  put $ case sources st of
-    [SQL cs s ps gs os Nothing] ->
-      st {sources = [SQL cs s ps gs os (Just (from, to))]}
-    ss ->
-      st {sources = [SQL (allCols ss) (Product ss) [] [] [] (Just (from, to))]}
+  let sql = case sources lim_st of
+        [SQL cs s ps gs os Nothing] ->
+          SQL cs s ps gs os (Just (from, to))
+        ss ->
+          SQL (allCols ss) (Product ss) [] [] [] (Just (from, to))
+  put $ st {sources = sql : sources st}
+  return res
 
 -- | Sort the result rows in ascending or descending order on the given row.
 order :: Col s a -> Order -> Query s ()
