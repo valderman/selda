@@ -1,5 +1,6 @@
 {-# LANGUAGE GADTs, TypeOperators, TypeFamilies, FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving, MultiParamTypeClasses #-}
+{-# LANGUAGE UndecidableInstances #-}
 -- | Basic Selda types.
 module Database.Selda.Types where
 import Data.Dynamic
