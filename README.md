@@ -19,6 +19,7 @@ Features
 * Monadic interface: no need to be a category theory wizard just to write a few
   database queries.
 * Portable: fully functional backends for SQLite and PostgreSQL.
+* Generic: use record types and selectors in queries and inserts.
 * Creating, dropping and querying tables using type-safe database schemas.
 * Typed query language with products, filtering, joins and aggregation.
 * Inserting, updating and deleting rows from tables.
