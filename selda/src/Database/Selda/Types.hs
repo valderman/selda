@@ -2,6 +2,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving, MultiParamTypeClasses #-}
 -- | Basic Selda types.
 module Database.Selda.Types where
+import Data.Dynamic
 import Data.Text (Text)
 import Data.Typeable
 
@@ -91,9 +92,14 @@ type family a :++: b where
 
 class Append a b where
   app :: a -> b -> a :++: b
-
 instance {-# OVERLAPPING #-} Append b c => Append (a :*: b) c where
   app (a :*: b) c = a :*: app b c
-
 instance ((a :*: b) ~ (a :++: b)) => Append a b where
   app a b = a :*: b
+
+class Typeable a => ToDyn a where
+  toDyns :: a -> [Dynamic]
+instance (Typeable a, ToDyn b) => ToDyn (a :*: b) where
+  toDyns (a :*: b) = toDyn a : toDyns b
+instance {-# OVERLAPPABLE #-} Typeable a => ToDyn a where
+  toDyns a = [toDyn a]

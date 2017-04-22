@@ -35,6 +35,7 @@ import Unsafe.Coerce
 import Database.Selda
 import Database.Selda.Column
 import Database.Selda.Table
+import Database.Selda.Types
 import Database.Selda.SqlType
 
 -- | Any type which has a corresponding relation.
@@ -158,7 +159,7 @@ toRel = gToRel . from
 --   Applying @toRel@ to an inductive tuple which isn't the corresponding
 --   relation of the return type is a type error.
 fromRel :: Relational a => Relation a -> a
-fromRel = to . fst . gFromRel . toD
+fromRel = to . fst . gFromRel . toDyns
 
 -- | Like 'insertWithPK', but accepts a generic table and
 --   its corresponding data type.
@@ -309,14 +310,6 @@ instance (Append (Rel a) (Rel b), GRelation a, GRelation b) =>
     a <- gMkDummy :: State Int (a x)
     b <- gMkDummy :: State Int (b x)
     return (a G.:*: b)
-
-
-class Typeable a => ToDyn a where
-  toD :: a -> [Dynamic]
-instance (Typeable a, ToDyn b) => ToDyn (a :*: b) where
-  toD (a :*: b) = toDyn a : toD b
-instance {-# OVERLAPPABLE #-} Typeable a => ToDyn a where
-  toD a = [toDyn a]
 
 class GFromRel f where
   -- | Convert a value to a Haskell type from the type's corresponding relation.

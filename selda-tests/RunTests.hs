@@ -39,10 +39,11 @@ people =
   :*: required "age"
   :*: optional "pet"
   :*: required "cash"
+pName :*: pAge :*: pPet :*: pCash = selectors people
 
 addresses :: Table (Text :*: Text)
-addresses =
-      table "addresses"
+(addresses, aName :*: aCity) =
+      tableWithSelectors "addresses"
   $   required "name"
   :*: required "city"
 
@@ -242,6 +243,21 @@ joinLikeProduct = do
   assEq "join-like query gave wrong result" (sort ans) (sort res)
   where
     ans = [n :*: c | n :*: _ <- peopleItems, n' :*: c <- addressItems, n == n']
+
+joinLikeProductWithSels = do
+  res <- query $ do
+    p <- select people
+    a <- select addresses
+    restrict (pName p .== aName a)
+    return (pName p :*: aCity a :*: pPet p)
+  assEq "join-like query gave wrong result" (sort ans) (sort res)
+  where
+    ans =
+      [ n :*: c :*: p
+      | n :*: _ :*: p :*: _ <- peopleItems
+      , n' :*: c <- addressItems
+      , n == n'
+      ]
 
 simpleLeftJoin = do
   res <- query $ do

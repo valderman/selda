@@ -1,13 +1,14 @@
 {-# LANGUAGE TypeOperators, TypeFamilies, OverloadedStrings #-}
 {-# LANGUAGE UndecidableInstances, FlexibleInstances, ScopedTypeVariables #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 -- | Selda table definition language.
 module Database.Selda.Table where
 import Database.Selda.Types
 import Database.Selda.SqlType
-import Data.Text (Text, unpack, intercalate)
-import Data.Proxy
+import Data.Dynamic
 import Data.List (sort, group)
 import Data.Monoid
+import Data.Text (Text, unpack, intercalate)
 
 -- | A database table.
 --   Tables are parameterized over their column types. For instance, a table

@@ -37,7 +37,9 @@ module Database.Selda
   , TableSpec, ColSpecs, ColSpec, TableName, ColName
   , NonNull, IsNullable, Nullable, NotNullable
   , Append (..), (:++:)
-  , table, required, optional
+  , Selectors, HasSelectors
+  , table, tableWithSelectors, selectors
+  , required, optional
   , primary, autoPrimary
     -- * Creating and dropping tables
   , createTable, tryCreateTable
@@ -59,6 +61,7 @@ import Database.Selda.Frontend
 import Database.Selda.Inner
 import Database.Selda.Query
 import Database.Selda.Query.Type
+import Database.Selda.Selectors
 import Database.Selda.SQL
 import Database.Selda.SqlType
 import Database.Selda.Table
