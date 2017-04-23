@@ -565,7 +565,7 @@ genericDelete = do
 genericUpdate = do
   setup
   update_ (gen genPeople) (\p -> p ! pCash .> 0)
-                          (\p -> p =: (pCash, 0))
+                          (\p -> p `with` [pCash := 0])
   monies <- query $ do
     p <- select (gen genPeople)
     return (p ! pCash)

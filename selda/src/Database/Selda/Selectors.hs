@@ -1,11 +1,12 @@
 {-# LANGUAGE ScopedTypeVariables, TypeFamilies, MultiParamTypeClasses #-}
 {-# LANGUAGE TypeOperators, UndecidableInstances, FlexibleInstances #-}
-{-# LANGUAGE FlexibleContexts, RankNTypes, AllowAmbiguousTypes #-}
+{-# LANGUAGE FlexibleContexts, RankNTypes, AllowAmbiguousTypes, GADTs #-}
 module Database.Selda.Selectors where
 import Database.Selda.Table
 import Database.Selda.Types
 import Database.Selda.Column
 import Data.Dynamic
+import Data.List (foldl')
 import Unsafe.Coerce
 
 -- | Get the value at the given index from the given inductive tuple.
@@ -13,10 +14,9 @@ import Unsafe.Coerce
 tup ! (Selector n) = unsafeCoerce (unsafeToList (toU tup) !! n)
   where toU = unsafeCoerce :: Cols s t -> Cols () t
 
--- | Update the value at the given index in the given inductive tuple.
-(=:) :: forall s t a. (ToDyn (Cols () t))
-     => Cols s t -> (Selector t a, Col s a) -> Cols s t
-tup =: (Selector n, x) =
+upd :: forall s t a. (ToDyn (Cols () t))
+     => Cols s t -> Assignment s t -> Cols s t
+upd tup (Selector n := x) =
     fromU . unsafeFromList $ replace (unsafeToList $ toU tup) (unsafeCoerce x)
   where
     toU = unsafeCoerce :: Cols s t -> Cols () t
@@ -25,6 +25,17 @@ tup =: (Selector n, x) =
       case splitAt n xs of
         (left, _:right) -> left ++ x' : right
         _               -> error "impossible"
+
+-- | A selector-value assignment pair.
+data Assignment s t where
+  (:=) :: Selector t a -> Col s a -> Assignment s t
+infixl 2 :=
+
+-- | For each selector-value pair in the given list, on the given tuple,
+--   update the field pointed out by the selector with the corresponding value.
+with :: forall s t. (ToDyn (Cols () t))
+     => Cols s t -> [Assignment s t] -> Cols s t
+with = foldl' upd
 
 -- | A column selector. Column selectors can be used together with the '!' and
 --   '!=' operators to get and set values on inductive tuples.
