@@ -49,14 +49,21 @@ compUpdate tbl p cs = snd $ runPP ppUpd
       check <- ppCol p
       pure $ Text.unwords
         [ "UPDATE", tbl
-        , "SET", Text.intercalate ", " $ filter (not . Text.null) updates
+        , "SET", set updates
         , "WHERE", check
         ]
     ppUpdate (n, c) = do
       c' <- ppSomeCol c
+      let upd = Text.unwords [n, "=", c']
       if n == c'
-        then pure ""
-        else pure $ Text.unwords [n, "=", c']
+        then pure $ Left upd
+        else pure $ Right upd
+    -- if the update doesn't change anything, pick an arbitrary column to
+    -- set to itself just to satisfy SQL's syntactic rules
+    set us =
+      case [u | Right u <- us] of
+        []  -> set (take 1 [Right u | Left u <- us])
+        us' -> Text.intercalate ", " us'
 
 -- | Compile a @DELETE@ statement.
 compDelete :: TableName -> Exp Bool -> (Text, [Param])
