@@ -302,7 +302,7 @@ standard Haskell record types.
 Rewriting the previous example using selector functions:
 
 ```
-(name :*: age :*: pet) <- selectors people
+name :*: age :*: pet = selectors people
 
 grownups :: Query s (Col s Text)
 grownups = do
