@@ -19,7 +19,7 @@ Features
 * Monadic interface: no need to be a category theory wizard just to write a few
   database queries.
 * Portable: fully functional backends for SQLite and PostgreSQL.
-* Generic: use record types and selectors in queries and inserts.
+* Generic: easy integration with your existing Haskell types.
 * Creating, dropping and querying tables using type-safe database schemas.
 * Typed query language with products, filtering, joins and aggregation.
 * Inserting, updating and deleting rows from tables.
@@ -295,9 +295,9 @@ Selector functions
 
 It's often annoying to explicitly take the tuples returned by queries apart.
 For this reason, Selda provides a function `selectors` to generate
-*selector functions*: functions which can be used to access elements of
-inductive tuples similar to how record selectors are used to access fields of
-standard Haskell record types.
+*selectors*: identifiers which can be used with the `!` operator to access
+elements of inductive tuples similar to how record selectors are used to access
+fields of standard Haskell record types.
 
 Rewriting the previous example using selector functions:
 
@@ -307,8 +307,8 @@ name :*: age :*: pet = selectors people
 grownups :: Query s (Col s Text)
 grownups = do
   p <- select people
-  restrict (age p .> 20)
-  return (name p)
+  restrict (p ! age .> 20)
+  return (p ! name)
 
 printGrownups :: SeldaT IO ()
 printGrownups = do
@@ -328,10 +328,28 @@ posts :: Table (Int :*: Maybe Text :*: Text)
   :*: required "content"
 
 allAuthors :: Query s Text
-allAuthors = author <$> select posts
+allAuthors = do
+  p <- select posts
+  return (p ! author)
 ```
 
-For the remainder of this tutorial however, we'll keep matching on the tuples
+You can also use selectors with the `with` function to update columns in a tuple.
+`with` takes a tuple and a list of *assignments*, where each assignment is a
+selector-value pair. For each assignment, the column indicated by the selector
+will be set to the corresponding value, on the given tuple.
+
+```
+grownupsIn10Years :: Query s (Col s Text)
+grownupsIn10Years = do
+  p <- select people
+  let p' = p `with` [age := p ! age + 10]
+  restrict (p' ! age .> 20)
+  return (p' ! name)
+```
+
+Of course, selectors can be used for updates and deletions as well.
+
+For the remainder of this tutorial, we'll keep matching on the tuples
 explicitly.
 
 
@@ -593,17 +611,6 @@ create = do
 Note the use of the `gen` function here, to extract the underlying table of
 columns from the generic table.
 
-With generic tables, you can use the table's datatype's record selectors
-together with the `!` operator to access its columns in queries.
-
-```
-genericGrownups :: Query s (Col s Text)
-genericGrownups = do
-  person <- select (gen people)
-  restrict (person ! age .> 20)
-  return (person ! personName)
-```
-
 However, queries over generic tables aren't magic; they still consist of the
 same collections of columns as queries over non-generic tables.
 
@@ -622,8 +629,8 @@ from the results of a query using the `fromRel` function.
 getPeopleOfAge :: Int -> SeldaT IO [Person]
 getPeopleOfAge yrs = do
   ps <- query $ do
-    p <- select (gen people)
-    restrict (p ! age .== yrs)
+    (name :*: age :*: _) <- select (gen people)
+    restrict (age .== yrs)
     return p
   return (map fromRel ps)
 ```
