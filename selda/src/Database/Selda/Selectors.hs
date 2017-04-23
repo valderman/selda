@@ -8,10 +8,29 @@ import Database.Selda.Column
 import Data.Dynamic
 import Unsafe.Coerce
 
+-- | Get the value at the given index from the given inductive tuple.
+(!)  :: ToDyn (Cols s t) => Cols s t -> Selector t a -> Col s a
+tup ! (Selector n) = unsafeCoerce (unsafeToList tup !! n)
+
+-- | Update the value at the given index in the given inductive tuple.
+(=:) :: (ToDyn (Cols s t))
+     => Cols s t -> (Selector t a, Col s a) -> Cols s t
+tup =: (Selector n, x) =
+    unsafeFromList $ replace (unsafeToList tup) (unsafeCoerce x)
+  where
+    replace xs x' =
+      case splitAt n xs of
+        (left, _:right) -> left ++ x' : right
+        _               -> error "impossible"
+
+-- | A column selector. Column selectors can be used together with the '!' and
+--   '!=' operators to get and set values on inductive tuples.
+newtype Selector t a = Selector Int
+
 -- | The inductive tuple of selectors for a table of type @a@.
 type family Selectors t a where
-  Selectors t (a :*: b) = ((t -> a) :*: Selectors t b)
-  Selectors t a         = (t -> a)
+  Selectors t (a :*: b) = (Selector t a :*: Selectors t b)
+  Selectors t a         = Selector t a
 
 -- | Generate selector functions for the given table.
 --   Selectors can be used to access the fields of a query result tuple, avoiding
@@ -23,23 +42,19 @@ type family Selectors t a where
 -- >
 -- > q :: Query s Text
 -- > q = tblBaz <$> select tbl
-selectors :: forall s a. HasSelectors a a
-          => Table a -> Selectors (Cols s a) (Cols s a)
-selectors _ = unsafeCoerce $ mkSel (Proxy :: Proxy a) 0 (Proxy :: Proxy a)
+selectors :: forall a. HasSelectors a a => Table a -> Selectors a a
+selectors _ = mkSel (Proxy :: Proxy a) 0 (Proxy :: Proxy a)
 
 -- | Any table type that can have selectors generated.
-class Typeable t => HasSelectors t a where
+class HasSelectors t a where
   mkSel :: Proxy t -> Int -> Proxy a -> Selectors t a
 
 instance (Typeable a, HasSelectors t b) => HasSelectors t (a :*: b) where
-  mkSel p n _ = (sel :*: mkSel p n (Proxy :: Proxy b))
-    where
-      sel tup = fromDyn (toDyns tup !! n) (error "impossible")
+  mkSel p n _ = (Selector n :*: mkSel p (n+1) (Proxy :: Proxy b))
 
-instance {-# OVERLAPPABLE #-}
-         (Typeable t, Typeable a, Selectors t a ~ (t -> a)) =>
+instance {-# OVERLAPPABLE #-} (Selectors t a ~ Selector t a) =>
          HasSelectors t a where
-  mkSel _ n _ = \tup -> fromDyn (toDyns tup !! n) (error "impossible")
+  mkSel _ n _ = Selector n
 
 -- | A pair of the table with the given name and columns, and all its selectors.
 --   For example:
@@ -52,11 +67,11 @@ instance {-# OVERLAPPABLE #-}
 -- >
 -- > q :: Query s Text
 -- > q = tblBaz <$> select tbl
-tableWithSelectors :: forall s a. (TableSpec a, HasSelectors a a)
+tableWithSelectors :: forall a. (TableSpec a, HasSelectors a a)
                    => TableName
                    -> ColSpecs a
-                   -> (Table a, Selectors (Cols s a) (Cols s a))
-tableWithSelectors name cs = (t, unsafeCoerce s)
+                   -> (Table a, Selectors a a)
+tableWithSelectors name cs = (t, s)
   where
     t = table name cs
     s = selectors t

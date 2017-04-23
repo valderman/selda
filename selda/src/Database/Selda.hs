@@ -9,6 +9,7 @@ module Database.Selda
   , SeldaT, Table, Query, Col, Res, Result
   , query, transaction, setLocalCache
     -- * Constructing queries
+  , Selector, (!), (=:)
   , SqlType
   , Text, Cols, Columns
   , Order (..)

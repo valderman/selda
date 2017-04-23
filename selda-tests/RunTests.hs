@@ -192,8 +192,6 @@ queryTests run = test
   , "generic query on ad hoc table" ~: run genQueryAdHocTable
   , "generic query on generic table" ~: run genQueryGenTable
   , "ad hoc query on generic table" ~: run adHocQueryGenTable
-  , "(!) with const function fails" ~: run constIndexFail
-  , "(!) with non-selector fails" ~: run nonSelectorIndexFail
   , "select from value table" ~: run selectVals
   , "select from empty value table" ~: run selectEmptyValues
   , "aggregate from empty value table" ~: run aggregateEmptyValues
@@ -248,8 +246,8 @@ joinLikeProductWithSels = do
   res <- query $ do
     p <- select people
     a <- select addresses
-    restrict (pName p .== aName a)
-    return (pName p :*: aCity a :*: pPet p)
+    restrict (p ! pName .== a ! aName)
+    return (p ! pName :*: a ! aCity :*: p ! pPet)
   assEq "join-like query gave wrong result" (sort ans) (sort res)
   where
     ans =
@@ -354,11 +352,17 @@ genQueryAdHocTable = do
 genQueryGenTable = do
     ppl1 <- query $ do
       person <- select $ gen genPeople
-      restrict (person ! cash .> 0)
-      return (person ! name :*: person ! age)
+      restrict (person ! pCash .> 0)
+      return (person ! pName :*: person ! pAge)
     assEq "query gave wrong result" (sort ppl2) (sort ppl1)
   where
     ppl2 = [name p :*: age p | p <- genPeopleItems, cash p > 0]
+
+q :: Query () (Col () Text :*: Col () Int)
+q = do
+      person <- select $ gen genPeople
+      restrict (person ! pCash .> 0)
+      return (person ! pName :*: person ! pAge)
 
 adHocQueryGenTable = do
     ppl1 <- query $ do
@@ -368,21 +372,6 @@ adHocQueryGenTable = do
     assEq "query gave wrong result" (sort ppl2) (sort ppl1)
   where
     ppl2 = [name p :*: age p | p <- genPeopleItems, cash p > 0]
-
-constIndexFail = assertFail $ do
-  query $ do
-    person <- select $ gen genPeople
-    restrict (person ! badCash .> 0)
-    return person
-  where
-    badCash :: Person -> Int
-    badCash _ = 10
-
-nonSelectorIndexFail = assertFail $ do
-  query $ do
-    person <- select $ gen genPeople
-    restrict (person ! ((+10) . cash) .> 0)
-    return person
 
 selectVals = do
   vals <- query $ selectValues peopleItems
@@ -414,6 +403,7 @@ freshEnvTests freshEnv = test
   , "auto primary increments"        ~: freshEnv autoPrimaryIncrements
   , "insert returns number of rows"  ~: freshEnv insertReturnsNumRows
   , "update updates table"           ~: freshEnv updateUpdates
+  , "update nothing"                 ~: freshEnv updateNothing
   , "insert time values"             ~: freshEnv insertTime
   , "transaction completes"          ~: freshEnv transactionCompletes
   , "transaction rolls back"         ~: freshEnv transactionRollsBack
@@ -470,6 +460,14 @@ updateUpdates = do
     return (count name)
   assEq "update returns wrong number of updated rows" 3 rows
   assEq "rows were not updated" 3 upd
+
+updateNothing = do
+  setup
+  a <- query $ select people
+  n <- update people (const true) id
+  b <- query $ select people
+  assEq "identity update didn't happen" (length a) n
+  assEq "identity update did something weird" a b
 
 insertTime = do
   setup
@@ -558,19 +556,19 @@ deleteEverything = do
 
 genericDelete = do
   setup
-  deleteFrom_ (gen genPeople) (\p -> p ! cash .> 0)
+  deleteFrom_ (gen genPeople) (\p -> p ! pCash .> 0)
   monies <- query $ do
     p <- select (gen genPeople)
-    return (p ! cash)
+    return (p ! pCash)
   ass "deleted wrong items" $ all (<= 0) monies
 
 genericUpdate = do
   setup
-  update_ (gen genPeople) (\p -> p ! cash .> 0)
-                          (\p -> p ! name :*: p ! age :*: p ! pet :*: 0)
+  update_ (gen genPeople) (\p -> p ! pCash .> 0)
+                          (\p -> p =: (pCash, 0))
   monies <- query $ do
     p <- select (gen genPeople)
-    return (p ! cash)
+    return (p ! pCash)
   ass "update failed" $ all (<= 0) monies
 
 genericInsert = do
@@ -586,7 +584,7 @@ adHocInsertInGenericTable = do
   insert_ (gen genPeople) [val]
   [val'] <- query $ do
     p <- select (gen genPeople)
-    restrict (p ! name .== "Saber")
+    restrict (p ! pName .== "Saber")
     return p
   assEq "insert failed" val val'
   where

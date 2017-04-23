@@ -1,9 +1,11 @@
 {-# LANGUAGE TypeOperators, TypeFamilies, FlexibleInstances, FlexibleContexts #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 -- | Helpers for working with inner queries.
 module Database.Selda.Inner where
 import Database.Selda.Column
 import Database.Selda.Types
 import Data.Text (Text)
+import Data.Typeable
 
 -- | A single aggregate column.
 --   Aggregate columns may not be used to restrict queries.
@@ -23,6 +25,7 @@ newtype Aggr s a = Aggr {unAggr :: Exp a}
 --   parameterized over @Inner s@ if the parent query is parameterized over @s@,
 --   to enforce this separation.
 data Inner s
+  deriving Typeable
 
 -- | Create a named aggregate function.
 --   Like 'fun', this function is generally unsafe and should ONLY be used

@@ -5,6 +5,7 @@
 module Database.Selda.Types where
 import Data.Dynamic
 import Data.Text (Text)
+import Unsafe.Coerce
 
 -- | Name of a database column.
 type ColName = Text
@@ -97,9 +98,29 @@ instance {-# OVERLAPPING #-} Append b c => Append (a :*: b) c where
 instance ((a :*: b) ~ (a :++: b)) => Append a b where
   app a b = a :*: b
 
+data Unsafe = Unsafe Int
+
 class Typeable a => ToDyn a where
   toDyns :: a -> [Dynamic]
+  fromDyns :: [Dynamic] -> Maybe a
+  -- | TODO: replace with safe coercions when that hits platform-1.
+  unsafeToList :: a -> [Unsafe]
+  -- | TODO: replace with safe coercions when that hits platform-1.
+  unsafeFromList :: [Unsafe] -> a
 instance (Typeable a, ToDyn b) => ToDyn (a :*: b) where
   toDyns (a :*: b) = toDyn a : toDyns b
+  fromDyns (x:xs) = do
+    x' <- fromDynamic x
+    xs' <- fromDyns xs
+    return (x' :*: xs')
+  fromDyns _ = do
+    Nothing
+  unsafeToList (x :*: xs) = unsafeCoerce x : unsafeToList xs
+  unsafeFromList (x : xs) = unsafeCoerce x :*: unsafeFromList xs
+
 instance {-# OVERLAPPABLE #-} Typeable a => ToDyn a where
   toDyns a = [toDyn a]
+  fromDyns [x] = fromDynamic x
+  fromDyns _   = Nothing
+  unsafeToList x = [unsafeCoerce x]
+  unsafeFromList [x] = unsafeCoerce x

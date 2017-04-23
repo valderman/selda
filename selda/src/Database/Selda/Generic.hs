@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# LANGUAGE TypeFamilies, TypeOperators, FlexibleInstances #-}
 {-# LANGUAGE UndecidableInstances, MultiParamTypeClasses, OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts, ScopedTypeVariables, ConstraintKinds #-}
@@ -22,18 +23,17 @@
 module Database.Selda.Generic
   ( Relational, Generic
   , GenAttr (..), GenTable (..), Attribute, Relation
-  , genTable, toRel, fromRel, (!)
+  , genTable, toRel, fromRel
   , insertGen, insertGen_, insertGenWithPK
   , primaryGen, autoPrimaryGen
   ) where
 import Control.Monad.State
 import Data.Dynamic
 import Data.Text (pack)
-import GHC.Generics hiding (R, (:*:))
-import qualified GHC.Generics as G ((:*:)(..))
+import GHC.Generics hiding (R, (:*:), Selector)
+import qualified GHC.Generics as G ((:*:)(..), Selector)
 import Unsafe.Coerce
 import Database.Selda
-import Database.Selda.Column
 import Database.Selda.Table
 import Database.Selda.Types
 import Database.Selda.SqlType
@@ -174,38 +174,6 @@ insertGen t = insert (gen t) . map toRel
 insertGen_ :: (Relational a, MonadSelda m) => GenTable a -> [a] -> m ()
 insertGen_ t = void . insertGen t
 
--- | From the given table column, get the column corresponding to the given
---   selector function. For instance:
---
--- > data Person = Person
--- >   { id   :: Int
--- >   , name :: Text
--- >   , age  :: Int
--- >   , pet  :: Maybe Text
--- >   }
--- >   deriving Generic
--- >
--- > people :: Table Person
--- > people = genTable "people" [name :- primary]
--- >
--- > getAllAges :: Query s Int
--- > getAllAges = do
--- >   p <- select people
--- >   return (p ! age)
---
---   Note that ONLY selector functions may be passed as the second argument of
---   this function. Attempting to pass any non-selector function results in a
---   Haskell runtime error.
-(!) :: (Columns (Cols s (Relation a)), Relational a, SqlType b)
-    => Cols s (Relation a) -> (a -> b) -> Col s b
-cs ! f =
-    case drop (identify mkDummy f) cols of
-      (Named x _ : _) -> C (Col x)
-      (Some c : _)    -> C (unsafeCoerce c)
-      _               -> error "attempted to use a non-selector with (!)"
-  where
-    cols = fromTup cs
-
 -- | Some attribute that may be set on a table column.
 newtype Attribute = Attribute [ColAttr]
 
@@ -275,7 +243,7 @@ instance GRelation a => GRelation (M1 D c a) where
   gTblCols _ = gTblCols (Proxy :: Proxy a)
   gMkDummy = M1 <$> gMkDummy
 
-instance (Selector c, GRelation a) => GRelation (M1 S c a) where
+instance (G.Selector c, GRelation a) => GRelation (M1 S c a) where
   gToRel (M1 x) = gToRel x
   gTblCols _    = [ci']
     where

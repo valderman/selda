@@ -18,16 +18,21 @@ import Database.Selda.Query.Type
 import Database.Selda.SQL
 import Database.Selda.Table
 import Database.Selda.Table.Compile
-import Data.Proxy
-import Data.Text (Text)
 import Control.Monad
 import Control.Monad.Catch
+import Data.Proxy
+import Data.Text (Text)
+import Data.Typeable
+
+-- | Denotes the outermost query.
+data Outer
+  deriving Typeable
 
 -- | Run a query within a Selda monad. In practice, this is often a 'SeldaT'
 --   transformer on top of some other monad.
 --   Selda transformers are entered using backend-specific @withX@ functions,
 --   such as 'withSQLite' from the SQLite backend.
-query :: (MonadSelda m, Result a) => Query s a -> m [Res a]
+query :: (MonadSelda m, Result a) => Query Outer a -> m [Res a]
 query q = do
   backend <- seldaBackend
   queryWith (runStmt backend) q
@@ -80,10 +85,10 @@ insertWithPK t cs = do
 
 -- | Update the given table using the given update function, for all rows
 --   matching the given predicate. Returns the number of updated rows.
-update :: (MonadSelda m, Columns (Cols s a), Result (Cols s a))
+update :: (MonadSelda m, Columns (Cols Outer a), Result (Cols Outer a))
        => Table a                  -- ^ The table to update.
-       -> (Cols s a -> Col s Bool) -- ^ Predicate.
-       -> (Cols s a -> Cols s a)   -- ^ Update function.
+       -> (Cols Outer a -> Col Outer Bool) -- ^ Predicate.
+       -> (Cols Outer a -> Cols Outer a)   -- ^ Update function.
        -> m Int
 update tbl check upd = do
   res <- uncurry exec $ compileUpdate tbl upd check
@@ -91,25 +96,25 @@ update tbl check upd = do
   return res
 
 -- | Like 'update', but doesn't return the number of updated rows.
-update_ :: (MonadSelda m, Columns (Cols s a), Result (Cols s a))
+update_ :: (MonadSelda m, Columns (Cols Outer a), Result (Cols Outer a))
        => Table a
-       -> (Cols s a -> Col s Bool)
-       -> (Cols s a -> Cols s a)
+       -> (Cols Outer a -> Col Outer Bool)
+       -> (Cols Outer a -> Cols Outer a)
        -> m ()
 update_ tbl check upd = void $ update tbl check upd
 
 -- | From the given table, delete all rows matching the given predicate.
 --   Returns the number of deleted rows.
-deleteFrom :: (MonadSelda m, Columns (Cols s a))
-           => Table a -> (Cols s a -> Col s Bool) -> m Int
+deleteFrom :: (MonadSelda m, Columns (Cols Outer a))
+           => Table a -> (Cols Outer a -> Col Outer Bool) -> m Int
 deleteFrom tbl f = do
   res <- uncurry exec $ compileDelete tbl f
   liftIO $ invalidate (tableName tbl)
   return res
 
 -- | Like 'deleteFrom', but does not return the number of deleted rows.
-deleteFrom_ :: (MonadSelda m, Columns (Cols s a))
-            => Table a -> (Cols s a -> Col s Bool) -> m ()
+deleteFrom_ :: (MonadSelda m, Columns (Cols Outer a))
+            => Table a -> (Cols Outer a -> Col Outer Bool) -> m ()
 deleteFrom_ tbl f = void $ deleteFrom tbl f
 
 -- | Create a table from the given schema.
@@ -161,8 +166,8 @@ setLocalCache :: MonadSelda m => Int -> m ()
 setLocalCache = liftIO . setMaxItems
 
 -- | Build the final result from a list of result columns.
-queryWith :: forall s m a. (MonadSelda m, Result a)
-          => QueryRunner (Int, [[SqlValue]]) -> Query s a -> m [Res a]
+queryWith :: forall m a. (MonadSelda m, Result a)
+          => QueryRunner (Int, [[SqlValue]]) -> Query Outer a -> m [Res a]
 queryWith qr q = do
     mres <- liftIO $ cached qry
     case mres of
