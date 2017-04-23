@@ -9,15 +9,18 @@ import Data.Dynamic
 import Unsafe.Coerce
 
 -- | Get the value at the given index from the given inductive tuple.
-(!)  :: ToDyn (Cols s t) => Cols s t -> Selector t a -> Col s a
-tup ! (Selector n) = unsafeCoerce (unsafeToList tup !! n)
+(!)  :: forall s t a. ToDyn (Cols () t) => Cols s t -> Selector t a -> Col s a
+tup ! (Selector n) = unsafeCoerce (unsafeToList (toU tup) !! n)
+  where toU = unsafeCoerce :: Cols s t -> Cols () t
 
 -- | Update the value at the given index in the given inductive tuple.
-(=:) :: (ToDyn (Cols s t))
+(=:) :: forall s t a. (ToDyn (Cols () t))
      => Cols s t -> (Selector t a, Col s a) -> Cols s t
 tup =: (Selector n, x) =
-    unsafeFromList $ replace (unsafeToList tup) (unsafeCoerce x)
+    fromU . unsafeFromList $ replace (unsafeToList $ toU tup) (unsafeCoerce x)
   where
+    toU = unsafeCoerce :: Cols s t -> Cols () t
+    fromU = unsafeCoerce :: Cols () t -> Cols s t
     replace xs x' =
       case splitAt n xs of
         (left, _:right) -> left ++ x' : right
