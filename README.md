@@ -647,7 +647,6 @@ TODOs
 Features that would be nice to have but are not yet implemented.
 
 * If/else.
-* Examples.
 * Foreign keys.
 * Streaming
 * Type-safe migrations
