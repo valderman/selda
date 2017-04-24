@@ -40,7 +40,7 @@ query q = do
 --
 --   To insert a list of tuples into a table with auto-incrementing primary key:
 --
--- > people :: Table (Auto Int :*: Text :*: Int :*: Maybe Text)
+-- > people :: Table (Int :*: Text :*: Int :*: Maybe Text)
 -- > people = table "ppl"
 -- >        $ autoPrimary "id"
 -- >        ¤ required "name"
