@@ -1,10 +1,11 @@
 {-# LANGUAGE GADTs, TypeOperators, TypeFamilies, FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving, MultiParamTypeClasses #-}
-{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE UndecidableInstances, DeriveGeneric #-}
 -- | Basic Selda types.
 module Database.Selda.Types where
 import Data.Dynamic
 import Data.Text (Text)
+import GHC.Generics (Generic)
 import Unsafe.Coerce
 
 -- | Name of a database column.
@@ -16,7 +17,7 @@ type TableName = Text
 -- | An inductively defined "tuple", or heterogeneous, non-empty list.
 data a :*: b where
   (:*:) :: a -> b -> a :*: b
-  deriving Typeable
+  deriving (Typeable, Generic)
 infixr 1 :*:
 
 instance (Show a, Show b) => Show (a :*: b) where
