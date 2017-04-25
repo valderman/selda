@@ -6,7 +6,7 @@
 module Database.Selda
   ( -- * Running queries
     MonadIO (..), MonadSelda
-  , SeldaT, Table, Query, Col, Res, Result
+  , SeldaT, SeldaM, Table, Query, Col, Res, Result
   , query, transaction, setLocalCache
     -- * Constructing queries
   , Selector, (!), Assignment(..), with

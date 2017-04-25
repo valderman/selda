@@ -2,7 +2,7 @@
 -- | API for building Selda backends.
 module Database.Selda.Backend
   ( MonadIO (..)
-  , QueryRunner, SeldaBackend (..), MonadSelda (..), SeldaT (..)
+  , QueryRunner, SeldaBackend (..), MonadSelda (..), SeldaT (..), SeldaM
   , Param (..), Lit (..), SqlValue (..), ColAttr (..)
   , compileColAttr
   , sqlDateTimeFormat, sqlDateFormat, sqlTimeFormat
@@ -53,6 +53,9 @@ newtype SeldaT m a = S {unS :: StateT SeldaBackend m a}
 
 instance MonadIO m => MonadSelda (SeldaT m) where
   seldaBackend = S get
+
+-- | The simplest form of Selda computation; 'SeldaT' specialized to 'IO'.
+type SeldaM = SeldaT IO
 
 -- | Run a Selda transformer. Backends should use this to implement their
 --   @withX@ functions.
