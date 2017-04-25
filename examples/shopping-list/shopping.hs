@@ -56,7 +56,7 @@ getList = do
     name <- groupBy (item ! itemName)
     return (name :*: count (item ! price) :*: sum_ (item ! price))
   total <- getCost
-  return (List (map fromRel rows) total)
+  return (List (fromRels rows) total)
 
 -- | Remove all items from the list.
 clearList :: MonadSelda m => m ()

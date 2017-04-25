@@ -23,7 +23,7 @@
 module Database.Selda.Generic
   ( Relational, Generic
   , GenAttr (..), GenTable (..), Attribute, Relation
-  , genTable, toRel, fromRel
+  , genTable, toRel, toRels, fromRel, fromRels
   , insertGen, insertGen_, insertGenWithPK
   , primaryGen, autoPrimaryGen
   ) where
@@ -132,6 +132,10 @@ genTable tn attrs = GenTable $ Table tn (validate tn (map tidy cols))
 toRel :: Relational a => a -> Relation a
 toRel = gToRel . from
 
+-- | Convenient synonym for @map toRel@.
+toRels :: Relational a => [a] -> [Relation a]
+toRels = map toRel
+
 -- | Re-assemble a generic type from its corresponding relation. This can be
 --   done either for ad hoc queries or for queries over generic tables:
 --
@@ -160,6 +164,10 @@ toRel = gToRel . from
 --   relation of the return type is a type error.
 fromRel :: Relational a => Relation a -> a
 fromRel = to . fst . gFromRel . toDyns
+
+-- | Convenient synonym for @map fromRel@.
+fromRels :: Relational a => [Relation a] -> [a]
+fromRels = map fromRel
 
 -- | Like 'insertWithPK', but accepts a generic table and
 --   its corresponding data type.
