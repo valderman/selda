@@ -62,18 +62,6 @@ times =
   :*: required "day"
   :*: required "local_tod"
 
-tableWithWeirdNames :: Table (Int :*: Maybe Int)
-(tableWithWeirdNames, weird1 :*: weird2) =
-      tableWithSelectors "DROP TABLE comments"
-  $   required "one \" quote \1\2\3\DEL"
-  :*: optional "two \"quotes\""
-
-nulTable :: Table Int
-nulTable = table "table_\0" $ required "blah"
-
-nulColTable :: Table Int
-nulColTable = table "nul_col_table" $ required "col_\0"
-
 genPeopleItems =
   [ Person "Link"      125 (Just "horse")  13506
   , Person "Velvet"     19 Nothing         5.55
@@ -431,6 +419,9 @@ freshEnvTests freshEnv = test
   , "insert some defaults"           ~: freshEnv insertSomeDefaults
   , "quoted weird names"             ~: freshEnv weirdNames
   , "nul identifiers fail"           ~: freshEnv nulIdentifiersFail
+  , "empty identifiers are caught"   ~: freshEnv emptyIdentifiersFail
+  , "duplicate columns are caught"   ~: freshEnv duplicateColsFail
+  , "duplicate PKs are caught"       ~: freshEnv duplicatePKsFail
   , "nul queries don't fail"         ~: freshEnv nulQueries
   ]
 
@@ -648,10 +639,47 @@ weirdNames = do
     return (t ! weird2)
   assEq "select failed" [Just 11] res
   dropTable tableWithWeirdNames
+  where
+    tableWithWeirdNames :: Table (Int :*: Maybe Int)
+    (tableWithWeirdNames, weird1 :*: weird2) =
+          tableWithSelectors "DROP TABLE comments"
+      $   required "one \" quote \1\2\3\DEL"
+      :*: optional "two \"quotes\""
 
 nulIdentifiersFail = do
   assertFail $ createTable nulTable
   assertFail $ createTable nulColTable
+  where
+    nulTable :: Table Int
+    nulTable = table "table_\0" $ required "blah"
+
+    nulColTable :: Table Int
+    nulColTable = table "nul_col_table" $ required "col_\0"
+
+emptyIdentifiersFail = do
+  assertFail $ createTable noNameTable
+  assertFail $ createTable noColNameTable
+  where
+    noNameTable :: Table Int
+    noNameTable = table "" $ required "blah"
+
+    noColNameTable :: Table Int
+    noColNameTable = table "table with empty col name" $ required ""
+
+duplicateColsFail = do
+  assertFail $ createTable dupes
+  where
+    dupes :: Table (Int :*: Text)
+    dupes = table "duplicate" $ required "blah" :*: required "blah"
+
+duplicatePKsFail = do
+  assertFail $ createTable dupes1
+  assertFail $ createTable dupes2
+  where
+    dupes1 :: Table (Int :*: Text)
+    dupes1 = table "duplicate" $ primary "blah1" :*: primary "blah2"
+    dupes2 :: Table (Int :*: Text)
+    dupes2 = table "duplicate" $ autoPrimary "blah1" :*: primary "blah2"
 
 nulQueries = do
   setup

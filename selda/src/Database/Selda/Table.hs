@@ -16,7 +16,8 @@ import Data.Text (Text, unpack, intercalate, any)
 --   @Table (Text :*: Int)@, and a table containing only a single string column
 --   would have the type @Table Text@.
 --
---   Table and column names may contain any character, except @\NUL@.
+--   Table and column names may contain any character except @\NUL@, and be
+--   non-empty. Column names must be unique per table.
 data Table a = Table
   { -- | Name of the table. NOT guaranteed to be a valid SQL name.
     tableName :: !TableName
@@ -131,15 +132,27 @@ validate name cis
       , unpack $ intercalate "\n  " errs
       ]
   where
+    colIdents = map (fromColName . colName) cis
+    allIdents = fromTableName name : colIdents
     errs = concat
       [ dupes
       , pkDupes
       , optionalRequiredMutex
       , nulIdents
+      , emptyIdents
+      , emptyTableName
       ]
+    emptyTableName
+      | fromTableName name == "\"\"" = ["table name is empty"]
+      | otherwise                    = []
+    emptyIdents
+      | Prelude.any (== "\"\"") colIdents =
+        ["table has columns with empty names"]
+      | otherwise =
+        []
     nulIdents =
       [ "table or column name contains \\NUL: " <> n
-      | n <- fromTableName name : map (fromColName . colName) cis
+      | n <- allIdents
       , Data.Text.any (== '\NUL') n
       ]
     dupes =
