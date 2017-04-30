@@ -14,7 +14,7 @@ import Unsafe.Coerce
 tup ! (Selector n) = unsafeCoerce (unsafeToList (toU tup) !! n)
   where toU = unsafeCoerce :: Cols s t -> Cols () t
 
-upd :: forall s t a. (ToDyn (Cols () t))
+upd :: forall s t. (ToDyn (Cols () t))
      => Cols s t -> Assignment s t -> Cols s t
 upd tup (Selector n := x) =
     fromU . unsafeFromList $ replace (unsafeToList $ toU tup) (unsafeCoerce x)

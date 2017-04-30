@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fno-warn-unused-binds #-}
 {-# LANGUAGE GADTs, TypeOperators, TypeFamilies, FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving, MultiParamTypeClasses #-}
 {-# LANGUAGE UndecidableInstances, DeriveGeneric, OverloadedStrings #-}
@@ -160,6 +161,7 @@ instance (Typeable a, ToDyn b) => ToDyn (a :*: b) where
     Nothing
   unsafeToList (x :*: xs) = unsafeCoerce x : unsafeToList xs
   unsafeFromList (x : xs) = unsafeCoerce x :*: unsafeFromList xs
+  unsafeFromList _        = error "too short list to unsafeFromList"
 
 instance {-# OVERLAPPABLE #-} Typeable a => ToDyn a where
   toDyns a = [toDyn a]
@@ -167,3 +169,5 @@ instance {-# OVERLAPPABLE #-} Typeable a => ToDyn a where
   fromDyns _   = Nothing
   unsafeToList x = [unsafeCoerce x]
   unsafeFromList [x] = unsafeCoerce x
+  unsafeFromList []  = error "too short list to unsafeFromList"
+  unsafeFromList _   = error "too long list to unsafeFromList"
