@@ -431,6 +431,7 @@ freshEnvTests freshEnv = test
   , "insert some defaults"           ~: freshEnv insertSomeDefaults
   , "quoted weird names"             ~: freshEnv weirdNames
   , "nul identifiers fail"           ~: freshEnv nulIdentifiersFail
+  , "nul queries don't fail"         ~: freshEnv nulQueries
   ]
 
 tryDropNeverFails = teardown
@@ -651,3 +652,20 @@ weirdNames = do
 nulIdentifiersFail = do
   assertFail $ createTable nulTable
   assertFail $ createTable nulColTable
+
+nulQueries = do
+  setup
+  insert_ comments
+    [ def :*: Just "Kobayashi" :*: "チョロゴン"
+    , def :*: Nothing :*: "more \0 spam"
+    , def :*: Nothing :*: "even more spam"
+    ]
+  rows <- update comments (isNull . second)
+                          (\(id :*: _ :*: c) -> (id :*: just "\0" :*: c))
+  [upd] <- query $ aggregate $ do
+    _ :*: name :*: _ <- select comments
+    restrict (not_ $ isNull name)
+    restrict (name .== just "\0")
+    return (count name)
+  assEq "update returns wrong number of updated rows" 3 rows
+  assEq "rows were not updated" 3 upd
