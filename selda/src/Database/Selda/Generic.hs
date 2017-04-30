@@ -205,7 +205,7 @@ tblCols _ = zipWith pack' [0 :: Int ..] $ gTblCols (Proxy :: Proxy (Rep a))
   where
     pack' n ci = ci
       { colName = if colName ci == ""
-                    then pack $ "col_" ++ show n
+                    then mkColName . pack $ "col_" ++ show n
                     else colName ci
       }
 
@@ -257,7 +257,7 @@ instance (G.Selector c, GRelation a) => GRelation (M1 S c a) where
     where
       [ci] = gTblCols (Proxy :: Proxy a)
       ci' = ColInfo
-        { colName = pack $ selName ((M1 undefined) :: M1 S c a b)
+        { colName = mkColName . pack $ selName ((M1 undefined) :: M1 S c a b)
         , colType = colType ci
         , colAttrs = colAttrs ci
         }

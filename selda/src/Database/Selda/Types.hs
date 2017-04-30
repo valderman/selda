@@ -1,18 +1,59 @@
 {-# LANGUAGE GADTs, TypeOperators, TypeFamilies, FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving, MultiParamTypeClasses #-}
-{-# LANGUAGE UndecidableInstances, DeriveGeneric #-}
+{-# LANGUAGE UndecidableInstances, DeriveGeneric, OverloadedStrings #-}
+{-# LANGUAGE CPP #-}
 -- | Basic Selda types.
-module Database.Selda.Types where
+module Database.Selda.Types
+  ( (:*:)(..), Head, Append (..), (:++:), ToDyn (..), Tup (..)
+  , first, second, third, fourth, fifth, sixth, seventh, eighth, ninth, tenth
+  , ColName, TableName
+  , mkColName, mkTableName, addColSuffix
+  , fromColName, fromTableName
+  ) where
 import Data.Dynamic
-import Data.Text (Text)
+import Data.String
+import Data.Text (Text, replace, append)
 import GHC.Generics (Generic)
 import Unsafe.Coerce
 
+#ifndef NO_LOCALCACHE
+import Data.Hashable
+
+instance Hashable TableName where
+  hashWithSalt s (TableName tn) = hashWithSalt s tn
+#endif
+
 -- | Name of a database column.
-type ColName = Text
+newtype ColName = ColName Text
+  deriving (Ord, Eq, Show, IsString)
 
 -- | Name of a database table.
-type TableName = Text
+newtype TableName = TableName Text
+  deriving (Ord, Eq, Show, IsString)
+
+-- | Add a suffix to a column name.
+addColSuffix :: ColName -> Text -> ColName
+addColSuffix (ColName cn) s = ColName $ Data.Text.append cn s
+
+-- | Convert a column name into a string, with quotes.
+fromColName :: ColName -> Text
+fromColName (ColName cn) = mconcat ["\"", escapeQuotes cn, "\""]
+
+-- | Convert a table name into a string, with quotes.
+fromTableName :: TableName -> Text
+fromTableName (TableName tn) = mconcat ["\"", escapeQuotes tn, "\""]
+
+-- | Create a column name.
+mkColName :: Text -> ColName
+mkColName = ColName
+
+-- | Create a column name.
+mkTableName :: Text -> TableName
+mkTableName = TableName
+
+-- | Escape double quotes in an SQL identifier.
+escapeQuotes :: Text -> Text
+escapeQuotes = Data.Text.replace "\"" "\"\""
 
 -- | An inductively defined "tuple", or heterogeneous, non-empty list.
 data a :*: b where
@@ -108,6 +149,7 @@ class Typeable a => ToDyn a where
   unsafeToList :: a -> [Unsafe]
   -- | TODO: replace with safe coercions when that hits platform-1.
   unsafeFromList :: [Unsafe] -> a
+
 instance (Typeable a, ToDyn b) => ToDyn (a :*: b) where
   toDyns (a :*: b) = toDyn a : toDyns b
   fromDyns (x:xs) = do

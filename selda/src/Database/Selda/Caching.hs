@@ -37,7 +37,6 @@ setMaxItems :: Int -> IO ()
 setMaxItems _ = return ()
 
 #else
-
 instance Hashable Param where
   hashWithSalt s (Param x) = hashWithSalt s x
 instance Hashable (Lit a) where

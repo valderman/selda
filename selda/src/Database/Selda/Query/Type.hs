@@ -5,7 +5,7 @@ import Data.Monoid
 import Data.Text (pack)
 import Database.Selda.SQL
 import Database.Selda.Column
-import Database.Selda.Types (ColName)
+import Database.Selda.Types (ColName, mkColName, addColSuffix)
 
 -- | An SQL query.
 newtype Query s a = Query {unQ :: State GenState a}
@@ -53,8 +53,8 @@ rename (Some col) = do
   where
     newName ns =
       case col of
-        Col n -> n <> "_" <> pack (show ns)
-        _     -> "tmp_" <> pack (show ns)
+        Col n -> addColSuffix n $ "_" <> pack (show ns)
+        _     -> mkColName $ "tmp_" <> pack (show ns)
 rename col@(Named _ _) = do
   return col
 
@@ -69,4 +69,4 @@ freshId = do
 freshName :: State GenState ColName
 freshName = do
   n <- freshId
-  return $ "tmp_" <> pack (show n)
+  return $ mkColName $ "tmp_" <> pack (show n)

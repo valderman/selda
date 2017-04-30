@@ -62,6 +62,18 @@ times =
   :*: required "day"
   :*: required "local_tod"
 
+tableWithWeirdNames :: Table (Int :*: Maybe Int)
+(tableWithWeirdNames, weird1 :*: weird2) =
+      tableWithSelectors "DROP TABLE comments"
+  $   required "one \" quote \1\2\3\DEL"
+  :*: optional "two \"quotes\""
+
+nulTable :: Table Int
+nulTable = table "table_\0" $ required "blah"
+
+nulColTable :: Table Int
+nulColTable = table "nul_col_table" $ required "col_\0"
+
 genPeopleItems =
   [ Person "Link"      125 (Just "horse")  13506
   , Person "Velvet"     19 Nothing         5.55
@@ -417,6 +429,8 @@ freshEnvTests freshEnv = test
   , "override auto-increment"        ~: freshEnv overrideAutoIncrement
   , "insert all defaults"            ~: freshEnv insertAllDefaults
   , "insert some defaults"           ~: freshEnv insertSomeDefaults
+  , "quoted weird names"             ~: freshEnv weirdNames
+  , "nul identifiers fail"           ~: freshEnv nulIdentifiersFail
   ]
 
 tryDropNeverFails = teardown
@@ -616,3 +630,24 @@ insertSomeDefaults = do
     restrict (pet .== just "chocobo")
     return person
   assEq "wrong values inserted" ["Celes" :*: 0 :*: Just "chocobo" :*: 0] res
+
+weirdNames = do
+  tryDropTable tableWithWeirdNames
+  createTable tableWithWeirdNames
+  i1 <- insert tableWithWeirdNames [42 :*: Nothing]
+  assEq "first insert failed" 1 i1
+  i2 <- insert tableWithWeirdNames [123 :*: Just 321]
+  assEq "second insert failed" 1 i2
+  up <- update tableWithWeirdNames (\c -> c ! weird1 .== 42)
+                                   (\c -> c `with` [weird2 := just 11])
+  assEq "update failed" 1 up
+  res <- query $ do
+    t <- select tableWithWeirdNames
+    restrict (t ! weird1 .== 42)
+    return (t ! weird2)
+  assEq "select failed" [Just 11] res
+  dropTable tableWithWeirdNames
+
+nulIdentifiersFail = do
+  assertFail $ createTable nulTable
+  assertFail $ createTable nulColTable

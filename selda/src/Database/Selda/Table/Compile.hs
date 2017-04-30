@@ -7,6 +7,7 @@ import Data.Monoid
 import Data.Text (Text, intercalate, pack)
 import qualified Data.Text as Text
 import Database.Selda.SQL hiding (params)
+import Database.Selda.Types
 
 data OnError = Fail | Ignore
   deriving (Eq, Ord, Show)
@@ -14,7 +15,7 @@ data OnError = Fail | Ignore
 -- | Compile a @CREATE TABLE@ query from a table definition.
 compileCreateTable :: (Text -> [ColAttr] -> Maybe Text) -> OnError -> Table a -> Text
 compileCreateTable customColType ifex tbl = mconcat
-  [ "CREATE TABLE ", ifNotExists ifex, tableName tbl, "("
+  [ "CREATE TABLE ", ifNotExists ifex, fromTableName (tableName tbl), "("
   , intercalate ", " (map (compileTableCol customColType) (tableCols tbl))
   , ")"
   ]
@@ -25,7 +26,7 @@ compileCreateTable customColType ifex tbl = mconcat
 -- | Compile a table column.
 compileTableCol :: (Text -> [ColAttr] -> Maybe Text) -> ColInfo -> Text
 compileTableCol customColType ci = Text.unwords
-  [ colName ci
+  [ fromColName (colName ci)
   , case customColType typ attrs of
       Just s -> s
       _      -> typ <> " " <> Text.unwords (map compileColAttr attrs)
@@ -36,8 +37,10 @@ compileTableCol customColType ci = Text.unwords
 
 -- | Compile a @DROP TABLE@ query.
 compileDropTable :: OnError -> Table a -> Text
-compileDropTable Fail t = Text.unwords ["DROP TABLE",tableName t]
-compileDropTable _ t    = Text.unwords ["DROP TABLE IF EXISTS",tableName t]
+compileDropTable Fail t =
+  Text.unwords ["DROP TABLE",fromTableName (tableName t)]
+compileDropTable _ t =
+  Text.unwords ["DROP TABLE IF EXISTS",fromTableName (tableName t)]
 
 -- | Compile an @INSERT INTO@ query inserting @m@ rows with @n@ cols each.
 --   Note that backends expect insertions to NOT have a semicolon at the end.
@@ -52,8 +55,8 @@ compInsert defaultKeyword tbl defs =
     (vals, parameters) = mkRows 1 defs [] []
     query = Text.unwords
       [ "INSERT INTO"
-      , tableName tbl
-      , "(" <>  Text.intercalate ", " colNames <> ")"
+      , fromTableName (tableName tbl)
+      , "(" <>  Text.intercalate ", " (map fromColName colNames) <> ")"
       , "VALUES"
       , values
       ]

@@ -48,14 +48,15 @@ compUpdate tbl p cs = snd $ runPP ppUpd
       updates <- mapM ppUpdate cs
       check <- ppCol p
       pure $ Text.unwords
-        [ "UPDATE", tbl
+        [ "UPDATE", fromTableName tbl
         , "SET", set updates
         , "WHERE", check
         ]
     ppUpdate (n, c) = do
+      let n' = fromColName n
       c' <- ppSomeCol c
-      let upd = Text.unwords [n, "=", c']
-      if n == c'
+      let upd = Text.unwords [n', "=", c']
+      if n' == c'
         then pure $ Left upd
         else pure $ Right upd
     -- if the update doesn't change anything, pick an arbitrary column to
@@ -71,7 +72,7 @@ compDelete tbl p = snd $ runPP ppDelete
   where
     ppDelete = do
       c' <- ppCol p
-      pure $ Text.unwords ["DELETE FROM", tbl, "WHERE", c']
+      pure $ Text.unwords ["DELETE FROM", fromTableName tbl, "WHERE", c']
 
 -- | Pretty-print a literal as a named parameter and save the
 --   name-value binding in the environment.
@@ -121,7 +122,7 @@ ppSql (SQL cs src r gs ord lim) = do
       pure $ " FROM (SELECT NULL LIMIT 0) AS " <> qn
     ppSrc (TableName n)  = do
       dependOn n
-      pure $ " FROM " <> n
+      pure $ " FROM " <> fromTableName n
     ppSrc (Product [])   = do
       pure ""
     ppSrc (Product sqls) = do
@@ -183,7 +184,7 @@ ppSomeCol :: SomeCol -> PP Text
 ppSomeCol (Some c)    = ppCol c
 ppSomeCol (Named n c) = do
   c' <- ppCol c
-  pure $ c' <> " AS " <> n
+  pure $ c' <> " AS " <> fromColName n
 
 ppCols :: [Exp Bool] -> PP Text
 ppCols cs = do
@@ -192,7 +193,7 @@ ppCols cs = do
 
 ppCol :: Exp a -> PP Text
 ppCol (TblCol xs)    = error $ "compiler bug: ppCol saw TblCol: " ++ show xs
-ppCol (Col name)     = pure name
+ppCol (Col name)     = pure (fromColName name)
 ppCol (Lit l)        = ppLit l
 ppCol (BinOp op a b) = ppBinOp op a b
 ppCol (UnOp op a)    = ppUnOp op a

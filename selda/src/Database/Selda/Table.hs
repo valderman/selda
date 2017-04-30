@@ -8,13 +8,15 @@ import Database.Selda.SqlType
 import Data.Dynamic
 import Data.List (sort, group)
 import Data.Monoid
-import Data.Text (Text, unpack, intercalate)
+import Data.Text (Text, unpack, intercalate, any)
 
 -- | A database table.
 --   Tables are parameterized over their column types. For instance, a table
 --   containing one string and one integer, in that order, would have the type
 --   @Table (Text :*: Int)@, and a table containing only a single string column
 --   would have the type @Table Text@.
+--
+--   Table and column names may contain any character, except @\NUL@.
 data Table a = Table
   { -- | Name of the table. NOT guaranteed to be a valid SQL name.
     tableName :: !TableName
@@ -124,7 +126,7 @@ validate :: TableName -> [ColInfo] -> [ColInfo]
 validate name cis
   | null errs = cis
   | otherwise = error $ concat
-      [ "validation of table ", unpack name, " failed:"
+      [ "validation of table ", unpack $ fromTableName name, " failed:"
       , "\n  "
       , unpack $ intercalate "\n  " errs
       ]
@@ -133,15 +135,22 @@ validate name cis
       [ dupes
       , pkDupes
       , optionalRequiredMutex
+      , nulIdents
+      ]
+    nulIdents =
+      [ "table or column name contains \\NUL: " <> n
+      | n <- fromTableName name : map (fromColName . colName) cis
+      , Data.Text.any (== '\NUL') n
       ]
     dupes =
-      ["duplicate column: " <> x | (x:_:_) <- soup $ map colName cis]
+      ["duplicate column: " <> fromColName x | (x:_:_) <- soup $ map colName cis]
     pkDupes =
       ["multiple primary keys" | (Primary:_:_) <- soup $ concatMap colAttrs cis]
 
     -- This should be impossible, but...
     optionalRequiredMutex =
-      [ "BUG: column " <> colName ci <> " is both optional and required"
+      [ "BUG: column " <> fromColName (colName ci)
+                       <> " is both optional and required"
       | ci <- cis
       , Optional `elem` colAttrs ci && Required `elem` colAttrs ci
       ]
