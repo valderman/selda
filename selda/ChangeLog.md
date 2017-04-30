@@ -1,5 +1,13 @@
 # Revision history for selda
 
+## 0.1.3.0 -- 2017-04-30
+
+* Add selectors for non-generic tables.
+* Allow default insertions on all columns.
+* More sensible API for LIMIT.
+* Fix broken SQL being generated for pathological corner cases.
+* Documentation fixes.
+
 ## 0.1.2.0 -- 2017-04-20
 
 * Replace `¤` with `:*:` in table definitions.
