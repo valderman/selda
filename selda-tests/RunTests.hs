@@ -53,6 +53,7 @@ comments =
   $   autoPrimary "id"
   :*: optional "author"
   :*: required "comment"
+cId :*: cName :*: cComment = selectors comments
 
 times :: Table (Text :*: UTCTime :*: Day :*: TimeOfDay)
 times =
@@ -422,6 +423,10 @@ freshEnvTests freshEnv = test
   , "empty identifiers are caught"   ~: freshEnv emptyIdentifiersFail
   , "duplicate columns are caught"   ~: freshEnv duplicateColsFail
   , "duplicate PKs are caught"       ~: freshEnv duplicatePKsFail
+  , "dupe insert throws SeldaError"  ~: freshEnv dupeInsertThrowsSeldaError
+  , "dupe insert 2 throws SeldaError"~: freshEnv dupeInsert2ThrowsSeldaError
+  , "dupe update throws SeldaError"  ~: freshEnv dupeUpdateThrowsSeldaError
+  , "duplicate PKs are caught"       ~: freshEnv duplicatePKsFail
   , "nul queries don't fail"         ~: freshEnv nulQueries
   ]
 
@@ -647,8 +652,11 @@ weirdNames = do
       :*: optional "two \"quotes\""
 
 nulIdentifiersFail = do
-  assertFail $ createTable nulTable
-  assertFail $ createTable nulColTable
+  e1 <- try (createTable nulTable) :: SeldaM (Either ValidationError ())
+  e2 <- try (createTable nulColTable) :: SeldaM (Either ValidationError ())
+  case (e1, e2) of
+    (Left _, Left _) -> return ()
+    _                -> liftIO $ assertFailure "ValidationError not thrown"
   where
     nulTable :: Table Int
     nulTable = table "table_\0" $ required "blah"
@@ -657,8 +665,11 @@ nulIdentifiersFail = do
     nulColTable = table "nul_col_table" $ required "col_\0"
 
 emptyIdentifiersFail = do
-  assertFail $ createTable noNameTable
-  assertFail $ createTable noColNameTable
+  e1 <- try (createTable noNameTable) :: SeldaM (Either ValidationError ())
+  e2 <- try (createTable noColNameTable) :: SeldaM (Either ValidationError ())
+  case (e1, e2) of
+    (Left _, Left _) -> return ()
+    _                -> liftIO $ assertFailure "ValidationError not thrown"
   where
     noNameTable :: Table Int
     noNameTable = table "" $ required "blah"
@@ -667,26 +678,62 @@ emptyIdentifiersFail = do
     noColNameTable = table "table with empty col name" $ required ""
 
 duplicateColsFail = do
-  assertFail $ createTable dupes
+  e <- try (createTable dupes) :: SeldaM (Either ValidationError ())
+  case e of
+    Left _ -> return ()
+    _      -> liftIO $ assertFailure "ValidationError not thrown"
   where
     dupes :: Table (Int :*: Text)
     dupes = table "duplicate" $ required "blah" :*: required "blah"
 
 duplicatePKsFail = do
-  assertFail $ createTable dupes1
-  assertFail $ createTable dupes2
+  e1 <- try (createTable dupes1) :: SeldaM (Either ValidationError ())
+  e2 <- try (createTable dupes2) :: SeldaM (Either ValidationError ())
+  case (e1, e2) of
+    (Left _, Left _) -> return ()
+    _                -> liftIO $ assertFailure "ValidationError not thrown"
   where
     dupes1 :: Table (Int :*: Text)
     dupes1 = table "duplicate" $ primary "blah1" :*: primary "blah2"
     dupes2 :: Table (Int :*: Text)
     dupes2 = table "duplicate" $ autoPrimary "blah1" :*: primary "blah2"
 
+dupeInsertThrowsSeldaError = do
+  setup
+  assertFail $ do
+    insert_ comments
+      [ 0 :*: Just "Kobayashi" :*: "チョロゴン"
+      , 0 :*: Nothing          :*: "some spam"
+      ]
+
+dupeInsert2ThrowsSeldaError = do
+  setup
+  insert_ comments [0 :*: Just "Kobayashi" :*: "チョロゴン"]
+  e <- try $ insert_ comments [0 :*: Nothing :*: "Spam, spam, spaaaaaam!"]
+  case e :: Either SeldaError () of
+    Left _ -> return ()
+    _      -> liftIO $ assertFailure "SeldaError not thrown"
+
+dupeUpdateThrowsSeldaError = do
+  setup
+  insert_ comments
+    [ 0   :*: Just "Kobayashi" :*: "チョロゴン"
+    , def :*: Just "spammer"   :*: "some spam"
+    ]
+  e <- try $ do
+    update_ comments
+      (\c -> c ! cName .== just "spammer")
+      (\c -> c `with` [cId := 0])
+  case e :: Either SeldaError () of
+    Left _ -> return ()
+    _      -> liftIO $ assertFailure "SeldaError not thrown"
+
 nulQueries = do
   setup
   insert_ comments
     [ def :*: Just "Kobayashi" :*: "チョロゴン"
-    , def :*: Nothing :*: "more \0 spam"
-    , def :*: Nothing :*: "even more spam"
+    , def :*: Nothing          :*: "more \0 spam"
+    , def :*: Nothing          :*: "even more spam"
     ]
   rows <- update comments (isNull . second)
                           (\(id :*: _ :*: c) -> (id :*: just "\0" :*: c))
