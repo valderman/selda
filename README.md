@@ -38,7 +38,7 @@ backends:
     $ cabal update
     $ cabal install selda selda-sqlite selda-postgresql
 
-Then, read the [tutorial](#tutorial).
+Then, read the tutorial.
 The [API documentation](http://hackage.haskell.org/package/selda) will probably
 also come in handy.
 
@@ -52,7 +52,6 @@ To build the PostgreSQL backend, you need the `libpq` development libraries
 installed (`libpq-dev` on Debian-based Linux distributions).
 
 
-<span id="tutorial"></span>
 A brief tutorial
 ================
 
