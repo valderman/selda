@@ -18,8 +18,12 @@ withSQLite _ _ = return $ error "withSQLite called in JS context"
 #else
 withSQLite file m = do
   lock <- liftIO $ newMVar ()
-  db <- liftIO $ open (pack file)
-  runSeldaT m (sqliteBackend lock db) `finally` liftIO (close db)
+  edb <- try $ liftIO $ open (pack file)
+  case edb of
+    Left e@(SQLError{}) -> do
+      throwM (DbError (show e))
+    Right db -> do
+      runSeldaT m (sqliteBackend lock db) `finally` liftIO (close db)
 
 sqliteBackend :: MVar () -> Database -> SeldaBackend
 sqliteBackend lock db = SeldaBackend
@@ -31,11 +35,15 @@ sqliteBackend lock db = SeldaBackend
 
 sqliteQueryRunner :: MVar () -> Database -> QueryRunner (Int, (Int, [[SqlValue]]))
 sqliteQueryRunner lock db qry params = do
-    stm <- prepare db qry
-    takeMVar lock
-    go stm `finally` do
-      putMVar lock ()
-      finalize stm
+    eres <- try $ do
+      stm <- prepare db qry
+      takeMVar lock
+      go stm `finally` do
+        putMVar lock ()
+        finalize stm
+    case eres of
+      Left e@(SQLError{}) -> throwM (SqlError (show e))
+      Right res           -> return res
   where
     go stm = do
       bind stm [toSqlData p | Param p <- params]
@@ -68,6 +76,6 @@ fromSqlData :: SQLData -> SqlValue
 fromSqlData (SQLInteger i) = SqlInt $ fromIntegral i
 fromSqlData (SQLFloat f)   = SqlFloat f
 fromSqlData (SQLText s)    = SqlString s
-fromSqlData (SQLBlob _)    = error "Selda doesn't support blobs"
+fromSqlData (SQLBlob _)    = error "BUG: SQLite returned BLOB"
 fromSqlData SQLNull        = SqlNull
 #endif

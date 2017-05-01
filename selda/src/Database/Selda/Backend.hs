@@ -3,6 +3,7 @@
 module Database.Selda.Backend
   ( MonadIO (..)
   , QueryRunner, SeldaBackend (..), MonadSelda (..), SeldaT (..), SeldaM
+  , SeldaError (..)
   , Param (..), Lit (..), SqlValue (..), ColAttr (..)
   , compileColAttr
   , sqlDateTimeFormat, sqlDateFormat, sqlTimeFormat
@@ -16,6 +17,15 @@ import Control.Monad.Catch
 import Control.Monad.IO.Class
 import Control.Monad.State
 import Data.Text (Text)
+import Data.Typeable
+
+-- | Thrown by any function in 'SeldaT' if an error occurs.
+data SeldaError
+  = DbError String  -- ^ Unable to open or connect to database.
+  | SqlError String -- ^ An error occurred while executing query.
+  deriving (Show, Eq, Typeable)
+
+instance Exception SeldaError
 
 -- | A function which executes a query and gives back a list of extensible
 --   tuples; one tuple per result row, and one tuple element per column.

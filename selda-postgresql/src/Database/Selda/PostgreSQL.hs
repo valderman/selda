@@ -17,17 +17,6 @@ import Database.PostgreSQL.LibPQ hiding (user, pass, db, host)
 import qualified Data.ByteString.Char8 as BS
 #endif
 
--- | The exception thrown when a connection could not be made to the PostgreSQL
---   server.
-data PGConnectException = PGConnectException String
-  deriving Show
-instance Exception PGConnectException
-
--- | The exception thrown when a query fails.
-data PGQueryException = PGQueryException String
-  deriving Show
-instance Exception PGQueryException
-
 -- | PostgreSQL connection information.
 data PGConnectInfo = PGConnectInfo
   { -- | Host to connect to.
@@ -86,7 +75,7 @@ withPostgreSQL ci m = do
     ConnectionOk -> runSeldaT m (pgBackend conn) `finally` liftIO (finish conn)
     nope         -> connFailed nope
   where
-    connFailed f = throwM $ PGConnectException $ unwords
+    connFailed f = throwM $ DbError $ unwords
       [ "unable to connect to postgres server: " ++ show f
       ]
 
@@ -127,12 +116,12 @@ pgQueryRunner c return_lastid q ps = do
       Just res -> do
         st <- resultStatus res
         case st of
-          BadResponse       -> throwM $ PGQueryException "bad response"
-          FatalError        -> throwM $ PGQueryException errmsg
-          NonfatalError     -> throwM $ PGQueryException errmsg
+          BadResponse       -> throwM $ SqlError "bad response"
+          FatalError        -> throwM $ SqlError errmsg
+          NonfatalError     -> throwM $ SqlError errmsg
           _ | return_lastid -> Left <$> getLastId res
             | otherwise     ->Right <$> getRows res
-      Nothing           -> error "unable to submit query to server"
+      Nothing           -> throwM $ DbError "unable to submit query to server"
   where
     errmsg = "error executing query `" ++ T.unpack q' ++ "'"
     q' | return_lastid = q <> " RETURNING LASTVAL();"
@@ -168,7 +157,7 @@ toSqlValue t val
   | t == intType     = SqlInt $ read (BS.unpack val)
   | t == doubleType  = SqlFloat $ read (BS.unpack val)
   | t `elem` textish = SqlString (decodeUtf8 val)
-  | otherwise        = error $ "result with unknown type oid: " ++ show t
+  | otherwise        = error $ "BUG: result with unknown type oid: " ++ show t
   where
     textish = [textType, timestampType, timeType, dateType]
     readBool "f"   = False

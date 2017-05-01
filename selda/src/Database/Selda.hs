@@ -2,10 +2,68 @@
 -- | Selda is not LINQ, but they're definitely related.
 --
 --   Selda is a high-level EDSL for interacting with relational databases.
---   Please see <https://github.com/valderman/selda/> for a brief tutorial.
+--   All database computations are performed within some monad implementing
+--   the 'MonadSelda' type class. The 'SeldaT' monad over any @MonadIO@ is the
+--   only pre-defined instance of @MonadSelda@.
+--   'SeldaM' is provided as a convenient short-hand for @SeldaT IO@.
+--
+--   To actually execute a database computation, you need one of the database
+--   backends: @selda-sqlite@ or @selda-postgresql@.
+--
+--   All Selda functions may throw 'SeldaError' when something goes wrong.
+--   This includes database connection errors, uniqueness constraint errors,
+--   etc.
+--
+--   The following example shows off Selda's most basic features -- creating,
+--   populating, modifying and querying tables -- and is intended to act as a
+--   Hello World-ish quickstart.
+--
+-- > {-# LANGUAGE TypeOperators, OverloadedStrings #-}
+-- > import Data.Text (Text, unpack)
+-- > import Database.Selda
+-- > import Database.Selda.SQLite
+-- >
+-- > people :: Table (Text :*: Int :*: Maybe Text)
+-- > (people, pName :*: pAge :*: pPet)
+-- >   = tableWithSelectors "people"
+-- >   $   primary "name"
+-- >   :*: required "age"
+-- >   :*: optional "pet"
+-- >
+-- > main = withSQLite "people.sqlite" $ do
+-- >   createTable people
+-- >
+-- >   insert_ people
+-- >     [ "Velvet"    :*: 19 :*: Nothing
+-- >     , "Kobayashi" :*: 23 :*: Just "dragon"
+-- >     , "Miyu"      :*: 10 :*: Nothing
+-- >     ]
+-- >
+-- >   update_ people
+-- >     (\person -> person ! pName .== "Velvet")
+-- >     (\person -> person `with` [pPet := just "orthros"])
+-- >
+-- >   adults <- query $ do
+-- >     person <- select people
+-- >     restrict (person ! pAge .> 20)
+-- >     return (person ! pName :*: person ! pAge)
+-- >
+-- >   n <- deleteFrom people (\person -> isNull (person ! pPet))
+-- >
+-- >   liftIO $ do
+-- >     putStrLn "The adults in the room are:"
+-- >     mapM_ printPerson adults
+-- >     putStrLn $ show n ++ " people were deleted for having no pets."
+-- >
+-- > printPerson :: Text :*: Int -> IO ()
+-- > printPerson (name :*: age) = putStrLn $ unpack name ++ ", age " ++ show age
+--
+--   Please see <http://hackage.haskell.org/package/selda/#readme>
+--   for a more comprehensive tutorial.
 module Database.Selda
   ( -- * Running queries
     MonadIO (..), MonadSelda
+  , SeldaError (..)
   , SeldaT, SeldaM, Table, Query, Col, Res, Result
   , query, transaction, setLocalCache
     -- * Constructing queries
