@@ -1,5 +1,9 @@
 # Revision history for selda
 
+## 0.1.3.1 -- 2017-05-01
+
+* More hackage-friendly README.
+
 ## 0.1.3.0 -- 2017-04-30
 
 * Add selectors for non-generic tables.
