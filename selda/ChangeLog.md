@@ -1,5 +1,9 @@
 # Revision history for selda
 
+## 0.1.3.2 -- 2017-05-01
+
+* Only throw well-documented, Selda-specific exceptions.
+
 ## 0.1.3.1 -- 2017-05-01
 
 * More hackage-friendly README.
