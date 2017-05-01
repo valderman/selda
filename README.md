@@ -83,9 +83,9 @@ are always required.
 Running queries
 ---------------
 
-Selda queries are run in the `SeldaT` monad transformer. Any `MonadIO` can be
-extended with database capabilities. Throughout this tutorial, we will simply
-use `SeldaT` on top of the plain `IO` monad.
+Selda operations are run in the `SeldaT` monad transformer, which can be layered
+on top of any `MonadIO`. Throughout this tutorial, we will simply use the Selda
+monad `SeldaM`, which is just a synonym for `SeldaT IO`.
 `SeldaT` is entered using a backend-specific `withX` function. For instance,
 the SQLite backend uses the `withSQLite` function:
 
@@ -95,7 +95,7 @@ main = withSQLite "my_database.sqlite" $ do
   people <- getAllPeople
   liftIO (print people)
 
-getAllPeople :: SeldaT IO [Text :*: Int :*: Maybe Text]
+getAllPeople :: SeldaM [Text :*: Int :*: Maybe Text]
 getAllPeople = query (select people)
 ```
 
@@ -138,12 +138,12 @@ You can use a table definition to create the corresponding table in your
 database backend, as well as delete it.
 
 ```
-setup :: SeldaT IO ()
+setup :: SeldaM ()
 setup = do
   createTable people
   createTable addresses
 
-teardown :: SeldaT IO ()
+teardown :: SeldaM ()
 teardown = do
   tryDropTable people
   tryDropTable addresses
@@ -162,7 +162,7 @@ rows where each row is an inductive tuple matching the type of the table.
 Optional values are encoded as `Maybe` values.
 
 ```
-populate :: SeldaT IO ()
+populate :: SeldaM ()
 populate = do
   insert_ people
     [ "Link"      :*: 125 :*: Just "horse"
@@ -192,7 +192,7 @@ people' = table "people_with_ids"
   :*: required "age"
   :*: optional "pet"
 
-populate' :: SeldaT IO ()
+populate' :: SeldaM ()
 populate' = do
   insert_ people'
     [ def :*: "Link"      :*: 125 :*: Just "horse"
@@ -231,7 +231,7 @@ columns, specifying how to update each row. Only rows satisfying the predicate
 are updated.
 
 ```
-age10Years :: SeldaT IO ()
+age10Years :: SeldaM ()
 age10Years = do
   update_ people (\(name :*: _ :*: _) -> name ./= "Link")
                  (\(name :*: age :*: pet) -> name :*: age + 10 :*: pet)
@@ -253,7 +253,7 @@ to delete.
 The following example deletes all minors from the `people` table:
 
 ```
-byeMinors :: SeldaT IO ()
+byeMinors :: SeldaM ()
 byeMinors = deleteFrom_ people (\(_ :*: age :*: _) -> age .< 20)
 ```
 
@@ -277,7 +277,7 @@ grownups = do
   restrict (age .> 20)
   return name
 
-printGrownups :: SeldaT IO ()
+printGrownups :: SeldaM ()
 printGrownups = do
   names <- query grownups
   liftIO (print names)
@@ -309,7 +309,7 @@ grownups = do
   restrict (p ! age .> 20)
   return (p ! name)
 
-printGrownups :: SeldaT IO ()
+printGrownups :: SeldaM ()
 printGrownups = do
   names <- query grownups
   liftIO (print names)
@@ -379,7 +379,7 @@ grownupsIn city = do
   restrict (home .== text city .&& name .== name')
   return name
 
-printGrownupsInTokyo :: SeldaT IO ()
+printGrownupsInTokyo :: SeldaM ()
 printGrownupsInTokyo = do
   names <- query (grownupsIn "Tokyo")
   liftIO (print names)
@@ -506,7 +506,7 @@ The solution to this problem is *transactions*: a mechanism by which
 enjoys. Using transactions in Selda is super easy:
 
 ```
-transferMoney :: Text -> Text -> Double -> SeldaT IO ()
+transferMoney :: Text -> Text -> Double -> SeldaM ()
 transferMoney from to amount = do
   transaction $ do
     update_ accounts (\(owner :*: _) -> owner .== text from)
@@ -601,7 +601,7 @@ This will declare two tables with the same structure as their ad hoc
 predecessors. Creating the tables is similarly easy:
 
 ```
-create :: SeldaT IO ()
+create :: SeldaM ()
 create = do
   createTable (gen people)
   createTable (gen addresses)
@@ -625,7 +625,7 @@ Finally, with generics it's also quite easy to re-assemble Haskell objects
 from the results of a query using the `fromRel` function.
 
 ```
-getPeopleOfAge :: Int -> SeldaT IO [Person]
+getPeopleOfAge :: Int -> SeldaM [Person]
 getPeopleOfAge yrs = do
   ps <- query $ do
     (name :*: age :*: _) <- select (gen people)
