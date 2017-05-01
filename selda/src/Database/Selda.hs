@@ -63,7 +63,7 @@
 module Database.Selda
   ( -- * Running queries
     MonadIO (..), MonadSelda
-  , SeldaError (..)
+  , SeldaError (..), ValidationError
   , SeldaT, SeldaM, Table, Query, Col, Res, Result
   , query, transaction, setLocalCache
     -- * Constructing queries

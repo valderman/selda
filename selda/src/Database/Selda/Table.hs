@@ -5,10 +5,24 @@
 module Database.Selda.Table where
 import Database.Selda.Types
 import Database.Selda.SqlType
+import Control.Exception
 import Data.Dynamic
 import Data.List (sort, group)
 import Data.Monoid
 import Data.Text (Text, unpack, intercalate, any)
+import Data.Typeable
+
+-- | An error occurred when validating a database table.
+--   If this error is thrown, there is a bug in your database schema, and the
+--   particular table that triggered the error is unusable.
+--   Since validation is deterministic, this error will be thrown on every
+--   consecutive operation over the offending table.
+--
+--   Therefore, it is not meaningful to handle this exception in any way,
+--   just fix your bug instead.
+data ValidationError = ValidationError String
+  deriving (Show, Eq, Typeable)
+instance Exception ValidationError
 
 -- | A database table.
 --   Tables are parameterized over their column types. For instance, a table
@@ -126,7 +140,7 @@ soup = group . sort
 validate :: TableName -> [ColInfo] -> [ColInfo]
 validate name cis
   | null errs = cis
-  | otherwise = error $ concat
+  | otherwise = throw $ ValidationError $ concat
       [ "validation of table ", unpack $ fromTableName name, " failed:"
       , "\n  "
       , unpack $ intercalate "\n  " errs

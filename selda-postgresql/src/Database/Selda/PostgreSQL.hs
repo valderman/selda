@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings, RecordWildCards, GADTs, CPP #-}
 -- | PostgreSQL backend for Selda.
 module Database.Selda.PostgreSQL
-  ( PGConnectInfo (..), PGConnectException (..)
+  ( PGConnectInfo (..)
   , withPostgreSQL, on, auth
   , pgBackend
   , pgConnString
