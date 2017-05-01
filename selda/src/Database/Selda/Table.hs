@@ -10,7 +10,6 @@ import Data.Dynamic
 import Data.List (sort, group)
 import Data.Monoid
 import Data.Text (Text, unpack, intercalate, any)
-import Data.Typeable
 
 -- | An error occurred when validating a database table.
 --   If this error is thrown, there is a bug in your database schema, and the
