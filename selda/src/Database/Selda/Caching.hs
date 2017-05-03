@@ -120,8 +120,8 @@ cached' k rc = do
     updatePrio _             = (Nothing, Nothing)
 
 -- | Invalidate all items in cache that depend on the given table.
-invalidate :: TableName -> IO ()
-invalidate tn = atomicModifyIORef' theCache $ \c -> (invalidate' tn c, ())
+invalidate :: [TableName] -> IO ()
+invalidate tns = atomicModifyIORef' theCache $ \c -> (foldl' (flip invalidate') c tns, ())
 
 invalidate' :: TableName -> ResultCache -> ResultCache
 invalidate' tbl rc

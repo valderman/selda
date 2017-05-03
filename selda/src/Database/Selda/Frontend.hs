@@ -59,7 +59,7 @@ insert _ [] = do
 insert t cs = do
   kw <- defaultKeyword <$> seldaBackend
   res <- uncurry exec $ compileInsert kw t cs
-  liftIO $ invalidate (tableName t)
+  invalidateTable t
   return res
 
 -- | Like 'insert', but does not return anything.
@@ -73,10 +73,10 @@ insert_ t cs = void $ insert t cs
 insertWithPK :: (MonadSelda m, Insert a) => Table a -> [a] -> m Int
 insertWithPK t cs = do
   backend <- seldaBackend
-  liftIO $ do
-    res <- uncurry (runStmtWithPK backend) $ compileInsert (defaultKeyword backend) t cs
-    invalidate (tableName t)
-    return res
+  res <- liftIO $ do
+    uncurry (runStmtWithPK backend) $ compileInsert (defaultKeyword backend) t cs
+  invalidateTable t
+  return res
 
 -- | Update the given table using the given update function, for all rows
 --   matching the given predicate. Returns the number of updated rows.
@@ -87,7 +87,7 @@ update :: (MonadSelda m, Columns (Cols s a), Result (Cols s a))
        -> m Int
 update tbl check upd = do
   res <- uncurry exec $ compileUpdate tbl upd check
-  liftIO $ invalidate (tableName tbl)
+  invalidateTable tbl
   return res
 
 -- | Like 'update', but doesn't return the number of updated rows.
@@ -104,7 +104,7 @@ deleteFrom :: (MonadSelda m, Columns (Cols s a))
            => Table a -> (Cols s a -> Col s Bool) -> m Int
 deleteFrom tbl f = do
   res <- uncurry exec $ compileDelete tbl f
-  liftIO $ invalidate (tableName tbl)
+  invalidateTable tbl
   return res
 
 -- | Like 'deleteFrom', but does not return the number of deleted rows.
@@ -137,14 +137,17 @@ tryDropTable = withInval $ void . flip exec [] . compileDropTable Ignore
 --   will be rolled back, and the exception re-thrown.
 transaction :: (MonadSelda m, MonadThrow m, MonadCatch m) => m a -> m a
 transaction m = do
+  beginTransaction
   void $ exec "BEGIN TRANSACTION" []
   res <- try m
   case res of
     Left (SomeException e) -> do
       void $ exec "ROLLBACK" []
+      endTransaction False
       throwM e
     Right x -> do
       void $ exec "COMMIT" []
+      endTransaction True
       return x
 
 -- | Set the maximum local cache size to @n@. A cache size of zero disables
@@ -185,7 +188,7 @@ mkResults p = map (toRes p)
 withInval :: MonadSelda m => (Table a -> m b) -> Table a -> m b
 withInval f t = do
   res <- f t
-  liftIO $ invalidate $ tableName t
+  invalidateTable t
   return res
 
 -- | Execute a statement without a result.

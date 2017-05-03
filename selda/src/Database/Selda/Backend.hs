@@ -9,10 +9,13 @@ module Database.Selda.Backend
   , sqlDateTimeFormat, sqlDateFormat, sqlTimeFormat
   , runSeldaT
   ) where
+import Database.Selda.Caching (invalidate)
 import Database.Selda.SQL (Param (..))
 import Database.Selda.SqlType
-import Database.Selda.Table (ColAttr (..))
+import Database.Selda.Table (Table, ColAttr (..), tableName)
 import Database.Selda.Table.Compile (compileColAttr)
+import Database.Selda.Types (TableName)
+import Control.Exception (throwIO)
 import Control.Monad.Catch
 import Control.Monad.IO.Class
 import Control.Monad.State
@@ -50,19 +53,55 @@ data SeldaBackend = SeldaBackend
   , defaultKeyword :: Text
 }
 
+data SeldaState = SeldaState
+  { stBackend       :: !SeldaBackend
+  , stTouchedTables :: !(Maybe [TableName])
+  }
+
 -- | Some monad with Selda SQL capabilitites.
 class MonadIO m => MonadSelda m where
   -- | Get the backend in use by the computation.
   seldaBackend :: m SeldaBackend
 
+  -- | Invalidate the given table as soon as the current transaction finishes.
+  invalidateTable :: Table a -> m ()
+
+  -- | Indicates the start of a new transaction.
+  --   Must start bookkeeping for invalidating all tables modifier from
+  --   this point at the next call to 'endTransaction'.
+  beginTransaction :: m ()
+
+  -- | Indicates the end of the current transaction.
+  --   Must invalidate all tables that were modified since the last call to
+  --   'beginTransaction', unless the transaction was rolled back.
+  endTransaction :: Bool -- ^ @True@ if the transaction was committed,
+                         --   otherwise @False@.
+                 -> m ()
+
 -- | Monad transformer adding Selda SQL capabilities.
-newtype SeldaT m a = S {unS :: StateT SeldaBackend m a}
+newtype SeldaT m a = S {unS :: StateT SeldaState m a}
   deriving ( Functor, Applicative, Monad, MonadIO
            , MonadThrow, MonadCatch, MonadMask, MonadTrans
            )
 
 instance MonadIO m => MonadSelda (SeldaT m) where
-  seldaBackend = S get
+  seldaBackend = S $ fmap stBackend get
+  invalidateTable tbl = S $ do
+    st <- get
+    case stTouchedTables st of
+      Nothing -> liftIO $ invalidate [tableName tbl]
+      Just ts -> put $ st {stTouchedTables = Just (tableName tbl : ts)}
+  beginTransaction = S $ do
+    st <- get
+    case stTouchedTables st of
+      Nothing -> put $ st {stTouchedTables = Just []}
+      Just ts -> liftIO $ throwIO $ SqlError "attempted to nest transactions"
+  endTransaction committed = S $ do
+    st <- get
+    case stTouchedTables st of
+      Just ts | committed -> liftIO $ invalidate ts
+      _                   -> return ()
+    put $ st {stTouchedTables = Nothing}
 
 -- | The simplest form of Selda computation; 'SeldaT' specialized to 'IO'.
 type SeldaM = SeldaT IO
@@ -70,4 +109,4 @@ type SeldaM = SeldaT IO
 -- | Run a Selda transformer. Backends should use this to implement their
 --   @withX@ functions.
 runSeldaT :: MonadIO m => SeldaT m a -> SeldaBackend -> m a
-runSeldaT m b = fst <$> runStateT (unS m) b
+runSeldaT m b = fst <$> runStateT (unS m) (SeldaState b Nothing)
