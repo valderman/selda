@@ -103,7 +103,7 @@ instance MonadIO m => MonadSelda (SeldaT m) where
     st <- get
     case stTouchedTables st of
       Nothing -> put $ st {stTouchedTables = Just []}
-      Just ts -> liftIO $ throwIO $ SqlError "attempted to nest transactions"
+      Just _  -> liftIO $ throwIO $ SqlError "attempted to nest transactions"
 
   endTransaction committed = S $ do
     st <- get

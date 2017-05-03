@@ -2,7 +2,7 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 module Database.Selda.Caching
    ( CacheKey
-    , cache, cached, invalidate, setMaxItems
+   , cache, cached, invalidate, setMaxItems
    ) where
 import Prelude hiding (lookup)
 import Data.Dynamic
@@ -27,7 +27,7 @@ type CacheKey = (Text, [Param])
 cache :: Typeable a => [TableName] -> CacheKey -> a -> IO ()
 cache _ _ _ = return ()
 
-cached :: forall a. Typeable a => CacheKey -> IO (Maybe a)
+cached :: Typeable a => CacheKey -> IO (Maybe a)
 cached _ = return Nothing
 
 invalidate :: [TableName] -> IO ()
