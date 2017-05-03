@@ -749,6 +749,8 @@ nulQueries = do
 
 invalidateCacheAfterTransaction run = run $ do
   setLocalCache 1000
+  tryDropTable comments
+  tryDropTable addresses
   createTable comments
   createTable addresses
   lock <- liftIO $ newEmptyMVar
