@@ -54,7 +54,12 @@ data SeldaBackend = SeldaBackend
 }
 
 data SeldaState = SeldaState
-  { stBackend       :: !SeldaBackend
+  { -- | Backend in use by the current computation.
+    stBackend :: !SeldaBackend
+
+    -- | Tables modified by the current transaction.
+    --   Invariant: always @Just xs@ during a transaction, and always
+    --   @Nothing@ when not in a transaction.
   , stTouchedTables :: !(Maybe [TableName])
   }
 
@@ -64,18 +69,19 @@ class MonadIO m => MonadSelda m where
   seldaBackend :: m SeldaBackend
 
   -- | Invalidate the given table as soon as the current transaction finishes.
+  --   Invalidate the table immediately if no transaction is ongoing.
   invalidateTable :: Table a -> m ()
 
   -- | Indicates the start of a new transaction.
-  --   Must start bookkeeping for invalidating all tables modifier from
-  --   this point at the next call to 'endTransaction'.
+  --   Starts bookkeeping to invalidate all tables modified during
+  --   the transaction at the next call to 'endTransaction'.
   beginTransaction :: m ()
 
   -- | Indicates the end of the current transaction.
-  --   Must invalidate all tables that were modified since the last call to
+  --   Invalidates all tables that were modified since the last call to
   --   'beginTransaction', unless the transaction was rolled back.
   endTransaction :: Bool -- ^ @True@ if the transaction was committed,
-                         --   otherwise @False@.
+                         --   @False@ if it was rolled back.
                  -> m ()
 
 -- | Monad transformer adding Selda SQL capabilities.
@@ -86,16 +92,19 @@ newtype SeldaT m a = S {unS :: StateT SeldaState m a}
 
 instance MonadIO m => MonadSelda (SeldaT m) where
   seldaBackend = S $ fmap stBackend get
+
   invalidateTable tbl = S $ do
     st <- get
     case stTouchedTables st of
       Nothing -> liftIO $ invalidate [tableName tbl]
       Just ts -> put $ st {stTouchedTables = Just (tableName tbl : ts)}
+
   beginTransaction = S $ do
     st <- get
     case stTouchedTables st of
       Nothing -> put $ st {stTouchedTables = Just []}
       Just ts -> liftIO $ throwIO $ SqlError "attempted to nest transactions"
+
   endTransaction committed = S $ do
     st <- get
     case stTouchedTables st of
