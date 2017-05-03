@@ -30,7 +30,7 @@ cache _ _ _ = return ()
 cached :: forall a. Typeable a => CacheKey -> IO (Maybe a)
 cached _ = return Nothing
 
-invalidate :: TableName -> IO ()
+invalidate :: [TableName] -> IO ()
 invalidate _ = return ()
 
 setMaxItems :: Int -> IO ()
