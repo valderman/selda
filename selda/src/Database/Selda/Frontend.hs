@@ -168,17 +168,19 @@ setLocalCache = liftIO . setMaxItems
 queryWith :: forall s m a. (MonadSelda m, Result a)
           => QueryRunner (Int, [[SqlValue]]) -> Query s a -> m [Res a]
 queryWith qr q = do
-    mres <- liftIO $ cached qry
+    db <- dbIdentifier <$> seldaBackend
+    let cacheKey = (db, qs, ps)
+    mres <- liftIO $ cached cacheKey
     case mres of
       Just res -> do
         return res
       _        -> do
         res <- fmap snd . liftIO $ uncurry qr qry
         let res' = mkResults (Proxy :: Proxy a) res
-        liftIO $ cache tables qry res'
+        liftIO $ cache tables cacheKey res'
         return res'
   where
-    (tables, qry) = compileWithTables q
+    (tables, qry@(qs, ps)) = compileWithTables q
 
 -- | Generate the final result of a query from a list of untyped result rows.
 mkResults :: Result a => Proxy a -> [[SqlValue]] -> [Res a]

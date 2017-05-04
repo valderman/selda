@@ -51,6 +51,11 @@ data SeldaBackend = SeldaBackend
     -- | The keyword that represents the default value for auto-incrementing
     --   primary keys.
   , defaultKeyword :: Text
+
+    -- | A string uniquely identifying the database used by this invocation
+    --   of the backend. This could be, for instance, a PostgreSQL connection
+    --   string or the absolute path to an SQLite file.
+  , dbIdentifier   :: Text
 }
 
 data SeldaState = SeldaState

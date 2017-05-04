@@ -69,27 +69,32 @@ withPostgreSQL :: (MonadIO m, MonadThrow m, MonadMask m)
 withPostgreSQL _ _ = return $ error "withPostgreSQL called in JS context"
 #else
 withPostgreSQL ci m = do
-  conn <- liftIO $ connectdb (pgConnString ci)
+  conn <- liftIO $ connectdb connstr
   st <- liftIO $ status conn
   case st of
     ConnectionOk -> do
-      let backend = pgBackend conn
+      let backend = pgBackend (decodeUtf8 connstr) conn
       liftIO $ runStmt backend "SET client_min_messages TO WARNING;" []
       runSeldaT m backend `finally` liftIO (finish conn)
     nope -> do
       connFailed nope
   where
+    connstr = pgConnString ci
     connFailed f = throwM $ DbError $ unwords
       [ "unable to connect to postgres server: " ++ show f
       ]
 
 -- | Create a `SeldaBackend` for PostgreSQL `Connection`
-pgBackend :: Connection -> SeldaBackend
-pgBackend c = SeldaBackend
+pgBackend :: T.Text       -- ^ Unique database identifier. Preferably the
+                          --   connection string used to open the connection.
+          -> Connection   -- ^ PostgreSQL connection object.
+          -> SeldaBackend
+pgBackend ident c = SeldaBackend
   { runStmt        = \q ps -> right <$> pgQueryRunner c False q ps
   , runStmtWithPK  = \q ps -> left <$> pgQueryRunner c True q ps
   , customColType  = pgColType
   , defaultKeyword = "DEFAULT"
+  , dbIdentifier   = ident
   }
   where
     left (Left x) = x

@@ -8,6 +8,7 @@ import Control.Monad.Catch
 import Control.Concurrent
 #ifndef __HASTE__
 import Database.SQLite3
+import System.Directory (makeAbsolute)
 #endif
 
 -- | Perform the given computation over an SQLite database.
@@ -23,16 +24,18 @@ withSQLite file m = do
     Left e@(SQLError{}) -> do
       throwM (DbError (show e))
     Right db -> do
-      let backend = sqliteBackend lock db
+      absFile <- liftIO $ makeAbsolute file
+      let backend = sqliteBackend lock absFile db
       liftIO $ runStmt backend "PRAGMA foreign_keys = ON;" []
       runSeldaT m backend `finally` liftIO (close db)
 
-sqliteBackend :: MVar () -> Database -> SeldaBackend
-sqliteBackend lock db = SeldaBackend
+sqliteBackend :: MVar () -> FilePath -> Database -> SeldaBackend
+sqliteBackend lock dbfile db = SeldaBackend
   { runStmt        = \q ps -> snd <$> sqliteQueryRunner lock db q ps
   , runStmtWithPK  = \q ps -> fst <$> sqliteQueryRunner lock db q ps
   , customColType  = \_ _ -> Nothing
   , defaultKeyword = "NULL"
+  , dbIdentifier   = pack dbfile
   }
 
 sqliteQueryRunner :: MVar () -> Database -> QueryRunner (Int, (Int, [[SqlValue]]))

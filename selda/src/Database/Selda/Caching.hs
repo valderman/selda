@@ -20,7 +20,7 @@ import Data.Text (Text)
 import Database.Selda.SQL (Param (..))
 import Database.Selda.Types (TableName)
 
-type CacheKey = (Text, [Param])
+type CacheKey = (Text, Text, [Param])
 
 #ifdef NO_LOCALCACHE
 
