@@ -85,7 +85,7 @@ required :: NonNull a => ColName -> ColSpec a
 required = addAttr Required . newCol
 
 -- | A nullable column with the given name.
-optional :: SqlType a => ColName -> ColSpec (Maybe a)
+optional :: NonNull a => ColName -> ColSpec (Maybe a)
 optional = addAttr Optional . newCol
 
 -- | Marks the given column as the table's primary key.

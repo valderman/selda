@@ -2,7 +2,6 @@
 module Database.Selda.Table.Foreign where
 import Database.Selda.Selectors
 import Database.Selda.Table
-import Database.Selda.Types
 
 -- | Add a foreign key constraint to the given column, referencing
 --   the column indicated by the given table and selector.
