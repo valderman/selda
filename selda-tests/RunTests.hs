@@ -430,6 +430,9 @@ freshEnvTests freshEnv = test
   , "dupe update throws SeldaError"  ~: freshEnv dupeUpdateThrowsSeldaError
   , "duplicate PKs are caught"       ~: freshEnv duplicatePKsFail
   , "nul queries don't fail"         ~: freshEnv nulQueries
+  , "fk violation fails"             ~: freshEnv fkViolationFails
+  , "table with multiple FKs"        ~: freshEnv multipleFKs
+  , "non-primary FK fails"           ~: freshEnv nonPrimaryFKFails
   ]
 
 tryDropNeverFails = teardown
@@ -545,17 +548,19 @@ consistentQueries = do
 deleteDeletes = do
   setup
   a <- query q
-  deleteFrom_ people (\(name :*: _) -> name .== "Link")
+  deleteFrom_ people (\(name :*: _) -> name .== "Velvet")
   b <- query q
   ass "rows not deleted" (a /= b && length b < length a)
   where
     q = do
       (name :*: age :*: _ :*: cash) <- select people
-      restrict (round_ cash .> age)
+      restrict (round_ cash .< age)
       return name
 
 deleteEverything = do
-  setup
+  tryDropTable people
+  createTable people
+  insert_ people peopleItems
   a <- query q
   deleteFrom_ people (const true)
   b <- query q
@@ -782,3 +787,43 @@ invalidateCacheAfterTransaction run = run $ do
     restrict (c ! cName .== just "Link")
     return (c ! cComment)
   assEq "" "insightful comment" comment
+
+fkViolationFails = do
+    -- Note that this is intended to test that FKs are in place and enabled.
+    -- If we get an FK violation here, we assume that the database does the
+    -- right thing in other situations, since FKs behavior is determined by
+    -- the DB, not by Selda, except when creating tables.
+    setup
+    createTable addressesWithFK
+    assertFail $ insert_ addressesWithFK ["Nobody" :*: "Nowhere"]
+    dropTable addressesWithFK
+  where
+    addressesWithFK :: Table (Text :*: Text)
+    addressesWithFK =
+          table "addressesWithFK"
+      $   required "name" `fk` (people, pName)
+      :*: required "city"
+
+multipleFKs = do
+    setup
+    createTable addressesWithFK
+    assertFail $ insert_ addressesWithFK ["Nobody" :*: "Nowhere"]
+    dropTable addressesWithFK
+  where
+    addressesWithFK :: Table (Text :*: Text)
+    addressesWithFK =
+          table "addressesWithFK"
+      $   required "name" `fk` (people, pName) `fk` (people, pName)
+      :*: required "city"
+
+nonPrimaryFKFails = do
+    res <- try (createTable addressesWithFK) :: SeldaM (Either ValidationError ())
+    case res of
+      Left _  -> return ()
+      Right _ -> liftIO $ assertFailure "ValidationError not thrown"
+  where
+    addressesWithFK :: Table (Text :*: Text)
+    addressesWithFK =
+          table "addressesWithFK"
+      $   required "name" `fk` (comments, cComment)
+      :*: required "city"

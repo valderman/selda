@@ -100,6 +100,7 @@ module Database.Selda
   , table, tableWithSelectors, selectors
   , required, optional
   , primary, autoPrimary
+  , fk
     -- * Creating and dropping tables
   , createTable, tryCreateTable
   , dropTable, tryDropTable
@@ -125,6 +126,7 @@ import Database.Selda.SQL
 import Database.Selda.SqlType
 import Database.Selda.Table
 import Database.Selda.Table.Compile
+import Database.Selda.Table.Foreign
 import Database.Selda.Types
 import Database.Selda.Unsafe
 import Control.Exception (throw)

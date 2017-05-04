@@ -8,7 +8,7 @@ module Database.Selda.Types
   ( (:*:)(..), Head, Append (..), (:++:), ToDyn (..), Tup (..)
   , first, second, third, fourth, fifth, sixth, seventh, eighth, ninth, tenth
   , ColName, TableName
-  , mkColName, mkTableName, addColSuffix
+  , mkColName, mkTableName, addColSuffix, addColPrefix
   , fromColName, fromTableName
   ) where
 import Data.Dynamic
@@ -31,6 +31,10 @@ newtype ColName = ColName Text
 -- | Name of a database table.
 newtype TableName = TableName Text
   deriving (Ord, Eq, Show, IsString)
+
+-- | Add a prefix to a column name.
+addColPrefix :: ColName -> Text -> ColName
+addColPrefix (ColName cn) s = ColName $ Data.Text.append s cn
 
 -- | Add a suffix to a column name.
 addColSuffix :: ColName -> Text -> ColName

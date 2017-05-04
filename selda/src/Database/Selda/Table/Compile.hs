@@ -17,11 +17,25 @@ compileCreateTable :: (Text -> [ColAttr] -> Maybe Text) -> OnError -> Table a ->
 compileCreateTable customColType ifex tbl = mconcat
   [ "CREATE TABLE ", ifNotExists ifex, fromTableName (tableName tbl), "("
   , intercalate ", " (map (compileTableCol customColType) (tableCols tbl))
+  , case allFKs of
+      [] -> ""
+      _  -> ", " <> intercalate ", " compFKs
   , ")"
   ]
   where
     ifNotExists Fail   = ""
     ifNotExists Ignore = "IF NOT EXISTS "
+    allFKs = [(colName ci, fk) | ci <- tableCols tbl, fk <- colFKs ci]
+    compFKs = zipWith (uncurry compileFK) allFKs [0..]
+
+-- | Compile a foreign key constraint.
+compileFK :: ColName -> (Table (), ColName) -> Int -> Text
+compileFK col (Table ftbl _, fcol) n = mconcat
+  [ "CONSTRAINT ", fkName, " FOREIGN KEY (", fromColName col, ") "
+  , "REFERENCES ", fromTableName ftbl, "(", fromColName fcol, ")"
+  ]
+  where
+    fkName = fromColName $ addColPrefix col ("fk" <> pack (show n) <> "_")
 
 -- | Compile a table column.
 compileTableCol :: (Text -> [ColAttr] -> Maybe Text) -> ColInfo -> Text

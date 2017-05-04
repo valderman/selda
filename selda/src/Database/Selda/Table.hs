@@ -44,6 +44,7 @@ data ColInfo = ColInfo
   { colName  :: !ColName
   , colType  :: !Text
   , colAttrs :: ![ColAttr]
+  , colFKs   :: ![(Table (), ColName)]
   }
 
 newCol :: forall a. SqlType a => ColName -> ColSpec a
@@ -51,6 +52,7 @@ newCol name = ColSpec [ColInfo
   { colName  = name
   , colType  = sqlType (Proxy :: Proxy a)
   , colAttrs = []
+  , colFKs   = []
   }]
 
 -- | A table column specification.
@@ -88,7 +90,7 @@ optional = addAttr Optional . newCol
 
 -- | Marks the given column as the table's primary key.
 --   A table may only have one primary key; marking more than one key as
---   primary will result in a run-time error.
+--   primary will result in 'ValidationError' during validation.
 primary :: NonNull a => ColName -> ColSpec a
 primary = addAttr Primary . required
 
@@ -101,7 +103,7 @@ autoPrimary n = ColSpec [c {colAttrs = [Primary, AutoIncrement, Required]}]
 -- | Add an attribute to a column. Not for public consumption.
 addAttr :: SqlType a => ColAttr -> ColSpec a -> ColSpec a
 addAttr attr (ColSpec [ci]) = ColSpec [ci {colAttrs = attr : colAttrs ci}]
-addAttr _ _                 = error "impossible: SqlType ColSpec with several columns"
+addAttr _ _                 = error "impossible: ColSpec with several columns"
 
 -- | An inductive tuple where each element is a column specification.
 type family ColSpecs a where
@@ -154,6 +156,7 @@ validate name cis
       , nulIdents
       , emptyIdents
       , emptyTableName
+      , nonPkFks
       ]
     emptyTableName
       | fromTableName name == "\"\"" = ["table name is empty"]
@@ -172,6 +175,15 @@ validate name cis
       ["duplicate column: " <> fromColName x | (x:_:_) <- soup $ map colName cis]
     pkDupes =
       ["multiple primary keys" | (Primary:_:_) <- soup $ concatMap colAttrs cis]
+    nonPkFks =
+      [ "column is used as a foreign key, but is not a primary key of its table: "
+          <> fromTableName ftn <> "." <> fromColName fcn
+      | ci <- cis
+      , (Table ftn fcs, fcn) <- colFKs ci
+      , fc <- fcs
+      , colName fc == fcn
+      , not (Primary `elem` colAttrs fc)
+      ]
 
     -- This should be impossible, but...
     optionalRequiredMutex =

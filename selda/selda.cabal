@@ -62,6 +62,7 @@ library
     Database.Selda.SqlType
     Database.Selda.Table
     Database.Selda.Table.Compile
+    Database.Selda.Table.Foreign
     Database.Selda.Transform
     Database.Selda.Types
   other-extensions:

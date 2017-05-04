@@ -38,8 +38,9 @@ with :: forall s t. (ToDyn (Cols () t))
 with = foldl' upd
 
 -- | A column selector. Column selectors can be used together with the '!' and
---   '!=' operators to get and set values on inductive tuples.
-newtype Selector t a = Selector Int
+--   'with' functions to get and set values on inductive tuples, or to indicate
+--   foreign keys.
+data Selector t a = Selector Int
 
 -- | The inductive tuple of selectors for a table of type @a@.
 type family Selectors t a where

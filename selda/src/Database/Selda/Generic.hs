@@ -260,12 +260,13 @@ instance (G.Selector c, GRelation a) => GRelation (M1 S c a) where
         { colName = mkColName . pack $ selName ((M1 undefined) :: M1 S c a b)
         , colType = colType ci
         , colAttrs = colAttrs ci
+        , colFKs = colFKs ci
         }
   gMkDummy = M1 <$> gMkDummy
 
 instance (Traits a, SqlType a) => GRelation (K1 i a) where
   gToRel (K1 x) = x
-  gTblCols _    = [ColInfo "" (sqlType (Proxy :: Proxy a)) optReq]
+  gTblCols _    = [ColInfo "" (sqlType (Proxy :: Proxy a)) optReq []]
     where
       optReq
         | isMaybeType (Proxy :: Proxy a) = [Optional]
