@@ -72,8 +72,12 @@ withPostgreSQL ci m = do
   conn <- liftIO $ connectdb (pgConnString ci)
   st <- liftIO $ status conn
   case st of
-    ConnectionOk -> runSeldaT m (pgBackend conn) `finally` liftIO (finish conn)
-    nope         -> connFailed nope
+    ConnectionOk -> do
+      let backend = pgBackend conn
+      liftIO $ runStmt backend "SET client_min_messages TO WARNING;" []
+      runSeldaT m backend `finally` liftIO (finish conn)
+    nope -> do
+      connFailed nope
   where
     connFailed f = throwM $ DbError $ unwords
       [ "unable to connect to postgres server: " ++ show f
@@ -120,7 +124,7 @@ pgQueryRunner c return_lastid q ps = do
           FatalError        -> throwM $ SqlError errmsg
           NonfatalError     -> throwM $ SqlError errmsg
           _ | return_lastid -> Left <$> getLastId res
-            | otherwise     ->Right <$> getRows res
+            | otherwise     -> Right <$> getRows res
       Nothing           -> throwM $ DbError "unable to submit query to server"
   where
     errmsg = "error executing query `" ++ T.unpack q' ++ "'"
