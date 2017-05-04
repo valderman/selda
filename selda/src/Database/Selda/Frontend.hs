@@ -152,7 +152,8 @@ transaction m = do
 
 -- | Set the maximum local cache size to @n@. A cache size of zero disables
 --   local cache altogether. Changing the cache size will also flush all
---   entries.
+--   entries. Note that the cache is shared among all Selda computations running
+--   within the same process.
 --
 --   By default, local caching is turned off.
 --
@@ -160,7 +161,7 @@ transaction m = do
 --   database, ONLY under the assumption that no other process will modify it.
 --   Also note that the cache is shared between ALL Selda computations running
 --   within the same process.
-setLocalCache :: MonadSelda m => Int -> m ()
+setLocalCache :: MonadIO m => Int -> m ()
 setLocalCache = liftIO . setMaxItems
 
 -- | Build the final result from a list of result columns.
