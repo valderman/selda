@@ -19,12 +19,12 @@ Features
 
 * Monadic interface: no need to be a category theory wizard just to write a few
   database queries.
-* Portable: fully functional backends for SQLite and PostgreSQL.
+* Portable: backends for SQLite and PostgreSQL.
 * Generic: easy integration with your existing Haskell types.
 * Creating, dropping and querying tables using type-safe database schemas.
 * Typed query language with products, filtering, joins and aggregation.
 * Inserting, updating and deleting rows from tables.
-* Transaction support.
+* Transactions, uniqueness constraints and foreign keys.
 * Configurable, automatic, consistent in-process caching of query results.
 * Lightweight and modular: non-essential features are optional or split into
   add-on packages.
@@ -566,7 +566,7 @@ If this assumption does not hold for your application, you should avoid using
 in-process caching.
 It is perfectly fine, however, to have multiple *threads* within the same
 application modifying the same database as long as they're all using Selda
-to do it, as the cache shared between all Selda computations
+to do it, as the cache is shared between all Selda computations
 running in the same process.
 
 
