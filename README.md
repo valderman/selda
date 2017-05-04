@@ -647,12 +647,10 @@ TODOs
 Features that would be nice to have but are not yet implemented.
 
 * If/else.
-* Foreign keys.
 * Streaming
 * Type-safe migrations
 * `WHERE x IN (SELECT ...)`
 * `SELECT INTO`.
-* Constraints other than primary key.
 * Database schema upgrades.
 * Stack build.
 * MySQL/MariaDB backend.
