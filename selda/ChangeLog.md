@@ -1,5 +1,10 @@
 # Revision history for selda
 
+## 0.1.4.1 -- 2017-05-04
+
+* Fix cache consistency bug in the presence of multiple databases.
+
+
 ## 0.1.4.0 -- 2017-05-04
 
 * Add uniqueness constraints and foreign keys.
