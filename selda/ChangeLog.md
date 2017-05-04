@@ -1,5 +1,10 @@
 # Revision history for selda
 
+## 0.1.4.0 -- 2017-05-04
+
+* Add uniqueness constraints and foreign keys.
+
+
 ## 0.1.3.3 -- 2017-05-04
 
 * Fix cache invalidation race when using transactions.
