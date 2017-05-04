@@ -77,7 +77,7 @@ instance (SqlType a, IsNullable a ~ NotNullable) => NonNull a
 --   When adding elements, make sure that they are added in the order
 --   required by SQL syntax, as this list is only sorted before being
 --   pretty-printed.
-data ColAttr = Primary | AutoIncrement | Required | Optional
+data ColAttr = Primary | AutoIncrement | Required | Optional | Unique
   deriving (Show, Eq, Ord)
 
 -- | A non-nullable column with the given name.
@@ -92,13 +92,19 @@ optional = addAttr Optional . newCol
 --   A table may only have one primary key; marking more than one key as
 --   primary will result in 'ValidationError' during validation.
 primary :: NonNull a => ColName -> ColSpec a
-primary = addAttr Primary . required
+primary = addAttr Primary . unique . required
 
 -- | Automatically increment the given attribute if not specified during insert.
---   Also adds the @PRIMARY KEY@ attribute on the column.
+--   Also adds the @PRIMARY KEY@ and @UNIQUE@ attributes on the column.
 autoPrimary :: ColName -> ColSpec Int
-autoPrimary n = ColSpec [c {colAttrs = [Primary, AutoIncrement, Required]}]
+autoPrimary n = ColSpec [c {colAttrs = [Primary, AutoIncrement, Required, Unique]}]
   where ColSpec [c] = newCol n :: ColSpec Int
+
+-- | Add a uniqueness constraint to the given column.
+--   Adding a uniqueness constraint to a column that is already implied to be
+--   unique, such as a primary key, is a no-op.
+unique :: SqlType a => ColSpec a -> ColSpec a
+unique = addAttr Unique
 
 -- | Add an attribute to a column. Not for public consumption.
 addAttr :: SqlType a => ColAttr -> ColSpec a -> ColSpec a
@@ -182,7 +188,7 @@ validate name cis
       , (Table ftn fcs, fcn) <- colFKs ci
       , fc <- fcs
       , colName fc == fcn
-      , not (Primary `elem` colAttrs fc)
+      , not (Unique `elem` colAttrs fc)
       ]
 
     -- This should be impossible, but...
