@@ -23,7 +23,9 @@ withSQLite file m = do
     Left e@(SQLError{}) -> do
       throwM (DbError (show e))
     Right db -> do
-      runSeldaT m (sqliteBackend lock db) `finally` liftIO (close db)
+      let backend = sqliteBackend lock db
+      liftIO $ runStmt backend "PRAGMA foreign_keys = ON;" []
+      runSeldaT m backend `finally` liftIO (close db)
 
 sqliteBackend :: MVar () -> Database -> SeldaBackend
 sqliteBackend lock db = SeldaBackend
