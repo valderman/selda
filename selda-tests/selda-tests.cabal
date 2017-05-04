@@ -22,6 +22,13 @@ test-suite selda-testsuite
     exitcode-stdio-1.0
   main-is:
     RunTests.hs
+  other-modules:
+    Tables
+    Utils
+    Tests.Mutable
+    Tests.NonDB
+    Tests.Query
+    Tests.Validation
   build-depends:
       base       >=4.8 && <5
     , directory  >=1.2 && <1.4
@@ -35,5 +42,7 @@ test-suite selda-testsuite
     cpp-options:   -DPOSTGRES
   else
     build-depends: selda-sqlite
+  hs-source-dirs:
+    test, .
   default-language:
     Haskell2010
