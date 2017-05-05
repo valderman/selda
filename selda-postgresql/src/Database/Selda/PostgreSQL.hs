@@ -177,15 +177,15 @@ toSqlValue t val
 
 -- | Convert a parameter into an postgres parameter triple.
 fromSqlValue :: Lit a -> Maybe (Oid, BS.ByteString, Format)
-fromSqlValue (LitB b)    = Just (boolType, if b then "true" else "false", Text)
-fromSqlValue (LitI n)    = Just (intType, BS.pack $ show n, Text)
-fromSqlValue (LitD f)    = Just (doubleType, BS.pack $ show f, Text)
-fromSqlValue (LitS s)    = Just (textType, encodeUtf8 s, Text)
-fromSqlValue (LitTS s)   = Just (timestampType, encodeUtf8 s, Text)
-fromSqlValue (LitTime s) = Just (timeType, encodeUtf8 s, Text)
-fromSqlValue (LitDate s) = Just (dateType, encodeUtf8 s, Text)
-fromSqlValue (LitNull)   = Nothing
-fromSqlValue (LitJust x) = fromSqlValue x
+fromSqlValue (LBool b)     = Just (boolType, if b then "true" else "false", Text)
+fromSqlValue (LInt n)      = Just (intType, BS.pack $ show n, Text)
+fromSqlValue (LDouble f)   = Just (doubleType, BS.pack $ show f, Text)
+fromSqlValue (LText s)     = Just (textType, encodeUtf8 s, Text)
+fromSqlValue (LDateTime s) = Just (timestampType, encodeUtf8 s, Text)
+fromSqlValue (LTime s)     = Just (timeType, encodeUtf8 s, Text)
+fromSqlValue (LDate s)     = Just (dateType, encodeUtf8 s, Text)
+fromSqlValue (LNull)       = Nothing
+fromSqlValue (LJust x)     = fromSqlValue x
 
 -- | Custom column types for postgres: auto-incrementing primary keys need to
 --   be @BIGSERIAL@, and ints need to be @INT8@.

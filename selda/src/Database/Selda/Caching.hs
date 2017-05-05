@@ -40,15 +40,15 @@ setMaxItems _ = return ()
 instance Hashable Param where
   hashWithSalt s (Param x) = hashWithSalt s x
 instance Hashable (Lit a) where
-  hashWithSalt s (LitS x)    = hashWithSalt s x
-  hashWithSalt s (LitI x)    = hashWithSalt s x
-  hashWithSalt s (LitD x)    = hashWithSalt s x
-  hashWithSalt s (LitB x)    = hashWithSalt s x
-  hashWithSalt s (LitTS x)   = hashWithSalt s x
-  hashWithSalt s (LitDate x) = hashWithSalt s x
-  hashWithSalt s (LitTime x) = hashWithSalt s x
-  hashWithSalt s (LitJust x) = hashWithSalt s x
-  hashWithSalt _ (LitNull)   = 0
+  hashWithSalt s (LText x)     = hashWithSalt s x
+  hashWithSalt s (LInt x)      = hashWithSalt s x
+  hashWithSalt s (LDouble x)   = hashWithSalt s x
+  hashWithSalt s (LBool x)     = hashWithSalt s x
+  hashWithSalt s (LDateTime x) = hashWithSalt s x
+  hashWithSalt s (LDate x)     = hashWithSalt s x
+  hashWithSalt s (LTime x)     = hashWithSalt s x
+  hashWithSalt s (LJust x)     = hashWithSalt s x
+  hashWithSalt _ (LNull)       = 0
 
 data ResultCache = ResultCache
   { -- | Query to result mapping.

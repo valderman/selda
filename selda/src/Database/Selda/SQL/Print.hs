@@ -77,9 +77,9 @@ compDelete tbl p = snd $ runPP ppDelete
 -- | Pretty-print a literal as a named parameter and save the
 --   name-value binding in the environment.
 ppLit :: Lit a -> PP Text
-ppLit LitNull     = pure "NULL"
-ppLit (LitJust l) = ppLit l
-ppLit l           = do
+ppLit LNull     = pure "NULL"
+ppLit (LJust l) = ppLit l
+ppLit l         = do
   PPState ps ts ns qns <- get
   put $ PPState (Param l : ps) ts (succ ns) qns
   return $ Text.pack ('$':show ns)

@@ -67,15 +67,15 @@ sqliteQueryRunner lock db qry params = do
           return $ reverse acc
 
 toSqlData :: Lit a -> SQLData
-toSqlData (LitI i)    = SQLInteger $ fromIntegral i
-toSqlData (LitD d)    = SQLFloat d
-toSqlData (LitS s)    = SQLText s
-toSqlData (LitTS s)   = SQLText s
-toSqlData (LitDate s) = SQLText s
-toSqlData (LitTime s) = SQLText s
-toSqlData (LitB b)    = SQLInteger $ if b then 1 else 0
-toSqlData (LitNull)   = SQLNull
-toSqlData (LitJust x) = toSqlData x
+toSqlData (LInt i)      = SQLInteger $ fromIntegral i
+toSqlData (LDouble d)   = SQLFloat d
+toSqlData (LText s)     = SQLText s
+toSqlData (LDateTime s) = SQLText s
+toSqlData (LDate s)     = SQLText s
+toSqlData (LTime s)     = SQLText s
+toSqlData (LBool b)     = SQLInteger $ if b then 1 else 0
+toSqlData (LNull)       = SQLNull
+toSqlData (LJust x)     = toSqlData x
 
 fromSqlData :: SQLData -> SqlValue
 fromSqlData (SQLInteger i) = SqlInt $ fromIntegral i

@@ -34,15 +34,15 @@ class SqlType a where
 
 -- | An SQL literal.
 data Lit a where
-  LitS    :: !Text    -> Lit Text
-  LitI    :: !Int     -> Lit Int
-  LitD    :: !Double  -> Lit Double
-  LitB    :: !Bool    -> Lit Bool
-  LitTS   :: !Text    -> Lit UTCTime
-  LitDate :: !Text    -> Lit Day
-  LitTime :: !Text    -> Lit TimeOfDay
-  LitJust :: !(Lit a) -> Lit (Maybe a)
-  LitNull :: Lit (Maybe a)
+  LText     :: !Text    -> Lit Text
+  LInt      :: !Int     -> Lit Int
+  LDouble   :: !Double  -> Lit Double
+  LBool     :: !Bool    -> Lit Bool
+  LDateTime :: !Text    -> Lit UTCTime
+  LDate     :: !Text    -> Lit Day
+  LTime     :: !Text    -> Lit TimeOfDay
+  LJust     :: !(Lit a) -> Lit (Maybe a)
+  LNull     :: Lit (Maybe a)
 
 instance Eq (Lit a) where
   a == b = compLit a b == EQ
@@ -52,27 +52,27 @@ instance Ord (Lit a) where
 
 -- | Constructor tag for all literals. Used for Ord instance.
 litConTag :: Lit a -> Int
-litConTag (LitS{})    = 0
-litConTag (LitI{})    = 1
-litConTag (LitD{})    = 2
-litConTag (LitB{})    = 3
-litConTag (LitTS{})   = 4
-litConTag (LitDate{}) = 5
-litConTag (LitTime{}) = 6
-litConTag (LitJust{}) = 7
-litConTag (LitNull)   = 8
+litConTag (LText{})     = 0
+litConTag (LInt{})      = 1
+litConTag (LDouble{})   = 2
+litConTag (LBool{})     = 3
+litConTag (LDateTime{}) = 4
+litConTag (LDate{})     = 5
+litConTag (LTime{})     = 6
+litConTag (LJust{})     = 7
+litConTag (LNull)       = 8
 
 -- | Compare two literals of different type for equality.
 compLit :: Lit a -> Lit b -> Ordering
-compLit (LitS x)    (LitS x')    = x `compare` x'
-compLit (LitI x)    (LitI x')    = x `compare` x'
-compLit (LitD x)    (LitD x')    = x `compare` x'
-compLit (LitB x)    (LitB x')    = x `compare` x'
-compLit (LitTS x)   (LitTS x')   = x `compare` x'
-compLit (LitDate x) (LitDate x') = x `compare` x'
-compLit (LitTime x) (LitTime x') = x `compare` x'
-compLit (LitJust x) (LitJust x') = x `compLit` x'
-compLit a           b            = litConTag a `compare` litConTag b
+compLit (LText x)     (LText x')     = x `compare` x'
+compLit (LInt x)      (LInt x')      = x `compare` x'
+compLit (LDouble x)   (LDouble x')   = x `compare` x'
+compLit (LBool x)     (LBool x')     = x `compare` x'
+compLit (LDateTime x) (LDateTime x') = x `compare` x'
+compLit (LDate x)     (LDate x')     = x `compare` x'
+compLit (LTime x)     (LTime x')     = x `compare` x'
+compLit (LJust x)     (LJust x')     = x `compLit` x'
+compLit a             b              = litConTag a `compare` litConTag b
 
 -- | Some value that is representable in SQL.
 data SqlValue where
@@ -90,80 +90,80 @@ instance Show SqlValue where
   show (SqlNull)     = "SqlNull"
 
 instance Show (Lit a) where
-  show (LitS s)    = show s
-  show (LitI i)    = show i
-  show (LitD d)    = show d
-  show (LitB b)    = show b
-  show (LitTS s)   = show s
-  show (LitDate s) = show s
-  show (LitTime s) = show s
-  show (LitJust x) = "Just " ++ show x
-  show (LitNull)   = "Nothing"
+  show (LText s)     = show s
+  show (LInt i)      = show i
+  show (LDouble d)   = show d
+  show (LBool b)     = show b
+  show (LDateTime s) = show s
+  show (LDate s)     = show s
+  show (LTime s)     = show s
+  show (LJust x)     = "Just " ++ show x
+  show (LNull)       = "Nothing"
 
 instance SqlType Int where
-  mkLit = LitI
+  mkLit = LInt
   sqlType _ = "INTEGER"
   fromSql (SqlInt x) = x
   fromSql v          = error $ "fromSql: int column with non-int value: " ++ show v
-  defaultValue = LitI 0
+  defaultValue = LInt 0
 
 instance SqlType Double where
-  mkLit = LitD
+  mkLit = LDouble
   sqlType _ = "DOUBLE"
   fromSql (SqlFloat x) = x
   fromSql v            = error $ "fromSql: float column with non-float value: " ++ show v
-  defaultValue = LitD 0
+  defaultValue = LDouble 0
 
 instance SqlType Text where
-  mkLit = LitS
+  mkLit = LText
   sqlType _ = "TEXT"
   fromSql (SqlString x) = x
   fromSql v             = error $ "fromSql: text column with non-text value: " ++ show v
-  defaultValue = LitS ""
+  defaultValue = LText ""
 
 instance SqlType Bool where
-  mkLit = LitB
+  mkLit = LBool
   sqlType _ = "INT"
   fromSql (SqlBool x) = x
   fromSql (SqlInt 0)  = False
   fromSql (SqlInt _)  = True
   fromSql v           = error $ "fromSql: bool column with non-bool value: " ++ show v
-  defaultValue = LitB False
+  defaultValue = LBool False
 
 instance SqlType UTCTime where
-  mkLit = LitTS . pack . formatTime defaultTimeLocale sqlDateTimeFormat
+  mkLit = LDateTime . pack . formatTime defaultTimeLocale sqlDateTimeFormat
   sqlType _             = "DATETIME"
   fromSql (SqlString s) =
     case parseTimeM True defaultTimeLocale sqlDateTimeFormat (unpack s) of
       Just t -> t
       _      -> error $ "fromSql: bad datetime string: " ++ unpack s
   fromSql v             = error $ "fromSql: datetime column with non-datetime value: " ++ show v
-  defaultValue = LitTS "1970-01-01 00:00:00"
+  defaultValue = LDateTime "1970-01-01 00:00:00"
 
 instance SqlType Day where
-  mkLit = LitDate . pack . formatTime defaultTimeLocale sqlDateFormat
+  mkLit = LDate . pack . formatTime defaultTimeLocale sqlDateFormat
   sqlType _             = "DATE"
   fromSql (SqlString s) =
     case parseTimeM True defaultTimeLocale sqlDateFormat (unpack s) of
       Just t -> t
       _      -> error $ "fromSql: bad date string: " ++ unpack s
   fromSql v             = error $ "fromSql: date column with non-date value: " ++ show v
-  defaultValue = LitDate "1970-01-01"
+  defaultValue = LDate "1970-01-01"
 
 instance SqlType TimeOfDay where
-  mkLit = LitTime . pack . formatTime defaultTimeLocale sqlTimeFormat
+  mkLit = LTime . pack . formatTime defaultTimeLocale sqlTimeFormat
   sqlType _             = "TIME"
   fromSql (SqlString s) =
     case parseTimeM True defaultTimeLocale sqlTimeFormat (unpack s) of
       Just t -> t
       _      -> error $ "fromSql: bad time string: " ++ unpack s
   fromSql v             = error $ "fromSql: time column with non-time value: " ++ show v
-  defaultValue = LitTime "00:00:00"
+  defaultValue = LTime "00:00:00"
 
 instance SqlType a => SqlType (Maybe a) where
-  mkLit (Just x) = LitJust $ mkLit x
-  mkLit Nothing  = LitNull
+  mkLit (Just x) = LJust $ mkLit x
+  mkLit Nothing  = LNull
   sqlType _ = sqlType (Proxy :: Proxy a)
   fromSql (SqlNull) = Nothing
   fromSql x         = Just $ fromSql x
-  defaultValue = LitNull
+  defaultValue = LNull
