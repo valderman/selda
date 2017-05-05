@@ -4,7 +4,7 @@
 module Database.Selda.Compile
   ( Result, Res
   , toRes
-  , compile, compileWithTables
+  , compile, compileWith, compileWithTables
   , compileInsert, compileUpdate, compileDelete
   )
   where
@@ -22,13 +22,23 @@ import Data.Text (Text, empty)
 import Data.Typeable
 
 -- | Compile a query into a parameterised SQL statement.
+--
+--   The types given are tailored for SQLite. To translate SQLite types into
+--   whichever types are used by your backend, use 'compileWith'.
 compile :: Result a => Query s a -> (Text, [Param])
-compile = snd . compileWithTables
+compile = snd . compileWithTables id
+
+-- | Compile a query using the given type translation function.
+compileWith :: Result a => (Text -> Text) -> Query s a -> (Text, [Param])
+compileWith ttr = snd . compileWithTables ttr
 
 -- | Compile a query into a parameterised SQL statement. Also returns all
 --   tables depended on by the query.
-compileWithTables :: Result a => Query s a -> ([TableName], (Text, [Param]))
-compileWithTables = compSql . snd . compQuery
+compileWithTables :: Result a
+                  => (Text -> Text)
+                  -> Query s a
+                  -> ([TableName], (Text, [Param]))
+compileWithTables ttr = compSql ttr . snd . compQuery
 
 -- | Compile an @INSERT@ query, given the keyword representing default values
 --   in the target SQL dialect, a table and a list of items corresponding
@@ -39,12 +49,13 @@ compileInsert defkw tbl rows = compInsert defkw tbl (map params rows)
 
 -- | Compile an @UPDATE@ query.
 compileUpdate :: forall s a. (Columns (Cols s a), Result (Cols s a))
-              => Table a                  -- ^ The table to update.
+              => (Text -> Text)           -- ^ Type translation function.
+              -> Table a                  -- ^ The table to update.
               -> (Cols s a -> Cols s a)   -- ^ Update function.
               -> (Cols s a -> Col s Bool) -- ^ Predicate: update only when true.
               -> (Text, [Param])
-compileUpdate tbl upd check =
-    compUpdate (tableName tbl) predicate updated
+compileUpdate ttr tbl upd check =
+    compUpdate ttr (tableName tbl) predicate updated
   where
     names = map colName (tableCols tbl)
     cs = toTup names

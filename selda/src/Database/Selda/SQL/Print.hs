@@ -20,29 +20,38 @@ snub = map head . group . sort
 type PP = State PPState
 
 data PPState = PPState
-  { ppParams  :: [Param]
-  , ppTables  :: [TableName]
-  , ppParamNS :: Int
-  , ppQueryNS :: Int
+  { ppParams  :: ![Param]
+  , ppTables  :: ![TableName]
+  , ppParamNS :: !Int
+  , ppQueryNS :: !Int
+  , ppTypeTr  :: !(Text -> Text)
   }
 
 -- | Run a pretty-printer.
-runPP :: PP Text -> ([TableName], (Text, [Param]))
-runPP pp =
-  case runState pp (PPState [] [] 1 0) of
+runPP :: (Text -> Text)
+      -> PP Text
+      -> ([TableName], (Text, [Param]))
+runPP typetr pp =
+  case runState pp (PPState [] [] 1 0 typetr) of
     (q, st) -> (snub $ ppTables st, (q, reverse (ppParams st)))
 
 -- | Compile an SQL AST into a parameterized SQL query.
-compSql :: SQL -> ([TableName], (Text, [Param]))
-compSql = runPP . ppSql
+compSql :: (Text -> Text)
+        -> SQL
+        -> ([TableName], (Text, [Param]))
+compSql typetr = runPP typetr . ppSql
 
 -- | Compile a single column expression.
-compExp :: Exp a -> (Text, [Param])
-compExp = snd . runPP . ppCol
+compExp :: (Text -> Text) -> Exp a -> (Text, [Param])
+compExp typetr = snd . runPP typetr . ppCol
 
 -- | Compile an @UPATE@ statement.
-compUpdate :: TableName -> Exp Bool -> [(ColName, SomeCol)] -> (Text, [Param])
-compUpdate tbl p cs = snd $ runPP ppUpd
+compUpdate :: (Text -> Text)
+           -> TableName
+           -> Exp Bool
+           -> [(ColName, SomeCol)]
+           -> (Text, [Param])
+compUpdate typetr tbl p cs = snd $ runPP typetr ppUpd
   where
     ppUpd = do
       updates <- mapM ppUpdate cs
@@ -68,11 +77,17 @@ compUpdate tbl p cs = snd $ runPP ppUpd
 
 -- | Compile a @DELETE@ statement.
 compDelete :: TableName -> Exp Bool -> (Text, [Param])
-compDelete tbl p = snd $ runPP ppDelete
+compDelete tbl p = snd $ runPP id ppDelete
   where
     ppDelete = do
       c' <- ppCol p
       pure $ Text.unwords ["DELETE FROM", fromTableName tbl, "WHERE", c']
+
+-- | Pretty-print a type name.
+ppType :: Text -> PP Text
+ppType t = do
+  typeTr <- ppTypeTr <$> get
+  pure $ typeTr t
 
 -- | Pretty-print a literal as a named parameter and save the
 --   name-value binding in the environment.
@@ -80,20 +95,20 @@ ppLit :: Lit a -> PP Text
 ppLit LNull     = pure "NULL"
 ppLit (LJust l) = ppLit l
 ppLit l         = do
-  PPState ps ts ns qns <- get
-  put $ PPState (Param l : ps) ts (succ ns) qns
+  PPState ps ts ns qns tr <- get
+  put $ PPState (Param l : ps) ts (succ ns) qns tr
   return $ Text.pack ('$':show ns)
 
 dependOn :: TableName -> PP ()
 dependOn t = do
-  PPState ps ts ns qns <- get
-  put $ PPState ps (t:ts) ns qns
+  PPState ps ts ns qns tr <- get
+  put $ PPState ps (t:ts) ns qns tr
 
 -- | Generate a unique name for a subquery.
 freshQueryName :: PP Text
 freshQueryName = do
-  PPState ps ts ns qns <- get
-  put $ PPState ps ts ns (succ qns)
+  PPState ps ts ns qns tr <- get
+  put $ PPState ps ts ns (succ qns) tr
   return $ Text.pack ('q':show qns)
 
 -- | Pretty-print an SQL AST.
@@ -205,7 +220,10 @@ ppCol (Fun2 f a b)   = do
   b' <- ppCol b
   pure $ mconcat [f, "(", a', ", ", b', ")"]
 ppCol (AggrEx f x)   = ppUnOp (Fun f) x
-ppCol (Cast x)       = ppCol x
+ppCol (Cast t x)     = do
+  x' <- ppCol x
+  t' <- ppType t
+  pure $ mconcat ["CAST(", x', " AS ", t', ")"]
 
 ppUnOp :: UnOp a b -> Exp a -> PP Text
 ppUnOp op c = do

@@ -86,7 +86,8 @@ update :: (MonadSelda m, Columns (Cols s a), Result (Cols s a))
        -> (Cols s a -> Cols s a)   -- ^ Update function.
        -> m Int
 update tbl check upd = do
-  res <- uncurry exec $ compileUpdate tbl upd check
+  tt <- typeTrans <$> seldaBackend
+  res <- uncurry exec $ compileUpdate tt tbl upd check
   invalidateTable tbl
   return res
 
@@ -168,19 +169,23 @@ setLocalCache = liftIO . setMaxItems
 queryWith :: forall s m a. (MonadSelda m, Result a)
           => QueryRunner (Int, [[SqlValue]]) -> Query s a -> m [Res a]
 queryWith qr q = do
-    db <- dbIdentifier <$> seldaBackend
-    let cacheKey = (db, qs, ps)
-    mres <- liftIO $ cached cacheKey
-    case mres of
-      Just res -> do
-        return res
-      _        -> do
-        res <- fmap snd . liftIO $ uncurry qr qry
-        let res' = mkResults (Proxy :: Proxy a) res
-        liftIO $ cache tables cacheKey res'
-        return res'
-  where
-    (tables, qry@(qs, ps)) = compileWithTables q
+  backend <- seldaBackend
+  let db = dbIdentifier backend
+      cacheKey = (db, qs, ps)
+      (tables, qry@(qs, ps)) = compileWithTables (typeTrans backend) q
+  mres <- liftIO $ cached cacheKey
+  case mres of
+    Just res -> do
+      return res
+    _        -> do
+      res <- fmap snd . liftIO $ uncurry qr qry
+      let res' = mkResults (Proxy :: Proxy a) res
+      liftIO $ cache tables cacheKey res'
+      return res'
+
+-- | Translate types for casts. Column attributes are ignored here.
+typeTrans :: SeldaBackend -> Text -> Text
+typeTrans backend t = maybe t id (customColType backend t [])
 
 -- | Generate the final result of a query from a list of untyped result rows.
 mkResults :: Result a => Proxy a -> [[SqlValue]] -> [Res a]

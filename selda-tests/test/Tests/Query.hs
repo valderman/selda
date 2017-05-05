@@ -32,6 +32,7 @@ queryTests run = test
   , "select from empty value table" ~: run selectEmptyValues
   , "aggregate from empty value table" ~: run aggregateEmptyValues
   , "inner join" ~: run innerJoin
+  , "rounding doubles to ints" ~: run roundToInt
   , "serializing doubles" ~: run serializeDouble
   , "teardown succeeds" ~: run teardown
   ]
@@ -238,6 +239,10 @@ innerJoin = do
       , Just "dragon" :*: "Tokyo"
       , Nothing       :*: "Fuyukishi"
       ]
+
+roundToInt = do
+  res <- query $ round_ <$> selectValues [1.1, 1.5, 1.9 :: Double]
+  assEq "bad rounding" [1, 2, 2 :: Int] res
 
 serializeDouble = do
   -- The "protocol" used by PostgreSQL is insane - better check that we speak

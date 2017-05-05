@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings, FlexibleInstances, UndecidableInstances #-}
+{-# LANGUAGE ScopedTypeVariables, TypeOperators, GADTs #-}
 -- | Selda is not LINQ, but they're definitely related.
 --
 --   Selda is a high-level EDSL for interacting with relational databases.
@@ -113,7 +114,6 @@ module Database.Selda
   , Tup, Head
   , first, second, third, fourth, fifth, sixth, seventh, eighth, ninth, tenth
   ) where
-import Data.Text (Text)
 import Database.Selda.Backend
 import Database.Selda.Column
 import Database.Selda.Compile
@@ -130,6 +130,8 @@ import Database.Selda.Table.Foreign
 import Database.Selda.Types
 import Database.Selda.Unsafe
 import Control.Exception (throw)
+import Data.Text (Text)
+import Data.Typeable (Typeable, eqT, (:~:)(..))
 
 -- | Any column type that can be used with the 'min_' and 'max_' functions.
 class SqlType a => MinMax a
@@ -238,8 +240,11 @@ sum_ :: (SqlType a, Num a) => Col s a -> Aggr s a
 sum_ = aggr "SUM"
 
 -- | Round a value to the nearest integer. Equivalent to @roundTo 0@.
-round_ :: Num a => Col s Double -> Col s a
-round_ = fun "ROUND"
+round_ :: forall s a. (Typeable a, SqlType a, Num a) => Col s Double -> Col s a
+round_ =
+  case eqT :: Maybe (a :~: Double) of
+    Just Refl -> fun "ROUND"
+    _         -> cast . fun "ROUND"
 
 -- | Round a column to the given number of decimals places.
 roundTo :: Col s Int -> Col s Double -> Col s Double
@@ -262,5 +267,5 @@ fromInt :: (SqlType a, Num a) => Col s Int -> Col s a
 fromInt = cast
 
 -- | Convert any column to a string.
-toString :: Col s a -> Col s String
+toString :: Col s a -> Col s Text
 toString = cast

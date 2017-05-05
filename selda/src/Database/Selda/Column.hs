@@ -6,7 +6,6 @@ module Database.Selda.Column
   , toTup, fromTup, liftC, liftC2
   , allNamesIn
   , literal
-  , fun, fun2
   ) where
 import Database.Selda.SqlType
 import Database.Selda.Types
@@ -48,17 +47,6 @@ newtype Col s a = C {unC :: Exp a}
 literal :: SqlType a => a -> Col s a
 literal = C . Lit . mkLit
 
--- | A unary operation. Note that the provided function name is spliced
---   directly into the resulting SQL query. Thus, this function should ONLY
---   be used to implement well-defined functions that are missing from Selda's
---   standard library, and NOT in an ad hoc manner during queries.
-fun :: Text -> Col s a -> Col s b
-fun f = liftC $ UnOp (Fun f)
-
--- | Like 'fun', but with two arguments.
-fun2 :: Text -> Col s a -> Col s b -> Col s c
-fun2 f = liftC2 (Fun2 f)
-
 -- | Underlying column expression type, not tied to any particular query.
 data Exp a where
   Col    :: !ColName -> Exp a
@@ -67,7 +55,7 @@ data Exp a where
   BinOp  :: !(BinOp a b) -> !(Exp a) -> !(Exp a) -> Exp b
   UnOp   :: !(UnOp a b) -> !(Exp a) -> Exp b
   Fun2   :: !Text -> !(Exp a) -> !(Exp b) -> Exp c
-  Cast   :: !(Exp a) -> Exp b
+  Cast   :: !Text -> !(Exp a) -> Exp b
   AggrEx :: !Text -> !(Exp a) -> Exp b
 
 -- | Get all column names in the given expression.
@@ -78,7 +66,7 @@ allNamesIn (Lit _)       = []
 allNamesIn (BinOp _ a b) = allNamesIn a ++ allNamesIn b
 allNamesIn (UnOp _ a)    = allNamesIn a
 allNamesIn (Fun2 _ a b)  = allNamesIn a ++ allNamesIn b
-allNamesIn (Cast x)      = allNamesIn x
+allNamesIn (Cast _ x)    = allNamesIn x
 allNamesIn (AggrEx _ x)  = allNamesIn x
 
 data UnOp a b where
