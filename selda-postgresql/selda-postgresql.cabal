@@ -20,6 +20,8 @@ flag haste
 library
   exposed-modules:
     Database.Selda.PostgreSQL
+  other-modules:
+    Database.Selda.PostgreSQL.Encoding
   other-extensions:
     GADTs
     RecordWildCards

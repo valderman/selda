@@ -4,6 +4,7 @@ module Tests.Query (queryTests) where
 import Data.List hiding (groupBy, insert)
 import Database.Selda
 import Database.Selda.Generic
+import Database.Selda.Unsafe
 import Test.HUnit
 import Utils
 import Tables
@@ -31,6 +32,7 @@ queryTests run = test
   , "select from empty value table" ~: run selectEmptyValues
   , "aggregate from empty value table" ~: run aggregateEmptyValues
   , "inner join" ~: run innerJoin
+  , "serializing doubles" ~: run serializeDouble
   , "teardown succeeds" ~: run teardown
   ]
 
@@ -236,3 +238,14 @@ innerJoin = do
       , Just "dragon" :*: "Tokyo"
       , Nothing       :*: "Fuyukishi"
       ]
+
+serializeDouble = do
+  -- The "protocol" used by PostgreSQL is insane - better check that we speak
+  -- it properly!
+  res <- query $ do
+    n <- selectValues [123456789 :: Int]
+    d <- selectValues [123456789.3 :: Double]
+    restrict (d .> cast n)
+    return (cast n + float 1.123)
+  assEq "wrong encoding" 1 (length res)
+  assEq "wrong decoding" [123456790.123] res

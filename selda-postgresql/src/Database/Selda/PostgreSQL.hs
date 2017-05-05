@@ -13,6 +13,7 @@ import Database.Selda.Backend
 import Control.Monad.Catch
 
 #ifndef __HASTE__
+import Database.Selda.PostgreSQL.Encoding
 import Database.PostgreSQL.LibPQ hiding (user, pass, db, host)
 import qualified Data.ByteString.Char8 as BS
 #endif
@@ -136,7 +137,7 @@ pgQueryRunner c return_lastid q ps = do
     q' | return_lastid = q <> " RETURNING LASTVAL();"
        | otherwise     = q
 
-    getLastId res = (read . BS.unpack . maybe "" id) <$> getvalue res 0 0
+    getLastId res = (readInt . maybe "0" id) <$> getvalue res 0 0
 
     getRows res = do
       rows <- ntuples res
@@ -146,7 +147,7 @@ pgQueryRunner c return_lastid q ps = do
       result <- mapM (getRow res types cols) [0..rows-1]
       pure $ case affected of
         Just "" -> (0, result)
-        Just s  -> (read $ BS.unpack s, result)
+        Just s  -> (readInt s, result)
         _       -> (0, result)
 
     getRow res types cols row = do
@@ -157,35 +158,6 @@ pgQueryRunner c return_lastid q ps = do
       case mval of
         Just val -> pure $ toSqlValue t val
         _        -> pure SqlNull
-
--- | Convert the given postgres return value and type to an @SqlValue@.
---   TODO: use binary format instead of text.
-toSqlValue :: Oid -> BS.ByteString -> SqlValue
-toSqlValue t val
-  | t == boolType    = SqlBool $ readBool val
-  | t == intType     = SqlInt $ read (BS.unpack val)
-  | t == doubleType  = SqlFloat $ read (BS.unpack val)
-  | t `elem` textish = SqlString (decodeUtf8 val)
-  | otherwise        = error $ "BUG: result with unknown type oid: " ++ show t
-  where
-    textish = [textType, timestampType, timeType, dateType]
-    readBool "f"   = False
-    readBool "0"   = False
-    readBool "0.0" = False
-    readBool "F"   = False
-    readBool _     = True
-
--- | Convert a parameter into an postgres parameter triple.
-fromSqlValue :: Lit a -> Maybe (Oid, BS.ByteString, Format)
-fromSqlValue (LBool b)     = Just (boolType, if b then "true" else "false", Text)
-fromSqlValue (LInt n)      = Just (intType, BS.pack $ show n, Text)
-fromSqlValue (LDouble f)   = Just (doubleType, BS.pack $ show f, Text)
-fromSqlValue (LText s)     = Just (textType, encodeUtf8 s, Text)
-fromSqlValue (LDateTime s) = Just (timestampType, encodeUtf8 s, Text)
-fromSqlValue (LTime s)     = Just (timeType, encodeUtf8 s, Text)
-fromSqlValue (LDate s)     = Just (dateType, encodeUtf8 s, Text)
-fromSqlValue (LNull)       = Nothing
-fromSqlValue (LJust x)     = fromSqlValue x
 
 -- | Custom column types for postgres: auto-incrementing primary keys need to
 --   be @BIGSERIAL@, and ints need to be @INT8@.
@@ -201,14 +173,4 @@ pgColType "DATETIME" attrs =
     Just $ T.unwords ("TIMESTAMP" : map compileColAttr attrs)
 pgColType _ _ =
     Nothing
-
--- | OIDs for all types used by Selda.
-boolType, intType, textType, doubleType, dateType, timeType, timestampType :: Oid
-boolType      = Oid 16
-intType       = Oid 20
-textType      = Oid 25
-doubleType    = Oid 701
-dateType      = Oid 1082
-timeType      = Oid 1083
-timestampType = Oid 1114
 #endif
