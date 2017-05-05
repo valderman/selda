@@ -3,7 +3,7 @@
 }:
 mkDerivation {
   pname = "selda-sqlite";
-  version = "0.1.2.2";
+  version = "0.1.3.0";
   src = ./.;
   libraryHaskellDepends = [
     base direct-sqlite exceptions selda text
