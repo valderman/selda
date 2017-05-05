@@ -1,5 +1,12 @@
 # Revision history for selda
 
+## 0.1.5.0 -- 2017-05-05
+
+* Inner join support.
+* More sensible names in backend API.
+* Fix rounding and casts.
+
+
 ## 0.1.4.1 -- 2017-05-04
 
 * Fix cache consistency bug in the presence of multiple databases.
