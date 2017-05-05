@@ -1,6 +1,10 @@
 {-# LANGUAGE FlexibleContexts, OverloadedStrings #-}
 -- | Query monad and primitive operations.
-module Database.Selda.Query where
+module Database.Selda.Query
+  (select, selectValues
+  , restrict, groupBy, limit, order
+  , aggregate, leftJoin, inner, suchThat
+  ) where
 import Database.Selda.Column
 import Database.Selda.Inner
 import Database.Selda.Query.Type

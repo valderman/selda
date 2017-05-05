@@ -1,6 +1,13 @@
 {-# LANGUAGE GADTs, TypeFamilies, TypeOperators, PolyKinds, FlexibleInstances #-}
 -- | Columns and associated utility functions.
-module Database.Selda.Column where
+module Database.Selda.Column
+  ( Cols, Columns
+  , Col (..), SomeCol (..), Exp (..), UnOp (..), BinOp (..)
+  , toTup, fromTup, liftC, liftC2
+  , allNamesIn
+  , literal
+  , fun, fun2
+  ) where
 import Database.Selda.SqlType
 import Database.Selda.Types
 import Data.String

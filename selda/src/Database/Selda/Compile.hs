@@ -1,7 +1,13 @@
 {-# LANGUAGE GADTs, TypeOperators, TypeFamilies, ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleInstances, FlexibleContexts, UndecidableInstances #-}
 -- | Selda SQL compilation.
-module Database.Selda.Compile where
+module Database.Selda.Compile
+  ( Result, Res
+  , toRes
+  , compile, compileWithTables
+  , compileInsert, compileUpdate, compileDelete
+  )
+  where
 import Database.Selda.Column
 import Database.Selda.Query.Type
 import Database.Selda.SQL

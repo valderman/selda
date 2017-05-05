@@ -1,6 +1,11 @@
 {-# LANGUAGE GADTs, OverloadedStrings, ScopedTypeVariables, FlexibleInstances #-}
 -- | Types representable in Selda's subset of SQL.
-module Database.Selda.SqlType where
+module Database.Selda.SqlType
+  ( Lit (..), SqlValue (..), SqlType
+  , mkLit, sqlType, fromSql, defaultValue
+  , compLit
+  , sqlDateTimeFormat, sqlDateFormat, sqlTimeFormat
+  ) where
 import Data.Text (Text, pack, unpack)
 import Data.Time
 import Data.Proxy
