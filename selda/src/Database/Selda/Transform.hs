@@ -14,7 +14,7 @@ removeDeadCols live sql =
       TableName _     -> sql'
       Values  _ _     -> sql'
       Product qs      -> sql' {source = Product $ map noDead qs}
-      LeftJoin on l r -> sql' {source = LeftJoin on (noDead l) (noDead r)}
+      Join jt on l r  -> sql' {source = Join jt on (noDead l) (noDead r)}
   where
     noDead = removeDeadCols live'
     sql' = keepCols (allNonOutputColNames sql ++ live) sql
@@ -33,8 +33,8 @@ allNonOutputColNames sql = concat
   , colNames (groups sql)
   , colNames (map snd $ ordering sql)
   , case source sql of
-      LeftJoin on _ _ -> allNamesIn on
-      _               -> []
+      Join _ on _ _ -> allNamesIn on
+      _             -> []
   ]
 
 -- | Get all column names appearing in the given list of (possibly complex)

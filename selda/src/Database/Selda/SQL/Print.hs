@@ -141,7 +141,7 @@ ppSql (SQL cs src r gs ord lim) = do
         , ") AS "
         , qn
         ]
-    ppSrc (LeftJoin on left right) = do
+    ppSrc (Join jointype on left right) = do
       l' <- ppSql left
       r' <- ppSql right
       on' <- ppCol on
@@ -149,9 +149,12 @@ ppSql (SQL cs src r gs ord lim) = do
       rqn <- freshQueryName
       pure $ mconcat
         [ " FROM (", l', ") AS ", lqn
-        , " LEFT JOIN (", r', ") AS ", rqn
+        , " ",  ppJoinType jointype, " (", r', ") AS ", rqn
         , " ON ", on'
         ]
+
+    ppJoinType LeftJoin  = "LEFT JOIN"
+    ppJoinType InnerJoin = "JOIN"
 
     ppRow xs = do
       ls <- sequence [ppLit l | Param l <- xs]

@@ -30,6 +30,7 @@ queryTests run = test
   , "select from value table" ~: run selectVals
   , "select from empty value table" ~: run selectEmptyValues
   , "aggregate from empty value table" ~: run aggregateEmptyValues
+  , "inner join" ~: run innerJoin
   , "teardown succeeds" ~: run teardown
   ]
 
@@ -221,3 +222,17 @@ aggregateEmptyValues = do
     id :*: _ <- select comments
     return (count id)
   assEq "wrong count for empty result set" 0 res
+
+innerJoin = do
+    res <- query $ do
+      p <- select people
+      a <- inner (\a -> p ! pName .== a ! aName) $ do
+        select addresses
+      return (p ! pPet :*: a ! aCity)
+    assEq "wrong result" oracle res
+  where
+    oracle =
+      [ Just "horse"  :*: "Kakariko"
+      , Just "dragon" :*: "Tokyo"
+      , Nothing       :*: "Fuyukishi"
+      ]

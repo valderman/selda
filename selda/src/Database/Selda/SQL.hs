@@ -13,9 +13,12 @@ import System.IO.Unsafe
 data SqlSource
  = TableName !TableName
  | Product ![SQL]
- | LeftJoin !(Exp Bool) !SQL !SQL
+ | Join !JoinType !(Exp Bool) !SQL !SQL
  | Values ![SomeCol] ![[Param]]
  | EmptyTable
+
+-- | Type of join to perform.
+data JoinType = InnerJoin | LeftJoin
 
 -- | AST for SQL queries.
 data SQL = SQL

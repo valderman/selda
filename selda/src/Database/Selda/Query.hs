@@ -120,13 +120,41 @@ aggregate q = Query $ do
 -- >   _ :*: address <- leftJoin (\(n :*: _) -> n .== name)
 -- >                             (select addresses)
 -- >   return (name :*: address)
-leftJoin :: (Columns a, Columns (OuterCols a), Columns (JoinCols a))
+leftJoin :: (Columns a, Columns (OuterCols a), Columns (LeftCols a))
          => (OuterCols a -> Col s Bool)
             -- ^ Predicate determining which lines to join.
             -- | Right-hand query to join.
          -> Query (Inner s) a
-         -> Query s (JoinCols a)
-leftJoin check q = Query $ do
+         -> Query s (LeftCols a)
+leftJoin = someJoin LeftJoin
+
+-- | Perform an @INNER JOIN@ with the current result set and the given query.
+inner :: (Columns a, Columns (OuterCols a))
+      => (OuterCols a -> Col s Bool)
+            -- ^ Predicate determining which lines to join.
+            -- | Right-hand query to join.
+      -> Query (Inner s) a
+      -> Query s (OuterCols a)
+inner = someJoin InnerJoin
+
+-- | Synonym for 'inner' for infix use:
+--
+-- > person <- select people
+-- > home <- select homes `suchThat` \home -> home ! owner .== person ! name
+-- > return (person ! name :*: home ! isApartment)
+suchThat :: (Columns a, Columns (OuterCols a))
+         => (OuterCols a -> Col s Bool)
+         -> Query (Inner s) a
+         -> Query s (OuterCols a)
+suchThat = inner
+
+-- | The actual code for any join.
+someJoin :: (Columns a, Columns (OuterCols a), Columns a')
+         => JoinType
+         -> (OuterCols a -> Col s Bool)
+         -> Query (Inner s) a
+         -> Query s a'
+someJoin jointype check q = Query $ do
   (join_st, res) <- isolate q
   cs <- mapM rename $ fromTup res
   st <- get
@@ -135,7 +163,7 @@ leftJoin check q = Query $ do
       right = SQL cs (Product [state2sql join_st]) [] [] [] Nothing
       C on = check $ toTup nameds
       outCols = [Some $ Col n | Named n _ <- cs] ++ allCols [left]
-      sql = SQL outCols (LeftJoin on left right) [] [] [] Nothing
+      sql = SQL outCols (Join jointype on left right) [] [] [] Nothing
   put $ st {sources = [sql]}
   pure $ toTup nameds
 

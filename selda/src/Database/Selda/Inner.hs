@@ -40,19 +40,19 @@ type family OuterCols a where
   OuterCols (t (Inner s) a :*: b) = Col s a :*: OuterCols b
   OuterCols (t (Inner s) a)       = Col s a
 
--- | The results of a join are always nullable, as there is no guarantee that
---   all joined columns will be non-null.
+-- | The results of a left join are always nullable, as there is no guarantee
+--   that all joined columns will be non-null.
 --   @JoinCols a@ where @a@ is an extensible tuple is that same tuple, but in
 --   the outer query and with all elements nullable.
 --   For instance:
 --
--- >  JoinCols (Col (Inner s) Int :*: Col (Inner s) Text)
+-- >  LeftCols (Col (Inner s) Int :*: Col (Inner s) Text)
 -- >    = Col s (Maybe Int) :*: Col s (Maybe Text)
-type family JoinCols a where
-  JoinCols (Col (Inner s) (Maybe a) :*: b) = Col s (Maybe a) :*: JoinCols b
-  JoinCols (Col (Inner s) a :*: b)         = Col s (Maybe a) :*: JoinCols b
-  JoinCols (Col (Inner s) (Maybe a))       = Col s (Maybe a)
-  JoinCols (Col (Inner s) a)               = Col s (Maybe a)
+type family LeftCols a where
+  LeftCols (Col (Inner s) (Maybe a) :*: b) = Col s (Maybe a) :*: LeftCols b
+  LeftCols (Col (Inner s) a :*: b)         = Col s (Maybe a) :*: LeftCols b
+  LeftCols (Col (Inner s) (Maybe a))       = Col s (Maybe a)
+  LeftCols (Col (Inner s) a)               = Col s (Maybe a)
 
 -- | One or more aggregate columns.
 class Aggregates a where
