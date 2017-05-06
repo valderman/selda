@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings, FlexibleInstances, UndecidableInstances #-}
-{-# LANGUAGE ScopedTypeVariables, TypeOperators, GADTs #-}
+{-# LANGUAGE ScopedTypeVariables, TypeOperators, GADTs, FlexibleContexts #-}
 -- | Selda is not LINQ, but they're definitely related.
 --
 --   Selda is a high-level EDSL for interacting with relational databases.
@@ -73,7 +73,7 @@ module Database.Selda
   , Text, Cols, Columns
   , Order (..)
   , (:*:)(..)
-  , select, selectValues
+  , select, selectValues, from
   , restrict, limit, order
   , ascending, descending
     -- * Expressions over columns
@@ -140,6 +140,19 @@ class SqlType a => MinMax a
 instance {-# OVERLAPPABLE #-} (SqlType a, Num a) => MinMax a
 instance MinMax Text
 instance MinMax a => MinMax (Maybe a)
+
+-- | Convenient shorthand for @fmap (! sel) q@.
+--   The following two queries are quivalent:
+--
+-- > q1 = name `from` select people
+-- > q2 = do
+-- >   person <- select people
+-- >   return (person ! name)
+from :: ToDyn (Cols () a)
+     => Selector a b
+     -> Query s (Cols s a)
+     -> Query s (Col s b)
+from s q = (! s) <$> q
 
 (.==), (./=), (.>), (.<), (.>=), (.<=) :: SqlType a => Col s a -> Col s a -> Col s Bool
 (.==) = liftC2 $ BinOp Eq

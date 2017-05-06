@@ -33,7 +33,7 @@ import Data.Text (pack)
 import GHC.Generics hiding (R, (:*:), Selector)
 import qualified GHC.Generics as G ((:*:)(..), Selector)
 import Unsafe.Coerce
-import Database.Selda
+import Database.Selda hiding (from)
 import Database.Selda.Table
 import Database.Selda.Types
 import Database.Selda.SqlType
