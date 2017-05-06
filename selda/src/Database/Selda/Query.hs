@@ -3,7 +3,7 @@
 module Database.Selda.Query
   (select, selectValues
   , restrict, groupBy, limit, order
-  , aggregate, leftJoin, inner, suchThat
+  , aggregate, leftJoin, innerJoin
   ) where
 import Database.Selda.Column
 import Database.Selda.Inner
@@ -133,24 +133,13 @@ leftJoin :: (Columns a, Columns (OuterCols a), Columns (LeftCols a))
 leftJoin = someJoin LeftJoin
 
 -- | Perform an @INNER JOIN@ with the current result set and the given query.
-inner :: (Columns a, Columns (OuterCols a))
-      => (OuterCols a -> Col s Bool)
-            -- ^ Predicate determining which lines to join.
-            -- | Right-hand query to join.
-      -> Query (Inner s) a
-      -> Query s (OuterCols a)
-inner = someJoin InnerJoin
-
--- | Synonym for 'inner' for infix use:
---
--- > person <- select people
--- > home <- select homes `suchThat` \home -> home ! owner .== person ! name
--- > return (person ! name :*: home ! isApartment)
-suchThat :: (Columns a, Columns (OuterCols a))
-         => (OuterCols a -> Col s Bool)
-         -> Query (Inner s) a
-         -> Query s (OuterCols a)
-suchThat = inner
+innerJoin :: (Columns a, Columns (OuterCols a))
+          => (OuterCols a -> Col s Bool)
+             -- ^ Predicate determining which lines to join.
+             -- | Right-hand query to join.
+          -> Query (Inner s) a
+          -> Query s (OuterCols a)
+innerJoin = someJoin InnerJoin
 
 -- | The actual code for any join.
 someJoin :: (Columns a, Columns (OuterCols a), Columns a')

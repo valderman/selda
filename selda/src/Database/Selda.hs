@@ -85,7 +85,7 @@ module Database.Selda
   , round_, just, fromBool, fromInt, toString
     -- * Inner queries
   , Aggr, Aggregates, OuterCols, LeftCols, Inner, MinMax
-  , inner, suchThat, leftJoin
+  , innerJoin, leftJoin
   , aggregate, groupBy
   , count, avg, sum_, max_, min_
     -- * Modifying tables
