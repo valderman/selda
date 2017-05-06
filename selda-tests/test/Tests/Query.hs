@@ -31,7 +31,7 @@ queryTests run = test
   , "select from value table" ~: run selectVals
   , "select from empty value table" ~: run selectEmptyValues
   , "aggregate from empty value table" ~: run aggregateEmptyValues
-  , "inner join" ~: run innerJoin
+  , "inner join" ~: run testInnerJoin
   , "rounding doubles to ints" ~: run roundToInt
   , "serializing doubles" ~: run serializeDouble
   , "teardown succeeds" ~: run teardown
@@ -226,10 +226,10 @@ aggregateEmptyValues = do
     return (count id)
   assEq "wrong count for empty result set" 0 res
 
-innerJoin = do
+testInnerJoin = do
     res <- query $ do
       p <- select people
-      a <- inner (\a -> p ! pName .== a ! aName) $ do
+      a <- innerJoin (\a -> p ! pName .== a ! aName) $ do
         select addresses
       return (p ! pPet :*: a ! aCity)
     assEq "wrong result" oracle res

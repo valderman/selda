@@ -3,8 +3,8 @@
 module Database.Selda.Frontend
   ( Result, Res, MonadIO (..), MonadSelda (..), SeldaT
   , query
-  , insert, insert_, insertWithPK
-  , update, update_
+  , insert, insert_, insertWithPK, tryInsert
+  , update, update_, upsert
   , deleteFrom, deleteFrom_
   , createTable, tryCreateTable
   , dropTable, tryDropTable
@@ -53,6 +53,9 @@ query q = do
 -- >     , def :*: "Zelda" :*: 119 :*: Nothing
 -- >     , ...
 -- >     ]
+--
+--   Note that if one or more of the inserted rows would cause a constraint
+--   violation, NO rows will be inserted; the whole insertion fails atomically.
 insert :: (MonadSelda m, Insert a) => Table a -> [a] -> m Int
 insert _ [] = do
   return 0
@@ -61,6 +64,40 @@ insert t cs = do
   res <- uncurry exec $ compileInsert kw t cs
   invalidateTable t
   return res
+
+-- | Attempt to insert a list of rows into a table, but don't raise an error
+--   if the insertion fails. Returns @True@ if the insertion succeeded, otherwise
+--   @False@.
+--
+--   Like 'insert', if even one of the inserted rows would cause a constraint
+--   violation, the whole insert operation fails.
+tryInsert :: (MonadCatch m, MonadSelda m, Insert a) => Table a -> [a] -> m Bool
+tryInsert tbl row = do
+  mres <- try $ insert tbl row
+  case mres of
+    Right _           -> return True
+    Left (SqlError _) -> return False
+    Left e            -> throwM e
+
+-- | Attempt to perform the given update. If no rows were updated, insert the
+--   given rowr.
+--
+--   Note that this may perform two separate queries: one update, potentially
+--   followed by one insert.
+upsert :: ( MonadCatch m
+          , MonadSelda m
+          , Insert a
+          , Columns (Cols s a)
+          , Result (Cols s a)
+          )
+       => Table a
+       -> (Cols s a -> Col s Bool)
+       -> (Cols s a -> Cols s a)
+       -> [a]
+       -> m ()
+upsert tbl check upd rows = do
+  updated <- update tbl check upd
+  when (updated == 0) $ insert_ tbl rows
 
 -- | Like 'insert', but does not return anything.
 --   Use this when you really don't care about how many rows were inserted.

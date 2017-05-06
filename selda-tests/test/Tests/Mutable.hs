@@ -42,6 +42,8 @@ mutableTests freshEnv = test
   , "fk violation fails"             ~: freshEnv fkViolationFails
   , "table with multiple FKs"        ~: freshEnv multipleFKs
   , "uniqueness violation fails"     ~: freshEnv uniqueViolation
+  , "upsert inserts/updates right"   ~: freshEnv insertOrUpdate
+  , "tryInsert doesn't fail"         ~: freshEnv tryInsertDoesntFail
   ]
 
 tryDropNeverFails = teardown
@@ -400,6 +402,44 @@ uniqueViolation = do
     r2 <- query $ select uniquePeople
     assEq "inserted rows despite constraint violation" [] r1
     assEq "row disappeared after violation" ["Link" :*: Nothing] r2
+    dropTable uniquePeople
+  where
+    uniquePeople :: Table (Text :*: Maybe Text)
+    (uniquePeople, upName :*: upPet) =
+          tableWithSelectors "uniquePeople"
+      $   unique (required "name")
+      :*: optional "pet"
+
+insertOrUpdate = do
+    createTable counters
+    upsert counters
+           (\(c :*: v) -> c .== 0)
+           (\(c :*: v) -> c :*: v+1)
+           [0 :*: 1]
+    upsert counters
+           (\(c :*: v) -> c .== 0)
+           (\(c :*: v) -> c :*: v+1)
+           [0 :*: 1]
+    res <- query $ select counters
+    assEq "wrong value for counter" [0 :*: 2] res
+    dropTable counters
+  where
+    counters :: Table (Int :*: Int)
+    counters =
+          table "counters"
+      $   primary "id"
+      :*: required "count"
+
+tryInsertDoesntFail = do
+    createTable uniquePeople
+    res1 <- tryInsert uniquePeople ["Link" :*: Nothing]
+    r1 <- query $ select uniquePeople
+    res2 <- tryInsert uniquePeople ["Link" :*: Nothing]
+    r2 <- query $ select uniquePeople
+    assEq "wrong return value from successful tryInsert" True res1
+    assEq "row not inserted" ["Link" :*: Nothing] r1
+    assEq "wrong return value from failed tryInsert" False res2
+    assEq "row inserted despite violation" ["Link" :*: Nothing] r2
     dropTable uniquePeople
   where
     uniquePeople :: Table (Text :*: Maybe Text)
