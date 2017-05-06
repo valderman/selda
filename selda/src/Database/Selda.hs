@@ -153,6 +153,7 @@ from :: ToDyn (Cols () a)
      -> Query s (Cols s a)
      -> Query s (Col s b)
 from s q = (! s) <$> q
+infixl 3 `from`
 
 (.==), (./=), (.>), (.<), (.>=), (.<=) :: SqlType a => Col s a -> Col s a -> Col s Bool
 (.==) = liftC2 $ BinOp Eq
