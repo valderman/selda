@@ -57,6 +57,7 @@ data Exp a where
   Fun2   :: !Text -> !(Exp a) -> !(Exp b) -> Exp c
   Cast   :: !Text -> !(Exp a) -> Exp b
   AggrEx :: !Text -> !(Exp a) -> Exp b
+  InList :: !(Exp a) -> ![Exp a] -> Exp Bool
 
 -- | Get all column names in the given expression.
 allNamesIn :: Exp a -> [ColName]
@@ -68,6 +69,7 @@ allNamesIn (UnOp _ a)    = allNamesIn a
 allNamesIn (Fun2 _ a b)  = allNamesIn a ++ allNamesIn b
 allNamesIn (Cast _ x)    = allNamesIn x
 allNamesIn (AggrEx _ x)  = allNamesIn x
+allNamesIn (InList x xs) = concatMap allNamesIn (x:xs)
 
 data UnOp a b where
   Abs    :: UnOp a a

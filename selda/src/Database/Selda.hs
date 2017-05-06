@@ -77,6 +77,7 @@ module Database.Selda
   , restrict, limit, order
   , ascending, descending
     -- * Expressions over columns
+  , Set (..)
   , (.==), (./=), (.>), (.<), (.>=), (.<=), like
   , (.&&), (.||), not_
   , literal, int, float, text, true, false, null_
@@ -132,6 +133,7 @@ import Database.Selda.Unsafe
 import Control.Exception (throw)
 import Data.Text (Text)
 import Data.Typeable (Typeable, eqT, (:~:)(..))
+import Unsafe.Coerce
 
 -- | Any column type that can be used with the 'min_' and 'max_' functions.
 class SqlType a => MinMax a
@@ -156,6 +158,17 @@ infixl 4 .<=
 -- | Is the given column null?
 isNull :: Col s (Maybe a) -> Col s Bool
 isNull = liftC $ UnOp IsNull
+
+-- | Any container type for which we can check object membership.
+class Set set where
+  -- | Is the given column contained in the given set?
+  isIn :: Col s a -> set (Col s a) -> Col s Bool
+infixl 4 `isIn`
+
+instance Set [] where
+  -- TODO: use safe coercions instead of unsafeCoerce
+  isIn _ []     = false
+  isIn (C x) xs = C $ InList x (unsafeCoerce xs)
 
 (.&&), (.||) :: Col s Bool -> Col s Bool -> Col s Bool
 (.&&) = liftC2 $ BinOp And

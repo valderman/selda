@@ -130,7 +130,7 @@ ppSql (SQL cs src r gs ord lim) = do
     ]
   where
     result []  = "1"
-    result cs' = Text.intercalate "," cs'
+    result cs' = Text.intercalate ", " cs'
 
     ppSrc EmptyTable = do
       qn <- freshQueryName
@@ -145,7 +145,7 @@ ppSql (SQL cs src r gs ord lim) = do
       qs <- flip mapM ["(" <> s <> ")" | s <- srcs] $ \q -> do
         qn <- freshQueryName
         pure (q <> " AS " <> qn)
-      pure $ " FROM " <> Text.intercalate "," qs
+      pure $ " FROM " <> Text.intercalate ", " qs
     ppSrc (Values row rows) = do
       row' <- Text.intercalate ", " <$> mapM ppSomeCol row
       rows' <- mapM ppRow rows
@@ -224,6 +224,10 @@ ppCol (Cast t x)     = do
   x' <- ppCol x
   t' <- ppType t
   pure $ mconcat ["CAST(", x', " AS ", t', ")"]
+ppCol (InList x xs) = do
+  x' <- ppCol x
+  xs' <- mapM ppCol xs
+  pure $ mconcat [x', " IN (", Text.intercalate ", " xs', ")"]
 
 ppUnOp :: UnOp a b -> Exp a -> PP Text
 ppUnOp op c = do
