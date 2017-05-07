@@ -32,6 +32,7 @@ haddock:
 	cd selda ; cabal haddock
 
 check: test pgtest haddock
+	runghc ChangeLog.hs md
 	for pkg in $(PACKAGES) ; do \
 	  cd $$pkg ; \
 	  cabal clean ; \
@@ -66,6 +67,9 @@ upload-selda: check
 
 upload: check
 	cabal upload $$(for pkg in $(PACKAGES) ; do echo $$pkg/dist/$$pkg-*.tar.gz ; done)
+	runghc ChangeLog.hs tag
+	git push
+	git push --tags
 
 sandbox: cabal.sandbox.config
 
