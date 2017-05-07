@@ -66,8 +66,8 @@ upload-selda: check
 	cabal upload ./selda/dist/selda-*.tar.gz
 
 upload: check
-	cabal upload $$(for pkg in $(PACKAGES) ; do echo $$pkg/dist/$$pkg-*.tar.gz ; done)
 	runghc ChangeLog.hs tag
+	cabal upload $$(for pkg in $(PACKAGES) ; do echo $$pkg/dist/$$pkg-*.tar.gz ; done)
 	git push
 	git push --tags
 
