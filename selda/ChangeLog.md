@@ -7,6 +7,7 @@
 * Explicit inner queries.
 * Rename `inner` to `innerJoin`, more intuitive behavior for `suchThat`.
 * Add `from` shorthand for `\s q -> fmap (!s) q`.
+* Unique and foreign key constraints for generics.
 
 
 ## 0.1.5.0 -- 2017-05-05
