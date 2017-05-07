@@ -654,3 +654,4 @@ Features that would be nice to have but are not yet implemented.
 * Database schema upgrades.
 * Stack build.
 * MySQL/MariaDB backend.
+* Automatically sanity check changelog, versions and date before release.
