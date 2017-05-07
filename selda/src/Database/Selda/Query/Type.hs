@@ -31,8 +31,8 @@ isolate (Query q) = do
 --   for column renaming.
 data GenState = GenState
   { sources         :: ![SQL]
-  , staticRestricts :: ![Exp Bool]
-  , groupCols       :: ![SomeCol]
+  , staticRestricts :: ![Exp SQL Bool]
+  , groupCols       :: ![SomeCol SQL]
   , nameSupply      :: !Int
   }
 
@@ -46,7 +46,7 @@ initState = GenState
   }
 
 -- | Generate a unique name for the given column.
-rename :: SomeCol -> State GenState SomeCol
+rename :: SomeCol sql -> State GenState (SomeCol sql)
 rename (Some col) = do
     n <- freshId
     return $ Named (newName n) col

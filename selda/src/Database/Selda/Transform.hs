@@ -39,7 +39,7 @@ allNonOutputColNames sql = concat
 
 -- | Get all column names appearing in the given list of (possibly complex)
 --   columns.
-colNames :: [SomeCol] -> [ColName]
+colNames :: [SomeCol SQL] -> [ColName]
 colNames cs = concat
   [ [n | Some c <- cs, n <- allNamesIn c]
   , [n | Named _ c <- cs, n <- allNamesIn c]
@@ -71,7 +71,7 @@ state2sql (GenState ss srs _ _) =
   SQL (allCols ss) (Product ss) srs [] [] Nothing
 
 -- | Get all output columns from a list of SQL ASTs.
-allCols :: [SQL] -> [SomeCol]
+allCols :: [SQL] -> [SomeCol SQL]
 allCols sqls = [outCol col | sql <- sqls, col <- cols sql]
   where
     outCol (Named n _) = Some (Col n)

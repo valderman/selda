@@ -44,7 +44,8 @@ mutableTests freshEnv = test
   , "uniqueness violation fails"     ~: freshEnv uniqueViolation
   , "upsert inserts/updates right"   ~: freshEnv insertOrUpdate
   , "tryInsert doesn't fail"         ~: freshEnv tryInsertDoesntFail
-  , "isIn [...] gives right result"  ~: freshEnv isInList
+  , "isIn list gives right result"   ~: freshEnv isInList
+  , "isIn query gives right result"  ~: freshEnv isInQuery
   ]
 
 tryDropNeverFails = teardown
@@ -459,3 +460,11 @@ isInList = do
            :*: 1 `isIn` ([] :: [Col () Int])
            )
   assEq "wrong result from isIn" [True :*: False :*: False] res
+
+isInQuery = do
+  setup
+  res <- query $ do
+    return (   "Link" `isIn` (pName `from` select people)
+           :*: "Zelda" `isIn` (pName `from` select people)
+           )
+  assEq "wrong result from isIn" [True :*: False] res

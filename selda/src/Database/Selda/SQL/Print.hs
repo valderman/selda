@@ -42,14 +42,14 @@ compSql :: (Text -> Text)
 compSql typetr = runPP typetr . ppSql
 
 -- | Compile a single column expression.
-compExp :: (Text -> Text) -> Exp a -> (Text, [Param])
+compExp :: (Text -> Text) -> Exp SQL a -> (Text, [Param])
 compExp typetr = snd . runPP typetr . ppCol
 
 -- | Compile an @UPATE@ statement.
 compUpdate :: (Text -> Text)
            -> TableName
-           -> Exp Bool
-           -> [(ColName, SomeCol)]
+           -> Exp SQL Bool
+           -> [(ColName, SomeCol SQL)]
            -> (Text, [Param])
 compUpdate typetr tbl p cs = snd $ runPP typetr ppUpd
   where
@@ -76,7 +76,7 @@ compUpdate typetr tbl p cs = snd $ runPP typetr ppUpd
         us' -> Text.intercalate ", " us'
 
 -- | Compile a @DELETE@ statement.
-compDelete :: TableName -> Exp Bool -> (Text, [Param])
+compDelete :: TableName -> Exp SQL Bool -> (Text, [Param])
 compDelete tbl p = snd $ runPP id ppDelete
   where
     ppDelete = do
@@ -198,18 +198,18 @@ ppSql (SQL cs src r gs ord lim) = do
 
     ppInt = Text.pack . show
 
-ppSomeCol :: SomeCol -> PP Text
+ppSomeCol :: SomeCol SQL -> PP Text
 ppSomeCol (Some c)    = ppCol c
 ppSomeCol (Named n c) = do
   c' <- ppCol c
   pure $ c' <> " AS " <> fromColName n
 
-ppCols :: [Exp Bool] -> PP Text
+ppCols :: [Exp SQL Bool] -> PP Text
 ppCols cs = do
   cs' <- mapM ppCol (reverse cs)
   pure $ "(" <> Text.intercalate ") AND (" cs' <> ")"
 
-ppCol :: Exp a -> PP Text
+ppCol :: Exp SQL a -> PP Text
 ppCol (TblCol xs)    = error $ "compiler bug: ppCol saw TblCol: " ++ show xs
 ppCol (Col name)     = pure (fromColName name)
 ppCol (Lit l)        = ppLit l
@@ -228,8 +228,12 @@ ppCol (InList x xs) = do
   x' <- ppCol x
   xs' <- mapM ppCol xs
   pure $ mconcat [x', " IN (", Text.intercalate ", " xs', ")"]
+ppCol (InQuery x q) = do
+  x' <- ppCol x
+  q' <- ppSql q
+  pure $ mconcat [x', " IN (", q', ")"]
 
-ppUnOp :: UnOp a b -> Exp a -> PP Text
+ppUnOp :: UnOp a b -> Exp SQL a -> PP Text
 ppUnOp op c = do
   c' <- ppCol c
   pure $ case op of
@@ -240,13 +244,13 @@ ppUnOp op c = do
     IsNull -> "(" <> c' <> ") IS NULL"
     Fun f  -> f <> "(" <> c' <> ")"
 
-ppBinOp :: BinOp a b -> Exp a -> Exp a -> PP Text
+ppBinOp :: BinOp a b -> Exp SQL a -> Exp SQL a -> PP Text
 ppBinOp op a b = do
     a' <- ppCol a
     b' <- ppCol b
     pure $ paren a a' <> " " <> ppOp op <> " " <> paren b b'
   where
-    paren :: Exp a -> Text -> Text
+    paren :: Exp SQL a -> Text -> Text
     paren (Col{}) c = c
     paren (Lit{}) c = c
     paren _ c       = "(" <> c <> ")"

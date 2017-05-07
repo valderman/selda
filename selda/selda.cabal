@@ -52,6 +52,7 @@ library
     Database.Selda.Caching
     Database.Selda.Column
     Database.Selda.Compile
+    Database.Selda.Exp
     Database.Selda.Frontend
     Database.Selda.Inner
     Database.Selda.Query

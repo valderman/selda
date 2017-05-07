@@ -176,13 +176,16 @@ isNull = liftC $ UnOp IsNull
 -- | Any container type for which we can check object membership.
 class Set set where
   -- | Is the given column contained in the given set?
-  isIn :: Col s a -> set (Col s a) -> Col s Bool
+  isIn :: SqlType a => Col s a -> set (Col s a) -> Col s Bool
 infixl 4 `isIn`
 
 instance Set [] where
   -- TODO: use safe coercions instead of unsafeCoerce
   isIn _ []     = false
   isIn (C x) xs = C $ InList x (unsafeCoerce xs)
+
+instance Set (Query s) where
+  isIn (C x) = C . InQuery x . snd . compQuery
 
 (.&&), (.||) :: Col s Bool -> Col s Bool -> Col s Bool
 (.&&) = liftC2 $ BinOp And
@@ -267,7 +270,7 @@ sum_ :: (SqlType a, Num a) => Col s a -> Aggr s a
 sum_ = aggr "SUM"
 
 -- | Round a value to the nearest integer. Equivalent to @roundTo 0@.
-round_ :: forall s a. (Typeable a, SqlType a, Num a) => Col s Double -> Col s a
+round_ :: forall s a. (SqlType a, Num a) => Col s Double -> Col s a
 round_ =
   case eqT :: Maybe (a :~: Double) of
     Just Refl -> fun "ROUND"

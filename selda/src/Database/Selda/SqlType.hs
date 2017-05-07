@@ -6,9 +6,10 @@ module Database.Selda.SqlType
   , compLit
   , sqlDateTimeFormat, sqlDateFormat, sqlTimeFormat
   ) where
+import Data.Proxy
 import Data.Text (Text, pack, unpack)
 import Data.Time
-import Data.Proxy
+import Data.Typeable
 
 -- | Format string used to represent date and time when
 --   talking to the database backend.
@@ -26,7 +27,7 @@ sqlTimeFormat :: String
 sqlTimeFormat = "%H:%M:%S%Q"
 
 -- | Any datatype representable in (Selda's subset of) SQL.
-class SqlType a where
+class Typeable a => SqlType a where
   mkLit        :: a -> Lit a
   sqlType      :: Proxy a -> Text
   fromSql      :: SqlValue -> a

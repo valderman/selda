@@ -3,7 +3,7 @@
 -- | Selda SQL compilation.
 module Database.Selda.Compile
   ( Result, Res
-  , toRes
+  , toRes, compQuery
   , compile, compileWith, compileWithTables
   , compileInsert, compileUpdate, compileDelete
   )
@@ -19,7 +19,7 @@ import Database.Selda.Transform
 import Database.Selda.Types
 import Data.Proxy
 import Data.Text (Text, empty)
-import Data.Typeable
+import Data.Typeable (Typeable)
 
 -- | Compile a query into a parameterised SQL statement.
 --
@@ -93,15 +93,15 @@ class Typeable (Res r) => Result r where
   toRes :: Proxy r -> [SqlValue] -> Res r
 
   -- | Produce a list of all columns present in the result.
-  finalCols :: r -> [SomeCol]
+  finalCols :: r -> [SomeCol SQL]
 
-instance (Typeable a, SqlType a, Result b) => Result (Col s a :*: b) where
+instance (SqlType a, Result b) => Result (Col s a :*: b) where
   type Res (Col s a :*: b) = a :*: Res b
   toRes _ (x:xs) = fromSql x :*: toRes (Proxy :: Proxy b) xs
   toRes _ _      = error "backend bug: too few result columns to toRes"
   finalCols (a :*: b) = finalCols a ++ finalCols b
 
-instance (Typeable a, SqlType a) => Result (Col s a) where
+instance SqlType a => Result (Col s a) where
   type Res (Col s a) = a
   toRes _ [x] = fromSql x
   toRes _ []  = error "backend bug: too few result columns to toRes"

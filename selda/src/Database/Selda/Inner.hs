@@ -3,6 +3,7 @@
 -- | Helpers for working with inner queries.
 module Database.Selda.Inner where
 import Database.Selda.Column
+import Database.Selda.SQL (SQL)
 import Database.Selda.Types
 import Data.Text (Text)
 import Data.Typeable
@@ -11,7 +12,7 @@ import Data.Typeable
 --   Aggregate columns may not be used to restrict queries.
 --   When returned from an 'aggregate' subquery, an aggregate column is
 --   converted into a non-aggregate column.
-newtype Aggr s a = Aggr {unAggr :: Exp a}
+newtype Aggr s a = Aggr {unAggr :: Exp SQL a}
 
 -- | Denotes an inner query.
 --   For aggregation, treating sequencing as the cartesian product of queries
@@ -56,7 +57,7 @@ type family LeftCols a where
 
 -- | One or more aggregate columns.
 class Aggregates a where
-  unAggrs :: a -> [SomeCol]
+  unAggrs :: a -> [SomeCol SQL]
 instance Aggregates (Aggr (Inner s) a) where
   unAggrs (Aggr x) = [Some x]
 instance Aggregates b => Aggregates (Aggr (Inner s) a :*: b) where

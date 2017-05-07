@@ -1,5 +1,5 @@
 {-# LANGUAGE GADTs, TypeFamilies, TypeOperators, PolyKinds, FlexibleInstances #-}
--- | Columns and associated utility functions.
+-- | Columns and associated utility functions, specialized to 'SQL'.
 module Database.Selda.Column
   ( Cols, Columns
   , Col (..), SomeCol (..), Exp (..), UnOp (..), BinOp (..)
@@ -7,6 +7,8 @@ module Database.Selda.Column
   , allNamesIn
   , literal
   ) where
+import Database.Selda.Exp
+import Database.Selda.SQL
 import Database.Selda.SqlType
 import Database.Selda.Types
 import Data.String
@@ -20,7 +22,7 @@ type family Cols s a where
 -- | Any column tuple.
 class Columns a where
   toTup :: [ColName] -> a
-  fromTup :: a -> [SomeCol]
+  fromTup :: a -> [SomeCol SQL]
 
 instance Columns b => Columns (Col s a :*: b) where
   toTup (x:xs) = C (Col x) :*: toTup xs
@@ -33,74 +35,21 @@ instance Columns (Col s a) where
   toTup xs  = C (TblCol xs)
   fromTup (C x) = [Some x]
 
--- | A type-erased column, which may also be renamed.
---   Only for internal use.
-data SomeCol where
-  Some  :: !(Exp a) -> SomeCol
-  Named :: !ColName -> !(Exp a) -> SomeCol
-
 -- | A database column. A column is often a literal column table, but can also
 --   be an expression over such a column or a constant expression.
-newtype Col s a = C {unC :: Exp a}
+newtype Col s a = C {unC :: Exp SQL a}
 
 -- | A literal expression.
 literal :: SqlType a => a -> Col s a
 literal = C . Lit . mkLit
 
--- | Underlying column expression type, not tied to any particular query.
-data Exp a where
-  Col    :: !ColName -> Exp a
-  TblCol :: ![ColName] -> Exp a
-  Lit    :: !(Lit a) -> Exp a
-  BinOp  :: !(BinOp a b) -> !(Exp a) -> !(Exp a) -> Exp b
-  UnOp   :: !(UnOp a b) -> !(Exp a) -> Exp b
-  Fun2   :: !Text -> !(Exp a) -> !(Exp b) -> Exp c
-  Cast   :: !Text -> !(Exp a) -> Exp b
-  AggrEx :: !Text -> !(Exp a) -> Exp b
-  InList :: !(Exp a) -> ![Exp a] -> Exp Bool
-
--- | Get all column names in the given expression.
-allNamesIn :: Exp a -> [ColName]
-allNamesIn (TblCol ns)   = ns
-allNamesIn (Col n)       = [n]
-allNamesIn (Lit _)       = []
-allNamesIn (BinOp _ a b) = allNamesIn a ++ allNamesIn b
-allNamesIn (UnOp _ a)    = allNamesIn a
-allNamesIn (Fun2 _ a b)  = allNamesIn a ++ allNamesIn b
-allNamesIn (Cast _ x)    = allNamesIn x
-allNamesIn (AggrEx _ x)  = allNamesIn x
-allNamesIn (InList x xs) = concatMap allNamesIn (x:xs)
-
-data UnOp a b where
-  Abs    :: UnOp a a
-  Not    :: UnOp Bool Bool
-  Neg    :: UnOp a a
-  Sgn    :: UnOp a a
-  IsNull :: UnOp (Maybe a) Bool
-  Fun    :: Text -> UnOp a b
-
-data BinOp a b where
-  Gt    :: BinOp a Bool
-  Lt    :: BinOp a Bool
-  Gte   :: BinOp a Bool
-  Lte   :: BinOp a Bool
-  Eq    :: BinOp a Bool
-  Neq   :: BinOp a Bool
-  And   :: BinOp Bool Bool
-  Or    :: BinOp Bool Bool
-  Add   :: BinOp a a
-  Sub   :: BinOp a a
-  Mul   :: BinOp a a
-  Div   :: BinOp a a
-  Like  :: BinOp Text Bool
-
 instance IsString (Col s Text) where
   fromString = literal . fromString
 
-liftC2 :: (Exp a -> Exp b -> Exp c) -> Col s a -> Col s b -> Col s c
+liftC2 :: (Exp SQL a -> Exp SQL b -> Exp SQL c) -> Col s a -> Col s b -> Col s c
 liftC2 f (C a) (C b) = C (f a b)
 
-liftC :: (Exp a -> Exp b) -> Col s a -> Col s b
+liftC :: (Exp SQL a -> Exp SQL b) -> Col s a -> Col s b
 liftC f = C . f . unC
 
 instance (SqlType a, Num a) => Num (Col s a) where

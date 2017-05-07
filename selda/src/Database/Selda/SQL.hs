@@ -1,20 +1,20 @@
-{-# LANGUAGE GADTs, OverloadedStrings, ScopedTypeVariables #-}
+{-# LANGUAGE GADTs, OverloadedStrings, ScopedTypeVariables, RecordWildCards #-}
 {-# LANGUAGE TypeOperators, FlexibleInstances, UndecidableInstances #-}
 -- | SQL AST and parameters for prepared statements.
 module Database.Selda.SQL where
-import Database.Selda.Column
+import Database.Selda.Exp
 import Database.Selda.SqlType
 import Database.Selda.Types
 import Control.Exception
-import Data.Monoid
+import Data.Monoid hiding (Product)
 import System.IO.Unsafe
 
 -- | A source for an SQL query.
 data SqlSource
  = TableName !TableName
  | Product ![SQL]
- | Join !JoinType !(Exp Bool) !SQL !SQL
- | Values ![SomeCol] ![[Param]]
+ | Join !JoinType !(Exp SQL Bool) !SQL !SQL
+ | Values ![SomeCol SQL] ![[Param]]
  | EmptyTable
 
 -- | Type of join to perform.
@@ -22,13 +22,30 @@ data JoinType = InnerJoin | LeftJoin
 
 -- | AST for SQL queries.
 data SQL = SQL
-  { cols      :: ![SomeCol]
+  { cols      :: ![SomeCol SQL]
   , source    :: !SqlSource
-  , restricts :: ![Exp Bool]
-  , groups    :: ![SomeCol]
-  , ordering  :: ![(Order, SomeCol)]
+  , restricts :: ![Exp SQL Bool]
+  , groups    :: ![SomeCol SQL]
+  , ordering  :: ![(Order, SomeCol SQL)]
   , limits    :: !(Maybe (Int, Int))
   }
+
+instance Names SqlSource where
+  allNamesIn (Product qs)   = concatMap allNamesIn qs
+  allNamesIn (Join _ e l r) = allNamesIn e ++ concatMap allNamesIn [l, r]
+  allNamesIn (Values vs _)  = allNamesIn vs
+  allNamesIn (TableName _)  = []
+  allNamesIn (EmptyTable)   = []
+
+instance Names SQL where
+  -- Note that we don't include @cols@ here: the names in @cols@ are not
+  -- necessarily used, only declared.
+  allNamesIn (SQL{..}) = concat
+    [ allNamesIn groups
+    , concatMap (allNamesIn . snd) ordering
+    , allNamesIn restricts
+    , allNamesIn source
+    ]
 
 -- | The order in which to sort result rows.
 data Order = Asc | Desc
