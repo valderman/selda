@@ -112,8 +112,8 @@ genTable tn attrs = GenTable $ Table tn (validate tn (map tidy cols))
           , identify dummy f == n
           ]
       , colFKs = colFKs ci ++
-          [ fk
-          | f :- ForeignKey fk <- attrs
+          [ thefk
+          | f :- ForeignKey thefk <- attrs
           , identify dummy f == n
           ]
       }

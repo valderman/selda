@@ -133,7 +133,7 @@ import Database.Selda.Types
 import Database.Selda.Unsafe
 import Control.Exception (throw)
 import Data.Text (Text)
-import Data.Typeable (Typeable, eqT, (:~:)(..))
+import Data.Typeable (eqT, (:~:)(..))
 import Unsafe.Coerce
 
 -- | Any column type that can be used with the 'min_' and 'max_' functions.
