@@ -1,5 +1,14 @@
 # Revision history for selda
 
+## 0.1.6.0 -- 2017-05-07
+
+* Conditional unsert ("upsert") support.
+* Support `SELECT x IN (SELECT ...)` and `SELECT x IN (a, b, ...)` queries.
+* Explicit inner queries.
+* Rename `inner` to `innerJoin`, more intuitive behavior for `suchThat`.
+* Add `from` shorthand for `\s q -> fmap (!s) q`.
+
+
 ## 0.1.5.0 -- 2017-05-05
 
 * Inner join support.
