@@ -24,6 +24,7 @@ Features
 * Creating, dropping and querying tables using type-safe database schemas.
 * Typed query language with products, filtering, joins and aggregation.
 * Inserting, updating and deleting rows from tables.
+* Conditional insert/update.
 * Transactions, uniqueness constraints and foreign keys.
 * Configurable, automatic, consistent in-process caching of query results.
 * Lightweight and modular: non-essential features are optional or split into
@@ -649,7 +650,6 @@ Features that would be nice to have but are not yet implemented.
 * If/else.
 * Streaming
 * Type-safe migrations
-* `WHERE x IN (SELECT ...)`
 * `SELECT INTO`.
 * Database schema upgrades.
 * Stack build.
