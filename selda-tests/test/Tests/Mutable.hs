@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeOperators, OverloadedStrings #-}
+{-# LANGUAGE TypeOperators, OverloadedStrings, DeriveGeneric #-}
 -- | Tests that modify the database.
 module Tests.Mutable (mutableTests, invalidateCacheAfterTransaction) where
 import Control.Concurrent
@@ -40,6 +40,8 @@ mutableTests freshEnv = test
   , "dupe update throws SeldaError"  ~: freshEnv dupeUpdateThrowsSeldaError
   , "nul queries don't fail"         ~: freshEnv nulQueries
   , "fk violation fails"             ~: freshEnv fkViolationFails
+  , "generic fk violation fails"     ~: freshEnv genFkViolationFails
+  , "generic fk insertion succeeds"  ~: freshEnv genFkInsertSucceeds
   , "table with multiple FKs"        ~: freshEnv multipleFKs
   , "uniqueness violation fails"     ~: freshEnv uniqueViolation
   , "upsert inserts/updates right"   ~: freshEnv insertOrUpdate
@@ -378,6 +380,35 @@ fkViolationFails = do
           table "addressesWithFK"
       $   required "name" `fk` (people, pName)
       :*: required "city"
+
+data FKAddrs = FKAddrs
+  { fkaName :: Text
+  , fkaCity :: Text
+  } deriving Generic
+
+genFkViolationFails = do
+    setup
+    createTable (gen addressesWithFK)
+    assertFail $ insertGen_ addressesWithFK [FKAddrs "Nobody" "Nowhere"]
+    dropTable (gen addressesWithFK)
+  where
+    addressesWithFK :: GenTable FKAddrs
+    addressesWithFK = genTable "addressesWithFK" [fkaName :- fkGen people pName]
+
+genFkInsertSucceeds = do
+    setup
+    createTable (gen addressesWithFK)
+    insertGen_ addressesWithFK [FKAddrs "Link" "Nowhere"]
+    res <- query $ do
+      (aName :*: aCity) <- select (gen addressesWithFK)
+      person <- select people
+      restrict (aName .== "Link" .&& aName .== person ! pName)
+      return (person ! pName :*: aCity)
+    assEq "wrong state after insert" ["Link" :*: "Nowhere"] res
+    dropTable (gen addressesWithFK)
+  where
+    addressesWithFK :: GenTable FKAddrs
+    addressesWithFK = genTable "addressesWithFK" [fkaName :- fkGen people pName]
 
 multipleFKs = do
     setup

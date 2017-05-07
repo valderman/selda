@@ -25,7 +25,7 @@ module Database.Selda.Generic
   , GenAttr (..), GenTable (..), Attribute, Relation
   , genTable, toRel, toRels, fromRel, fromRels
   , insertGen, insertGen_, insertGenWithPK
-  , primaryGen, autoPrimaryGen
+  , primaryGen, autoPrimaryGen, uniqueGen, fkGen
   ) where
 import Control.Monad.State
 import Data.Dynamic
@@ -36,6 +36,7 @@ import Unsafe.Coerce
 import Database.Selda hiding (from)
 import Database.Selda.Table
 import Database.Selda.Types
+import Database.Selda.Selectors
 import Database.Selda.SqlType
 
 -- | Any type which has a corresponding relation.
@@ -108,6 +109,11 @@ genTable tn attrs = GenTable $ Table tn (validate tn (map tidy cols))
       { colAttrs = colAttrs ci ++ concat
           [ as
           | f :- Attribute as <- attrs
+          , identify dummy f == n
+          ]
+      , colFKs = colFKs ci ++
+          [ fk
+          | f :- ForeignKey fk <- attrs
           , identify dummy f == n
           ]
       }
@@ -183,15 +189,25 @@ insertGen_ :: (Relational a, MonadSelda m) => GenTable a -> [a] -> m ()
 insertGen_ t = void . insertGen t
 
 -- | Some attribute that may be set on a table column.
-newtype Attribute = Attribute [ColAttr]
+data Attribute
+  = Attribute [ColAttr]
+  | ForeignKey (Table (), ColName)
 
 -- | A primary key which does not auto-increment.
 primaryGen :: Attribute
-primaryGen = Attribute [Primary, Required]
+primaryGen = Attribute [Primary, Required, Unique]
 
 -- | An auto-incrementing primary key.
 autoPrimaryGen :: Attribute
-autoPrimaryGen = Attribute [Primary, AutoIncrement, Required]
+autoPrimaryGen = Attribute [Primary, AutoIncrement, Required, Unique]
+
+-- | A table-unique value.
+uniqueGen :: Attribute
+uniqueGen = Attribute [Unique]
+
+-- | A foreign key constraint referencing the given table and column.
+fkGen :: Table t -> Selector t a -> Attribute
+fkGen (Table tn tcs) (Selector i) = ForeignKey (Table tn tcs, colName (tcs !! i))
 
 -- | A dummy of some type. Encapsulated to avoid improper use, since all of
 --   its fields are 'unsafeCoerce'd ints.
