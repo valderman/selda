@@ -63,7 +63,10 @@ repl:
 	cabal repl --ghc-options="-XOverloadedStrings"
 
 upload-selda: check
+	runghc ChangeLog.hs tag
 	cabal upload ./selda/dist/selda-*.tar.gz
+	git push
+	git push --tags
 
 upload: check
 	runghc ChangeLog.hs tag
