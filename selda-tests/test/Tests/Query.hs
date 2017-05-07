@@ -34,6 +34,7 @@ queryTests run = test
   , "inner join" ~: run testInnerJoin
   , "rounding doubles to ints" ~: run roundToInt
   , "serializing doubles" ~: run serializeDouble
+  , "such that works" ~: run testSuchThat
   , "teardown succeeds" ~: run teardown
   ]
 
@@ -254,3 +255,10 @@ serializeDouble = do
     return (cast n + float 1.123)
   assEq "wrong encoding" 1 (length res)
   assEq "wrong decoding" [123456790.123] res
+
+testSuchThat = do
+  res <- query $ do
+    n1 <- (pName `from` select people) `suchThat` (.== "Link")
+    n2 <- (pName `from` select people) `suchThat` (.== "Velvet")
+    return (n1 :*: n2)
+  assEq "got wrong result" ["Link" :*: "Velvet"] res

@@ -74,8 +74,9 @@ module Database.Selda
   , Order (..)
   , (:*:)(..)
   , select, selectValues, from
-  , restrict, limit, order
-  , ascending, descending
+  , restrict, limit
+  , order , ascending, descending
+  , inner, suchThat
     -- * Expressions over columns
   , Set (..)
   , (.==), (./=), (.>), (.<), (.>=), (.<=), like
@@ -153,7 +154,34 @@ from :: ToDyn (Cols () a)
      -> Query s (Cols s a)
      -> Query s (Col s b)
 from s q = (! s) <$> q
-infixl 3 `from`
+infixr 7 `from`
+
+-- | Explicitly create an inner query. Equivalent to @innerJoin (const true)@.
+--
+--   Sometimes it's handy, for performance
+--   reasons and otherwise, to perform a subquery and restrict only that query
+--   before adding the result of the query to the result set, instead of first
+--   adding the query to the result set and restricting the whole result set
+--   afterwards.
+inner :: (Columns a, Columns (OuterCols a))
+      => Query (Inner s) a
+      -> Query s (OuterCols a)
+inner = innerJoin (const true)
+
+-- | Create and filter an inner query, before adding it to the current result
+--   set.
+--
+--   @q `suchThat` p@ is generally more efficient than
+--   @select q >>= \x -> restrict (p x) >> pure x@.
+suchThat :: (Columns a, Columns (OuterCols a))
+         => Query (Inner s) a
+         -> (a -> Col (Inner s) Bool)
+         -> Query s (OuterCols a)
+suchThat q p = inner $ do
+  x <- q
+  restrict (p x)
+  return x
+infixr 7 `suchThat`
 
 (.==), (./=), (.>), (.<), (.>=), (.<=) :: SqlType a => Col s a -> Col s a -> Col s Bool
 (.==) = liftC2 $ BinOp Eq

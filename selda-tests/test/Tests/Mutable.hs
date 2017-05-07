@@ -464,7 +464,7 @@ isInList = do
 isInQuery = do
   setup
   res <- query $ do
-    return (   "Link" `isIn` (pName `from` select people)
-           :*: "Zelda" `isIn` (pName `from` select people)
+    return (   "Link" `isIn` pName `from` select people
+           :*: "Zelda" `isIn` pName `from` select people
            )
   assEq "wrong result from isIn" [True :*: False] res
