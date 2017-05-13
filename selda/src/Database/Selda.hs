@@ -92,7 +92,7 @@ module Database.Selda
   , count, avg, sum_, max_, min_
     -- * Modifying tables
   , Insert
-  , insert, insert_, insertWithPK, tryInsert, def
+  , insert, insert_, insertWithPK, tryInsert, insertUnless, def
   , update, update_, upsert
   , deleteFrom, deleteFrom_
     -- * Defining schemas
