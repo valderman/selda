@@ -96,7 +96,7 @@ upsert :: ( MonadCatch m
        -> (Cols s a -> Cols s a)
        -> [a]
        -> m (Maybe Int)
-upsert tbl check upd rows = do
+upsert tbl check upd rows = transaction $ do
   updated <- update tbl check upd
   if updated == 0
     then Just <$> insertWithPK tbl rows
