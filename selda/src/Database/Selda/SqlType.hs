@@ -64,6 +64,7 @@ litConTag (LDate{})     = 5
 litConTag (LTime{})     = 6
 litConTag (LJust{})     = 7
 litConTag (LNull)       = 8
+litConTag (LCustom{})   = 9
 
 -- | Compare two literals of different type for equality.
 compLit :: Lit a -> Lit b -> Ordering
@@ -75,6 +76,7 @@ compLit (LDateTime x) (LDateTime x') = x `compare` x'
 compLit (LDate x)     (LDate x')     = x `compare` x'
 compLit (LTime x)     (LTime x')     = x `compare` x'
 compLit (LJust x)     (LJust x')     = x `compLit` x'
+compLit (LCustom x)   (LCustom x')   = x `compLit` x'
 compLit a             b              = litConTag a `compare` litConTag b
 
 -- | Some value that is representable in SQL.
@@ -102,6 +104,7 @@ instance Show (Lit a) where
   show (LTime s)     = show s
   show (LJust x)     = "Just " ++ show x
   show (LNull)       = "Nothing"
+  show (LCustom l)   = show l
 
 -- | A row identifier for some table.
 --   This is the type of auto-incrementing primary keys.
