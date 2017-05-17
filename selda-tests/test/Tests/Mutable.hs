@@ -444,17 +444,28 @@ uniqueViolation = do
       :*: optional "pet"
 
 insertOrUpdate = do
+    tryDropTable counters
     createTable counters
-    upsert counters
+    r1 <- upsert counters
            (\(c :*: v) -> c .== 0)
            (\(c :*: v) -> c :*: v+1)
            [0 :*: 1]
-    upsert counters
+    assEq "wrong return value from inserting upsert" (Just 0) r1
+
+    r2 <- upsert counters
            (\(c :*: v) -> c .== 0)
            (\(c :*: v) -> c :*: v+1)
            [0 :*: 1]
+    assEq "wrong return value from updating upsert" Nothing r2
+
     res <- query $ select counters
     assEq "wrong value for counter" [0 :*: 2] res
+
+    r3 <- upsert counters
+           (\(c :*: v) -> c .== 15)
+           (\(c :*: v) -> c :*: v+1)
+           [15 :*: 1]
+    assEq "wrong return value from second inserting upsert" (Just 0) r3
     dropTable counters
   where
     counters :: Table (Int :*: Int)

@@ -81,7 +81,9 @@ tryInsert tbl row = do
 
 -- | Attempt to perform the given update. If no rows were updated, insert the
 --   given row.
---   Returns the primary key of the inserted row, if the insert was performed. 
+--   Returns the primary key of the inserted row, if the insert was performed.
+--   Calling this function on a table which does not have a primary key will
+--   return @Just 0@ on a successful insert.
 --
 --   Note that this may perform two separate queries: one update, potentially
 --   followed by one insert.
@@ -104,7 +106,9 @@ upsert tbl check upd rows = transaction $ do
 
 -- | Perform the given insert, if no rows already present in the table match
 --   the given predicate.
---   Returns the primary key of the inserted row, if the insert was performed. 
+--   Returns the primary key of the inserted row, if the insert was performed.
+--   If called on a table which doesn't have an auto-incrementing primary key,
+--   @Just 0@ is always returned on successful insert.
 insertUnless :: ( MonadCatch m
                 , MonadSelda m
                 , Insert a
@@ -124,14 +128,19 @@ insert_ t cs = void $ insert t cs
 
 -- | Like 'insert', but returns the primary key of the last inserted row.
 --   Attempting to run this operation on a table without an auto-incrementing
---   primary key is a type error.
+--   primary key will always return 0.
 insertWithPK :: (MonadSelda m, Insert a) => Table a -> [a] -> m Int
 insertWithPK t cs = do
-  backend <- seldaBackend
-  res <- liftIO $ do
-    uncurry (runStmtWithPK backend) $ compileInsert (defaultKeyword backend) t cs
-  invalidateTable t
-  return res
+  b <- seldaBackend
+  if tableHasAutoPK t
+    then do
+      res <- liftIO $ do
+        uncurry (runStmtWithPK b) $ compileInsert (defaultKeyword b) t cs
+      invalidateTable t
+      return res
+    else do
+      insert_ t cs
+      return 0
 
 -- | Update the given table using the given update function, for all rows
 --   matching the given predicate. Returns the number of updated rows.

@@ -38,6 +38,8 @@ data Table a = Table
     --   Invariant: the 'colAttrs' list of each column is sorted and contains
     --   no duplicates.
   , tableCols :: ![ColInfo]
+    -- | Does the given table have an auto-incrementing primary key?
+  , tableHasAutoPK :: !Bool
   }
 
 data ColInfo = ColInfo
@@ -127,9 +129,12 @@ instance {-# OVERLAPPABLE #-} ColSpecs a ~ ColSpec a => TableSpec a where
 -- | A table with the given name and columns.
 table :: forall a. TableSpec a => TableName -> ColSpecs a -> Table a
 table name cs = Table
-  { tableName = name
-  , tableCols = validate name $ map tidy $ mergeSpecs (Proxy :: Proxy a) cs
-  }
+    { tableName = name
+    , tableCols = tcs
+    , tableHasAutoPK = Prelude.any ((AutoIncrement `elem`) . colAttrs) tcs
+    }
+  where
+    tcs = validate name $ map tidy $ mergeSpecs (Proxy :: Proxy a) cs
 
 -- | Remove duplicate attributes.
 tidy :: ColInfo -> ColInfo
@@ -185,7 +190,7 @@ validate name cis
       [ "column is used as a foreign key, but is not a primary key of its table: "
           <> fromTableName ftn <> "." <> fromColName fcn
       | ci <- cis
-      , (Table ftn fcs, fcn) <- colFKs ci
+      , (Table ftn fcs _, fcn) <- colFKs ci
       , fc <- fcs
       , colName fc == fcn
       , not (Unique `elem` colAttrs fc)

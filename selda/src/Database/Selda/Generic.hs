@@ -101,10 +101,11 @@ genTable :: forall a. Relational a
          => TableName
          -> [GenAttr a]
          -> GenTable a
-genTable tn attrs = GenTable $ Table tn (validate tn (map tidy cols))
+genTable tn attrs = GenTable $ Table tn (validate tn (map tidy cols)) apk
   where
     dummy = mkDummy
     cols = zipWith addAttrs [0..] (tblCols (Proxy :: Proxy a))
+    apk = or [AutoIncrement `elem` as | _ :- Attribute as <- attrs]
     addAttrs n ci = ci
       { colAttrs = colAttrs ci ++ concat
           [ as
@@ -207,7 +208,8 @@ uniqueGen = Attribute [Unique]
 
 -- | A foreign key constraint referencing the given table and column.
 fkGen :: Table t -> Selector t a -> Attribute
-fkGen (Table tn tcs) (Selector i) = ForeignKey (Table tn tcs, colName (tcs !! i))
+fkGen (Table tn tcs tapk) (Selector i) =
+  ForeignKey (Table tn tcs tapk, colName (tcs !! i))
 
 -- | A dummy of some type. Encapsulated to avoid improper use, since all of
 --   its fields are 'unsafeCoerce'd ints.
