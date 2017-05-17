@@ -8,7 +8,15 @@ import System.Process
 
 changeLog :: ChangeLog
 changeLog =
-  [ Version "0.1.6.0" "2017-05-07"
+  [ Version "0.1.7.0" "2017-05-17"
+    "More upserts and abstracting over auto-incrementing primary keys."
+    [ "Add specialized insertUnless upsert variant."
+    , "Fix potential race condition in upserts."
+    , "Use abstract row identifier type for auto-incrementing primary keys."
+    , "Less strict version bounds on dependencies."
+    ]
+
+  , Version "0.1.6.0" "2017-05-07"
     "More expressivity for inserts and queries."
     [ "Conditional insert (\"upsert\") support."
     , "Support `SELECT x IN (SELECT ...)` and `SELECT x IN (a, b, ...)` queries."

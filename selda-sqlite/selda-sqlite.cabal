@@ -1,5 +1,5 @@
 name:                selda-sqlite
-version:             0.1.3.0
+version:             0.1.4.0
 synopsis:            SQLite backend for the Selda database EDSL.
 description:         SQLite backend for the Selda database EDSL.
 homepage:            https://github.com/valderman/selda
@@ -24,7 +24,7 @@ library
   build-depends:
       base          >=4.8     && <5
     , exceptions    >=0.8     && <0.9
-    , selda         >=0.1.5.0 && <0.2
+    , selda         >=0.1.7.0 && <0.2
     , text          >=1.0     && <1.3
   if !flag(haste)
     build-depends:
