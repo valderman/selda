@@ -29,7 +29,7 @@ addresses :: Table (Text :*: Text)
   $   required "name"
   :*: required "city"
 
-comments :: Table (Int :*: Maybe Text :*: Text)
+comments :: Table (RowID :*: Maybe Text :*: Text)
 comments =
       table "comments"
   $   autoPrimary "id"

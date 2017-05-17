@@ -76,6 +76,7 @@ toSqlData (LTime s)     = SQLText s
 toSqlData (LBool b)     = SQLInteger $ if b then 1 else 0
 toSqlData (LNull)       = SQLNull
 toSqlData (LJust x)     = toSqlData x
+toSqlData (LCustom l)   = toSqlData l
 
 fromSqlData :: SQLData -> SqlValue
 fromSqlData (SQLInteger i) = SqlInt $ fromIntegral i

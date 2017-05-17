@@ -178,7 +178,7 @@ fromRels = map fromRel
 
 -- | Like 'insertWithPK', but accepts a generic table and
 --   its corresponding data type.
-insertGenWithPK :: (Relational a, MonadSelda m) => GenTable a -> [a] -> m Int
+insertGenWithPK :: (Relational a, MonadSelda m) => GenTable a -> [a] -> m RowID
 insertGenWithPK t = insertWithPK (gen t) . map toRel
 
 -- | Like 'insert', but accepts a generic table and its corresponding data type.

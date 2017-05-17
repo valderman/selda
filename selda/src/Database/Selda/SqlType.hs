@@ -1,7 +1,8 @@
 {-# LANGUAGE GADTs, OverloadedStrings, ScopedTypeVariables, FlexibleInstances #-}
 -- | Types representable in Selda's subset of SQL.
 module Database.Selda.SqlType
-  ( Lit (..), SqlValue (..), SqlType
+  ( Lit (..), RowID, SqlValue (..), SqlType
+  , invalidRowId, isInvalidRowId, unsafeRowId
   , mkLit, sqlType, fromSql, defaultValue
   , compLit
   , sqlDateTimeFormat, sqlDateFormat, sqlTimeFormat
@@ -44,6 +45,7 @@ data Lit a where
   LTime     :: !Text    -> Lit TimeOfDay
   LJust     :: !(Lit a) -> Lit (Maybe a)
   LNull     :: Lit (Maybe a)
+  LCustom   :: !(Lit a) -> Lit b
 
 instance Eq (Lit a) where
   a == b = compLit a b == EQ
@@ -100,6 +102,36 @@ instance Show (Lit a) where
   show (LTime s)     = show s
   show (LJust x)     = "Just " ++ show x
   show (LNull)       = "Nothing"
+
+-- | A row identifier for some table.
+--   This is the type of auto-incrementing primary keys.
+newtype RowID = RowID Int
+  deriving (Eq, Typeable)
+instance Show RowID where
+  show (RowID n) = show n
+
+-- | A row identifier which is guaranteed to not match any row in any table.
+invalidRowId :: RowID
+invalidRowId = RowID (-1)
+
+-- | Is the given row identifier invalid? I.e. is it guaranteed to not match any
+--   row in any table?
+isInvalidRowId :: RowID -> Bool
+isInvalidRowId (RowID n) = n < 0
+
+-- | Create a row identifier from an integer.
+--   A row identifier created using this function is not guaranteed to be a
+--   valid row identifier.
+--   Do not use unless you are absolutely sure what you're doing.
+unsafeRowId :: Int -> RowID
+unsafeRowId = RowID
+
+instance SqlType RowID where
+  mkLit (RowID n) = LCustom $ LInt n
+  sqlType _ = sqlType (Proxy :: Proxy Int)
+  fromSql (SqlInt x) = RowID x
+  fromSql v          = error $ "fromSql: RowID column with non-int value: " ++ show v
+  defaultValue = mkLit invalidRowId
 
 instance SqlType Int where
   mkLit = LInt

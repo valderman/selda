@@ -34,6 +34,7 @@ fromSqlValue (LTime s)     = Just (timeType, encodeUtf8 s, Text)
 fromSqlValue (LDate s)     = Just (dateType, encodeUtf8 s, Text)
 fromSqlValue (LNull)       = Nothing
 fromSqlValue (LJust x)     = fromSqlValue x
+fromSqlValue (LCustom l)   = fromSqlValue l
 
 -- | Convert the given postgres return value and type to an @SqlValue@.
 toSqlValue :: Oid -> BS.ByteString -> SqlValue

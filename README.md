@@ -187,7 +187,7 @@ The following example inserts a few rows into a table with an
 auto-incrementing primary key:
 
 ```
-people' :: Table (Int :*: Text :*: Int :*: Maybe Text)
+people' :: Table (RowID :*: Text :*: Int :*: Maybe Text)
 people' = table "people_with_ids"
   $   autoPrimary "id"
   :*: required "name"
@@ -219,9 +219,7 @@ id | name      | age | pet
  3 | Miyu      | 10  |
 ```
 
-Also note that `def` can *only* be used for columns that have default values.
-Currently, only auto-incrementing primary keys can have defaults.
-Attempting to use `def` in any other context results in a runtime error.
+Auto-incrementing primary keys must always have the type `RowID`.
 
 
 Updating rows
@@ -321,7 +319,7 @@ For added convenience, the `tableWithSelectors` function creates both a table
 and its selector functions at the same time:
 
 ```
-posts :: Table (Int :*: Maybe Text :*: Text)
+posts :: Table (RowID :*: Maybe Text :*: Text)
 (posts, postId :*: author :*: content)
   =   tableWithSelectors "posts"
   $   autoPrimary "id"

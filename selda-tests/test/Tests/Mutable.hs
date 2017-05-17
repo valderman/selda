@@ -8,6 +8,7 @@ import Data.Time
 import Database.Selda
 import Database.Selda.Backend
 import Database.Selda.Generic
+import Database.Selda.Unsafe (unsafeRowId)
 import Test.HUnit
 import Utils
 import Tables
@@ -61,10 +62,12 @@ autoPrimaryIncrements = do
   k' <- insertWithPK comments [def :*: Nothing :*: "more anonymous spam"]
   [name] <- query $ do
     id :*: name :*: _ <- select comments
-    restrict (id .== int k)
+    restrict (id .== literal k)
     return name
   assEq "inserted key refers to wrong value" name (Just "Kobayashi")
-  ass "primary key doesn't increment properly" (k' == k+1)
+  let k0 = read (show k) :: Int
+      k1 = read (show k') :: Int
+  ass "primary key doesn't increment properly" (k1 == k0+1)
 
 insertReturnsNumRows = do
   setup
@@ -234,10 +237,10 @@ adHocInsertInGenericTable = do
 
 overrideAutoIncrement = do
   setup
-  insert_ comments [123 :*: Nothing :*: "hello"]
+  insert_ comments [unsafeRowId 123 :*: Nothing :*: "hello"]
   num <- query $ aggregate $ do
     id :*: _ <- select comments
-    restrict (id .== 123)
+    restrict (id .== literal (unsafeRowId 123))
     return (count id)
   assEq "failed to override auto-incrementing column" [1] num
 
@@ -246,7 +249,7 @@ insertAllDefaults = do
   pk <- insertWithPK comments [def :*: def :*: def]
   res <- query $ do
     comment@(id :*: _) <- select comments
-    restrict (id .== int pk)
+    restrict (id .== literal pk)
     return comment
   assEq "wrong default values inserted" [pk :*: Nothing :*: ""] res
 
@@ -283,17 +286,28 @@ weirdNames = do
       :*: optional "two \"quotes\""
 
 dupeInsertThrowsSeldaError = do
-  setup
+  tryDropTable comments'
+  createTable comments'
   assertFail $ do
-    insert_ comments
+    insert_ comments'
       [ 0 :*: Just "Kobayashi" :*: "チョロゴン"
       , 0 :*: Nothing          :*: "some spam"
       ]
+  dropTable comments'
+  where
+    comments' :: Table (Int :*: Maybe Text :*: Text)
+    comments' =
+          table "comments"
+      $   primary "id"
+      :*: optional "author"
+      :*: required "comment"
+    cId :*: cName :*: cComment = selectors comments
 
 dupeInsert2ThrowsSeldaError = do
   setup
-  insert_ comments [0 :*: Just "Kobayashi" :*: "チョロゴン"]
-  e <- try $ insert_ comments [0 :*: Nothing :*: "Spam, spam, spaaaaaam!"]
+  insert_ comments [def :*: Just "Kobayashi" :*: "チョロゴン"]
+  [ident :*: _] <- query $ limit 0 1 $ select comments
+  e <- try $ insert_ comments [ident :*: Nothing :*: "Spam, spam, spaaaaaam!"]
   case e :: Either SeldaError () of
     Left _ -> return ()
     _      -> liftIO $ assertFailure "SeldaError not thrown"
@@ -301,13 +315,14 @@ dupeInsert2ThrowsSeldaError = do
 dupeUpdateThrowsSeldaError = do
   setup
   insert_ comments
-    [ 0   :*: Just "Kobayashi" :*: "チョロゴン"
+    [ def :*: Just "Kobayashi" :*: "チョロゴン"
     , def :*: Just "spammer"   :*: "some spam"
     ]
+  [ident :*: _] <- query $ limit 0 1 $ select comments
   e <- try $ do
     update_ comments
       (\c -> c ! cName .== just "spammer")
-      (\c -> c `with` [cId := 0])
+      (\c -> c `with` [cId := literal ident])
   case e :: Either SeldaError () of
     Left _ -> return ()
     _      -> liftIO $ assertFailure "SeldaError not thrown"
@@ -450,7 +465,7 @@ insertOrUpdate = do
            (\(c :*: v) -> c .== 0)
            (\(c :*: v) -> c :*: v+1)
            [0 :*: 1]
-    assEq "wrong return value from inserting upsert" (Just 0) r1
+    assEq "wrong return value from inserting upsert" (Just invalidRowId) r1
 
     r2 <- upsert counters
            (\(c :*: v) -> c .== 0)
@@ -465,7 +480,7 @@ insertOrUpdate = do
            (\(c :*: v) -> c .== 15)
            (\(c :*: v) -> c :*: v+1)
            [15 :*: 1]
-    assEq "wrong return value from second inserting upsert" (Just 0) r3
+    assEq "wrong return value from second inserting upsert" (Just invalidRowId) r3
     dropTable counters
   where
     counters :: Table (Int :*: Int)

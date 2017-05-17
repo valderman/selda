@@ -16,6 +16,7 @@ import Database.Selda.Column
 import Database.Selda.Compile
 import Database.Selda.Query.Type
 import Database.Selda.SQL
+import Database.Selda.SqlType (RowID, invalidRowId, unsafeRowId)
 import Database.Selda.Table
 import Database.Selda.Table.Compile
 import Data.Proxy
@@ -83,7 +84,8 @@ tryInsert tbl row = do
 --   given row.
 --   Returns the primary key of the inserted row, if the insert was performed.
 --   Calling this function on a table which does not have a primary key will
---   return @Just 0@ on a successful insert.
+--   return @Just id@ on a successful insert, where @id@ is a row identifier
+--   guaranteed to not match any row in any table.
 --
 --   Note that this may perform two separate queries: one update, potentially
 --   followed by one insert.
@@ -97,7 +99,7 @@ upsert :: ( MonadCatch m
        -> (Cols s a -> Col s Bool)
        -> (Cols s a -> Cols s a)
        -> [a]
-       -> m (Maybe Int)
+       -> m (Maybe RowID)
 upsert tbl check upd rows = transaction $ do
   updated <- update tbl check upd
   if updated == 0
@@ -108,7 +110,8 @@ upsert tbl check upd rows = transaction $ do
 --   the given predicate.
 --   Returns the primary key of the inserted row, if the insert was performed.
 --   If called on a table which doesn't have an auto-incrementing primary key,
---   @Just 0@ is always returned on successful insert.
+--   @Just id@ is always returned on successful insert, where @id@ is a row
+--   identifier guaranteed to not match any row in any table.
 insertUnless :: ( MonadCatch m
                 , MonadSelda m
                 , Insert a
@@ -118,7 +121,7 @@ insertUnless :: ( MonadCatch m
              => Table a
              -> (Cols s a -> Col s Bool)
              -> [a]
-             -> m (Maybe Int)
+             -> m (Maybe RowID)
 insertUnless tbl check rows = upsert tbl check id rows
 
 -- | Like 'insert', but does not return anything.
@@ -128,8 +131,9 @@ insert_ t cs = void $ insert t cs
 
 -- | Like 'insert', but returns the primary key of the last inserted row.
 --   Attempting to run this operation on a table without an auto-incrementing
---   primary key will always return 0.
-insertWithPK :: (MonadSelda m, Insert a) => Table a -> [a] -> m Int
+--   primary key will always return a row identifier that is guaranteed to not
+--   match any row in any table.
+insertWithPK :: (MonadSelda m, Insert a) => Table a -> [a] -> m RowID
 insertWithPK t cs = do
   b <- seldaBackend
   if tableHasAutoPK t
@@ -137,10 +141,10 @@ insertWithPK t cs = do
       res <- liftIO $ do
         uncurry (runStmtWithPK b) $ compileInsert (defaultKeyword b) t cs
       invalidateTable t
-      return res
+      return $ unsafeRowId res
     else do
       insert_ t cs
-      return 0
+      return invalidRowId
 
 -- | Update the given table using the given update function, for all rows
 --   matching the given predicate. Returns the number of updated rows.

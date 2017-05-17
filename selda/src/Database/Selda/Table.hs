@@ -98,7 +98,7 @@ primary = addAttr Primary . unique . required
 
 -- | Automatically increment the given attribute if not specified during insert.
 --   Also adds the @PRIMARY KEY@ and @UNIQUE@ attributes on the column.
-autoPrimary :: ColName -> ColSpec Int
+autoPrimary :: ColName -> ColSpec RowID
 autoPrimary n = ColSpec [c {colAttrs = [Primary, AutoIncrement, Required, Unique]}]
   where ColSpec [c] = newCol n :: ColSpec Int
 

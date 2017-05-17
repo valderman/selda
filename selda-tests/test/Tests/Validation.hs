@@ -66,7 +66,7 @@ duplicatePKsFail = do
   where
     dupes1 :: Table (Int :*: Text)
     dupes1 = table "duplicate" $ primary "blah1" :*: primary "blah2"
-    dupes2 :: Table (Int :*: Text)
+    dupes2 :: Table (RowID :*: Text)
     dupes2 = table "duplicate" $ autoPrimary "blah1" :*: primary "blah2"
 
 nonUniqueFKFails = do
