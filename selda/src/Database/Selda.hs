@@ -117,7 +117,7 @@ module Database.Selda
   , Tup, Head
   , first, second, third, fourth, fifth, sixth, seventh, eighth, ninth, tenth
     -- * Useful re-exports
-  , MonadIO, liftIO, 
+  , MonadIO, liftIO
   , Text, Day, TimeOfDay, UTCTime
   ) where
 import Database.Selda.Backend
