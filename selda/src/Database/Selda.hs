@@ -63,14 +63,14 @@
 --   for a more comprehensive tutorial.
 module Database.Selda
   ( -- * Running queries
-    MonadIO (..), MonadSelda
+    MonadSelda
   , SeldaError (..), ValidationError
   , SeldaT, SeldaM, Table, Query, Col, Res, Result
   , query, transaction, setLocalCache
     -- * Constructing queries
   , Selector, (!), Assignment(..), with
   , SqlType
-  , Text, Cols, Columns
+  , Cols, Columns
   , Order (..)
   , (:*:)(..)
   , select, selectValues, from
@@ -116,6 +116,9 @@ module Database.Selda
     -- * Tuple convenience functions
   , Tup, Head
   , first, second, third, fourth, fifth, sixth, seventh, eighth, ninth, tenth
+    -- * Useful re-exports
+  , MonadIO, liftIO, 
+  , Text, Day, TimeOfDay, UTCTime
   ) where
 import Database.Selda.Backend
 import Database.Selda.Column
@@ -134,6 +137,7 @@ import Database.Selda.Types
 import Database.Selda.Unsafe
 import Control.Exception (throw)
 import Data.Text (Text)
+import Data.Time (Day, TimeOfDay, UTCTime)
 import Data.Typeable (eqT, (:~:)(..))
 import Unsafe.Coerce
 
