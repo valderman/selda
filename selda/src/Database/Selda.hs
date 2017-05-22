@@ -141,6 +141,9 @@ import Unsafe.Coerce
 class SqlType a => MinMax a
 instance {-# OVERLAPPABLE #-} (SqlType a, Num a) => MinMax a
 instance MinMax Text
+instance MinMax Day
+instance MinMax UTCTime
+instance MinMax TimeOfDay
 instance MinMax a => MinMax (Maybe a)
 
 -- | Convenient shorthand for @fmap (! sel) q@.
