@@ -8,7 +8,11 @@ import System.Process
 
 changeLog :: ChangeLog
 changeLog =
-  [ Version "0.1.7.0" "2017-05-17"
+  [ Version "0.1.8.0" ""
+    "Better backend configuration."
+    [ "Move SQL pretty-printing config into a single type."
+    ]
+  , Version "0.1.7.0" "2017-05-17"
     "More upserts and abstracting over auto-incrementing primary keys."
     [ "Add specialized insertUnless upsert variant."
     , "Fix potential race condition in upserts."
