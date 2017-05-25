@@ -4,8 +4,8 @@ module Database.Selda.Backend
   ( MonadIO (..)
   , QueryRunner, SeldaBackend (..), MonadSelda (..), SeldaT (..), SeldaM
   , SeldaError (..)
-  , Param (..), Lit (..), SqlValue (..), ColAttr (..)
-  , compileColAttr
+  , Param (..), Lit (..), SqlValue (..), ColAttr (..), SqlTypeRep (..)
+  , PPConfig (..), defPPConfig
   , sqlDateTimeFormat, sqlDateFormat, sqlTimeFormat
   , runSeldaT
   ) where
@@ -13,7 +13,7 @@ import Database.Selda.Caching (invalidate)
 import Database.Selda.SQL (Param (..))
 import Database.Selda.SqlType
 import Database.Selda.Table (Table, ColAttr (..), tableName)
-import Database.Selda.Table.Compile (compileColAttr)
+import Database.Selda.SQL.Print.Config
 import Database.Selda.Types (TableName)
 import Control.Exception (throwIO)
 import Control.Monad.Catch
@@ -44,19 +44,14 @@ data SeldaBackend = SeldaBackend
     --   Backends must take special care to make this thread-safe.
   , runStmtWithPK :: QueryRunner Int
 
-    -- | Generate a custom column type for the column having the given Selda
-    --   type and list of attributes.
-  , customColType :: Text -> [ColAttr] -> Maybe Text
-
-    -- | The keyword that represents the default value for auto-incrementing
-    --   primary keys.
-  , defaultKeyword :: Text
+    -- | SQL pretty-printer configuration.
+  , ppConfig :: PPConfig
 
     -- | A string uniquely identifying the database used by this invocation
     --   of the backend. This could be, for instance, a PostgreSQL connection
     --   string or the absolute path to an SQLite file.
   , dbIdentifier   :: Text
-}
+  }
 
 data SeldaState = SeldaState
   { -- | Backend in use by the current computation.

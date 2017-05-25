@@ -60,6 +60,7 @@ library
     Database.Selda.Selectors
     Database.Selda.SQL
     Database.Selda.SQL.Print
+    Database.Selda.SQL.Print.Config
     Database.Selda.SqlType
     Database.Selda.Table
     Database.Selda.Table.Compile

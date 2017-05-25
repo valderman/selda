@@ -7,13 +7,14 @@ import Data.Monoid
 import Data.Text (Text, intercalate, pack)
 import qualified Data.Text as Text
 import Database.Selda.SQL hiding (params)
+import Database.Selda.SQL.Print.Config
 import Database.Selda.Types
 
 data OnError = Fail | Ignore
   deriving (Eq, Ord, Show)
 
 -- | Compile a @CREATE TABLE@ query from a table definition.
-compileCreateTable :: (Text -> [ColAttr] -> Maybe Text) -> OnError -> Table a -> Text
+compileCreateTable :: PPConfig -> OnError -> Table a -> Text
 compileCreateTable customColType ifex tbl = mconcat
   [ "CREATE TABLE ", ifNotExists ifex, fromTableName (tableName tbl), "("
   , intercalate ", " (map (compileTableCol customColType) (tableCols tbl))
@@ -38,16 +39,11 @@ compileFK col (Table ftbl _ _, fcol) n = mconcat
     fkName = fromColName $ addColPrefix col ("fk" <> pack (show n) <> "_")
 
 -- | Compile a table column.
-compileTableCol :: (Text -> [ColAttr] -> Maybe Text) -> ColInfo -> Text
-compileTableCol customColType ci = Text.unwords
+compileTableCol :: PPConfig -> ColInfo -> Text
+compileTableCol cfg ci = Text.unwords
   [ fromColName (colName ci)
-  , case customColType typ attrs of
-      Just s -> s
-      _      -> typ <> " " <> Text.unwords (map compileColAttr attrs)
+  , ppType cfg (colType ci) <> " " <> ppColAttrs cfg (colAttrs ci)
   ]
-  where
-    typ = colType ci
-    attrs = colAttrs ci
 
 -- | Compile a @DROP TABLE@ query.
 compileDropTable :: OnError -> Table a -> Text
@@ -60,8 +56,8 @@ compileDropTable _ t =
 --   Note that backends expect insertions to NOT have a semicolon at the end.
 --   In addition to the compiled query, this function also returns the list of
 --   parameters to be passed to the backend.
-compInsert :: Text -> Table a -> [[Either Param Param]] -> (Text, [Param])
-compInsert defaultKeyword tbl defs =
+compInsert :: PPConfig -> Table a -> [[Either Param Param]] -> (Text, [Param])
+compInsert cfg tbl defs =
     (query, parameters)
   where
     colNames = map colName $ tableCols tbl
@@ -94,7 +90,7 @@ compInsert defaultKeyword tbl defs =
     mkCol :: Int -> Either Param Param -> ColInfo -> [Param] -> (Int, Text, [Param])
     mkCol n (Left def) col ps
       | AutoIncrement `elem` colAttrs col =
-        (n, defaultKeyword, ps)
+        (n, ppAutoIncInsert cfg, ps)
       | otherwise =
         (n+1, pack ('$':show n), def:ps)
     mkCol n (Right val) _ ps =
@@ -105,11 +101,3 @@ compInsert defaultKeyword tbl defs =
     mkCols (n, names, params) (param, col) =
       case mkCol n param col params of
         (n', name, params') -> (n', name:names, params')
-
--- | Compile a column attribute.
-compileColAttr :: ColAttr -> Text
-compileColAttr Primary       = "PRIMARY KEY"
-compileColAttr AutoIncrement = "AUTOINCREMENT"
-compileColAttr Required      = "NOT NULL"
-compileColAttr Optional      = "NULL"
-compileColAttr Unique        = "UNIQUE"

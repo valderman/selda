@@ -3,6 +3,8 @@
 module Database.Selda.SQL.Print where
 import Database.Selda.Column
 import Database.Selda.SQL
+import Database.Selda.SQL.Print.Config (PPConfig)
+import qualified Database.Selda.SQL.Print.Config as Cfg
 import Database.Selda.SqlType
 import Database.Selda.Types
 import Control.Monad.State
@@ -24,34 +26,34 @@ data PPState = PPState
   , ppTables  :: ![TableName]
   , ppParamNS :: !Int
   , ppQueryNS :: !Int
-  , ppTypeTr  :: !(Text -> Text)
+  , ppConfig  :: !PPConfig
   }
 
 -- | Run a pretty-printer.
-runPP :: (Text -> Text)
+runPP :: PPConfig
       -> PP Text
       -> ([TableName], (Text, [Param]))
-runPP typetr pp =
-  case runState pp (PPState [] [] 1 0 typetr) of
+runPP cfg pp =
+  case runState pp (PPState [] [] 1 0 cfg) of
     (q, st) -> (snub $ ppTables st, (q, reverse (ppParams st)))
 
 -- | Compile an SQL AST into a parameterized SQL query.
-compSql :: (Text -> Text)
+compSql :: PPConfig
         -> SQL
         -> ([TableName], (Text, [Param]))
-compSql typetr = runPP typetr . ppSql
+compSql cfg = runPP cfg . ppSql
 
 -- | Compile a single column expression.
-compExp :: (Text -> Text) -> Exp SQL a -> (Text, [Param])
-compExp typetr = snd . runPP typetr . ppCol
+compExp :: PPConfig -> Exp SQL a -> (Text, [Param])
+compExp cfg = snd . runPP cfg . ppCol
 
 -- | Compile an @UPATE@ statement.
-compUpdate :: (Text -> Text)
+compUpdate :: PPConfig
            -> TableName
            -> Exp SQL Bool
            -> [(ColName, SomeCol SQL)]
            -> (Text, [Param])
-compUpdate typetr tbl p cs = snd $ runPP typetr ppUpd
+compUpdate cfg tbl p cs = snd $ runPP cfg ppUpd
   where
     ppUpd = do
       updates <- mapM ppUpdate cs
@@ -76,18 +78,12 @@ compUpdate typetr tbl p cs = snd $ runPP typetr ppUpd
         us' -> Text.intercalate ", " us'
 
 -- | Compile a @DELETE@ statement.
-compDelete :: TableName -> Exp SQL Bool -> (Text, [Param])
-compDelete tbl p = snd $ runPP id ppDelete
+compDelete :: PPConfig -> TableName -> Exp SQL Bool -> (Text, [Param])
+compDelete cfg tbl p = snd $ runPP cfg ppDelete
   where
     ppDelete = do
       c' <- ppCol p
       pure $ Text.unwords ["DELETE FROM", fromTableName tbl, "WHERE", c']
-
--- | Pretty-print a type name.
-ppType :: Text -> PP Text
-ppType t = do
-  typeTr <- ppTypeTr <$> get
-  pure $ typeTr t
 
 -- | Pretty-print a literal as a named parameter and save the
 --   name-value binding in the environment.
@@ -208,6 +204,11 @@ ppCols :: [Exp SQL Bool] -> PP Text
 ppCols cs = do
   cs' <- mapM ppCol (reverse cs)
   pure $ "(" <> Text.intercalate ") AND (" cs' <> ")"
+
+ppType :: SqlTypeRep -> PP Text
+ppType t = do
+  c <- ppConfig <$> get
+  pure $ Cfg.ppType c t
 
 ppCol :: Exp SQL a -> PP Text
 ppCol (TblCol xs)    = error $ "compiler bug: ppCol saw TblCol: " ++ show xs

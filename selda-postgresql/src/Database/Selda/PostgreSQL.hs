@@ -93,8 +93,11 @@ pgBackend :: T.Text       -- ^ Unique database identifier. Preferably the
 pgBackend ident c = SeldaBackend
   { runStmt        = \q ps -> right <$> pgQueryRunner c False q ps
   , runStmtWithPK  = \q ps -> left <$> pgQueryRunner c True q ps
-  , customColType  = pgColType
-  , defaultKeyword = "DEFAULT"
+  , ppConfig       = defPPConfig
+    { ppType = pgColType defPPConfig
+    , ppAutoIncInsert = "DEFAULT"
+    , ppColAttrs = ppColAttrs defPPConfig . filter (/= AutoIncrement)
+    }
   , dbIdentifier   = ident
   }
   where
@@ -159,18 +162,11 @@ pgQueryRunner c return_lastid q ps = do
         Just val -> pure $ toSqlValue t val
         _        -> pure SqlNull
 
--- | Custom column types for postgres: auto-incrementing primary keys need to
---   be @BIGSERIAL@, and ints need to be @INT8@.
-pgColType :: T.Text -> [ColAttr] -> Maybe T.Text
-pgColType "INTEGER" attrs
-  | AutoIncrement `elem` attrs =
-    Just "BIGSERIAL PRIMARY KEY NOT NULL"
-  | otherwise =
-    Just $ T.unwords ("INT8" : map compileColAttr attrs)
-pgColType "DOUBLE" attrs =
-    Just $ T.unwords ("FLOAT8" : map compileColAttr attrs)
-pgColType "DATETIME" attrs =
-    Just $ T.unwords ("TIMESTAMP" : map compileColAttr attrs)
-pgColType _ _ =
-    Nothing
+-- | Custom column types for postgres.
+pgColType :: PPConfig -> SqlTypeRep -> T.Text
+pgColType _ TRowID    = "BIGSERIAL"
+pgColType _ TInt      = "INT8"
+pgColType _ TFloat    = "FLOAT8"
+pgColType _ TDateTime = "TIMESTAMP"
+pgColType cfg t       = ppType cfg t
 #endif

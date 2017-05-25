@@ -61,8 +61,8 @@ insert :: (MonadSelda m, Insert a) => Table a -> [a] -> m Int
 insert _ [] = do
   return 0
 insert t cs = do
-  kw <- defaultKeyword <$> seldaBackend
-  res <- uncurry exec $ compileInsert kw t cs
+  cfg <- ppConfig <$> seldaBackend
+  res <- uncurry exec $ compileInsert cfg t cs
   invalidateTable t
   return res
 
@@ -139,7 +139,7 @@ insertWithPK t cs = do
   if tableHasAutoPK t
     then do
       res <- liftIO $ do
-        uncurry (runStmtWithPK b) $ compileInsert (defaultKeyword b) t cs
+        uncurry (runStmtWithPK b) $ compileInsert (ppConfig b) t cs
       invalidateTable t
       return $ unsafeRowId res
     else do
@@ -154,8 +154,8 @@ update :: (MonadSelda m, Columns (Cols s a), Result (Cols s a))
        -> (Cols s a -> Cols s a)   -- ^ Update function.
        -> m Int
 update tbl check upd = do
-  tt <- typeTrans <$> seldaBackend
-  res <- uncurry exec $ compileUpdate tt tbl upd check
+  cfg <- ppConfig <$> seldaBackend
+  res <- uncurry exec $ compileUpdate cfg tbl upd check
   invalidateTable tbl
   return res
 
@@ -172,7 +172,8 @@ update_ tbl check upd = void $ update tbl check upd
 deleteFrom :: (MonadSelda m, Columns (Cols s a))
            => Table a -> (Cols s a -> Col s Bool) -> m Int
 deleteFrom tbl f = do
-  res <- uncurry exec $ compileDelete tbl f
+  cfg <- ppConfig <$> seldaBackend
+  res <- uncurry exec $ compileDelete cfg tbl f
   invalidateTable tbl
   return res
 
@@ -184,14 +185,14 @@ deleteFrom_ tbl f = void $ deleteFrom tbl f
 -- | Create a table from the given schema.
 createTable :: MonadSelda m => Table a -> m ()
 createTable tbl = do
-  cct <- customColType <$> seldaBackend
-  void . flip exec [] $ compileCreateTable cct Fail tbl
+  cfg <- ppConfig <$> seldaBackend
+  void . flip exec [] $ compileCreateTable cfg Fail tbl
 
 -- | Create a table from the given schema, unless it already exists.
 tryCreateTable :: MonadSelda m => Table a -> m ()
 tryCreateTable tbl = do
-  cct <- customColType <$> seldaBackend
-  void . flip exec [] $ compileCreateTable cct Ignore tbl
+  cfg <- ppConfig <$> seldaBackend
+  void . flip exec [] $ compileCreateTable cfg Ignore tbl
 
 -- | Drop the given table.
 dropTable :: MonadSelda m => Table a -> m ()
@@ -240,7 +241,7 @@ queryWith qr q = do
   backend <- seldaBackend
   let db = dbIdentifier backend
       cacheKey = (db, qs, ps)
-      (tables, qry@(qs, ps)) = compileWithTables (typeTrans backend) q
+      (tables, qry@(qs, ps)) = compileWithTables (ppConfig backend) q
   mres <- liftIO $ cached cacheKey
   case mres of
     Just res -> do
@@ -250,10 +251,6 @@ queryWith qr q = do
       let res' = mkResults (Proxy :: Proxy a) res
       liftIO $ cache tables cacheKey res'
       return res'
-
--- | Translate types for casts. Column attributes are ignored here.
-typeTrans :: SeldaBackend -> Text -> Text
-typeTrans backend t = maybe t id (customColType backend t [])
 
 -- | Generate the final result of a query from a list of untyped result rows.
 mkResults :: Result a => Proxy a -> [[SqlValue]] -> [Res a]

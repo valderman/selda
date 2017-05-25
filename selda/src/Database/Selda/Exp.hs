@@ -20,7 +20,7 @@ data Exp sql a where
   BinOp   :: !(BinOp a b) -> !(Exp sql a) -> !(Exp sql a) -> Exp sql b
   UnOp    :: !(UnOp a b) -> !(Exp sql a) -> Exp sql b
   Fun2    :: !Text -> !(Exp sql a) -> !(Exp sql b) -> Exp sql c
-  Cast    :: !Text -> !(Exp sql a) -> Exp sql b
+  Cast    :: !SqlTypeRep -> !(Exp sql a) -> Exp sql b
   AggrEx  :: !Text -> !(Exp sql a) -> Exp sql b
   InList  :: !(Exp sql a) -> ![Exp sql a] -> Exp sql Bool
   InQuery :: !(Exp sql a) -> !sql -> Exp sql Bool

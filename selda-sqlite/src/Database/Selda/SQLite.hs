@@ -33,8 +33,7 @@ sqliteBackend :: MVar () -> FilePath -> Database -> SeldaBackend
 sqliteBackend lock dbfile db = SeldaBackend
   { runStmt        = \q ps -> snd <$> sqliteQueryRunner lock db q ps
   , runStmtWithPK  = \q ps -> fst <$> sqliteQueryRunner lock db q ps
-  , customColType  = \_ _ -> Nothing
-  , defaultKeyword = "NULL"
+  , ppConfig       = defPPConfig
   , dbIdentifier   = pack dbfile
   }
 

@@ -1,7 +1,7 @@
 {-# LANGUAGE GADTs, OverloadedStrings, ScopedTypeVariables, FlexibleInstances #-}
 -- | Types representable in Selda's subset of SQL.
 module Database.Selda.SqlType
-  ( Lit (..), RowID, SqlValue (..), SqlType
+  ( Lit (..), RowID, SqlValue (..), SqlType, SqlTypeRep (..)
   , invalidRowId, isInvalidRowId, unsafeRowId
   , mkLit, sqlType, fromSql, defaultValue
   , compLit
@@ -27,10 +27,21 @@ sqlDateFormat = "%F"
 sqlTimeFormat :: String
 sqlTimeFormat = "%H:%M:%S%Q"
 
+-- | Representation of an SQL type.
+data SqlTypeRep
+  = TText
+  | TRowID
+  | TInt
+  | TFloat
+  | TBool
+  | TDateTime
+  | TDate
+  | TTime
+
 -- | Any datatype representable in (Selda's subset of) SQL.
 class Typeable a => SqlType a where
   mkLit        :: a -> Lit a
-  sqlType      :: Proxy a -> Text
+  sqlType      :: Proxy a -> SqlTypeRep
   fromSql      :: SqlValue -> a
   defaultValue :: Lit a
 
@@ -131,35 +142,35 @@ unsafeRowId = RowID
 
 instance SqlType RowID where
   mkLit (RowID n) = LCustom $ LInt n
-  sqlType _ = sqlType (Proxy :: Proxy Int)
+  sqlType _ = TRowID
   fromSql (SqlInt x) = RowID x
   fromSql v          = error $ "fromSql: RowID column with non-int value: " ++ show v
   defaultValue = mkLit invalidRowId
 
 instance SqlType Int where
   mkLit = LInt
-  sqlType _ = "INTEGER"
+  sqlType _ = TInt
   fromSql (SqlInt x) = x
   fromSql v          = error $ "fromSql: int column with non-int value: " ++ show v
   defaultValue = LInt 0
 
 instance SqlType Double where
   mkLit = LDouble
-  sqlType _ = "DOUBLE"
+  sqlType _ = TFloat
   fromSql (SqlFloat x) = x
   fromSql v            = error $ "fromSql: float column with non-float value: " ++ show v
   defaultValue = LDouble 0
 
 instance SqlType Text where
   mkLit = LText
-  sqlType _ = "TEXT"
+  sqlType _ = TText
   fromSql (SqlString x) = x
   fromSql v             = error $ "fromSql: text column with non-text value: " ++ show v
   defaultValue = LText ""
 
 instance SqlType Bool where
   mkLit = LBool
-  sqlType _ = "INT"
+  sqlType _ = TBool
   fromSql (SqlBool x) = x
   fromSql (SqlInt 0)  = False
   fromSql (SqlInt _)  = True
@@ -168,7 +179,7 @@ instance SqlType Bool where
 
 instance SqlType UTCTime where
   mkLit = LDateTime . pack . formatTime defaultTimeLocale sqlDateTimeFormat
-  sqlType _             = "DATETIME"
+  sqlType _             = TDateTime
   fromSql (SqlString s) =
     case parseTimeM True defaultTimeLocale sqlDateTimeFormat (unpack s) of
       Just t -> t
@@ -178,7 +189,7 @@ instance SqlType UTCTime where
 
 instance SqlType Day where
   mkLit = LDate . pack . formatTime defaultTimeLocale sqlDateFormat
-  sqlType _             = "DATE"
+  sqlType _             = TDate
   fromSql (SqlString s) =
     case parseTimeM True defaultTimeLocale sqlDateFormat (unpack s) of
       Just t -> t
@@ -188,7 +199,7 @@ instance SqlType Day where
 
 instance SqlType TimeOfDay where
   mkLit = LTime . pack . formatTime defaultTimeLocale sqlTimeFormat
-  sqlType _             = "TIME"
+  sqlType _             = TTime
   fromSql (SqlString s) =
     case parseTimeM True defaultTimeLocale sqlTimeFormat (unpack s) of
       Just t -> t
