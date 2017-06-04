@@ -109,6 +109,7 @@ updateNothing = do
   assEq "identity update did something weird" a b
 
 insertTime = do
+  tryDropTable times
   createTable times
   let Just t = parseTimeM True defaultTimeLocale sqlDateTimeFormat "2011-11-11 11:11:11.11111"
       Just d = parseTimeM True defaultTimeLocale sqlDateFormat "2011-11-11"

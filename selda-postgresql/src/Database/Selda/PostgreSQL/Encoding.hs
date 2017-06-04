@@ -4,13 +4,15 @@ module Database.Selda.PostgreSQL.Encoding
   ( toSqlValue, fromSqlValue
   , readInt
   ) where
+import Control.Exception (throw)
 import qualified Data.ByteString as BS
 import Data.ByteString.Builder
 import Data.ByteString.Char8 (unpack)
 import qualified Data.ByteString.Lazy as LBS
+import qualified Data.Text as Text
 import Data.Text.Encoding
 import Database.PostgreSQL.LibPQ (Oid (..), Format (..))
-import Database.Selda.Backend (Lit (..), SqlValue (..))
+import Database.Selda.Backend (SeldaError (..), Lit (..), SqlValue (..))
 import Unsafe.Coerce
 
 -- | OIDs for all types used by Selda.
@@ -29,7 +31,7 @@ fromSqlValue :: Lit a -> Maybe (Oid, BS.ByteString, Format)
 fromSqlValue (LBool b)     = Just (boolType, toBS $ if b then word8 1 else word8 0, Binary)
 fromSqlValue (LInt n)      = Just (intType, toBS $ int64BE (fromIntegral n), Binary)
 fromSqlValue (LDouble f)   = Just (doubleType, toBS $ int64BE (unsafeCoerce f), Binary)
-fromSqlValue (LText s)     = Just (textType, encodeUtf8 s, Text)
+fromSqlValue (LText s)     = Just (textType, encodeUtf8 $ Text.filter (/= '\0') s, Binary)
 fromSqlValue (LDateTime s) = Just (timestampType, encodeUtf8 s, Text)
 fromSqlValue (LTime s)     = Just (timeType, encodeUtf8 s, Text)
 fromSqlValue (LDate s)     = Just (dateType, encodeUtf8 s, Text)
