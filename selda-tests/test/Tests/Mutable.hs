@@ -1,9 +1,12 @@
-{-# LANGUAGE TypeOperators, OverloadedStrings, DeriveGeneric #-}
+{-# LANGUAGE TypeOperators, OverloadedStrings, DeriveGeneric, ScopedTypeVariables #-}
 -- | Tests that modify the database.
 module Tests.Mutable (mutableTests, invalidateCacheAfterTransaction) where
 import Control.Concurrent
 import Control.Monad.Catch
+import Data.ByteString (ByteString)
+import qualified Data.ByteString.Lazy as Lazy (ByteString)
 import Data.List hiding (groupBy, insert)
+import Data.Proxy
 import Data.Time
 import Database.Selda
 import Database.Selda.Backend
@@ -49,6 +52,8 @@ mutableTests freshEnv = test
   , "tryInsert doesn't fail"         ~: freshEnv tryInsertDoesntFail
   , "isIn list gives right result"   ~: freshEnv isInList
   , "isIn query gives right result"  ~: freshEnv isInQuery
+  , "strict blob column"             ~: freshEnv blobColumn
+  , "lazy blob column"               ~: freshEnv lazyBlobColumn
   ]
 
 tryDropNeverFails = teardown
@@ -525,3 +530,39 @@ isInQuery = do
            :*: "Zelda" `isIn` pName `from` select people
            )
   assEq "wrong result from isIn" [True :*: False] res
+
+blobColumn = do
+    tryDropTable blobs
+    createTable blobs
+    n <- insert blobs ["b1" :*: someBlob, "b2" :*: otherBlob]
+    assEq "wrong number of rows inserted" 2 n
+    [k :*: v] <- query $ do
+      (k :*: v) <- select blobs
+      restrict (k .== "b1")
+      return (k :*: v)
+    assEq "wrong key for blob" "b1" k
+    assEq "got wrong blob back" someBlob v
+    dropTable blobs
+  where
+    blobs :: Table (Text :*: ByteString)
+    blobs = table "blobs" $ required "key" :*: required "value"
+    someBlob = "\0\1\2\3hello!漢字"
+    otherBlob = "blah"
+
+lazyBlobColumn = do
+    tryDropTable blobs
+    createTable blobs
+    n <- insert blobs ["b1" :*: someBlob, "b2" :*: otherBlob]
+    assEq "wrong number of rows inserted" 2 n
+    [k :*: v] <- query $ do
+      (k :*: v) <- select blobs
+      restrict (k .== "b1")
+      return (k :*: v)
+    assEq "wrong key for blob" "b1" k
+    assEq "got wrong blob back" someBlob v
+    dropTable blobs
+  where
+    blobs :: Table (Text :*: Lazy.ByteString)
+    blobs = table "blobs" $ required "key" :*: required "value"
+    someBlob = "\0\1\2\3hello!漢字"
+    otherBlob = "blah"

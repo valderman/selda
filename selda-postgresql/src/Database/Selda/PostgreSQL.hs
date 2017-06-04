@@ -168,5 +168,6 @@ pgColType _ TRowID    = "BIGSERIAL"
 pgColType _ TInt      = "INT8"
 pgColType _ TFloat    = "FLOAT8"
 pgColType _ TDateTime = "TIMESTAMP"
+pgColType _ TBlob     = "BYTEA"
 pgColType cfg t       = ppType cfg t
 #endif

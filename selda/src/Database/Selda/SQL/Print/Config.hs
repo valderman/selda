@@ -41,6 +41,7 @@ defType TBool     = "INT"
 defType TDateTime = "DATETIME"
 defType TDate     = "DATE"
 defType TTime     = "TIME"
+defType TBlob     = "BLOB"
 
 -- | Default compilation for a column attribute.
 defColAttr :: ColAttr -> Text

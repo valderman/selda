@@ -14,7 +14,7 @@ import Database.Selda.Backend (Lit (..), SqlValue (..))
 import Unsafe.Coerce
 
 -- | OIDs for all types used by Selda.
-boolType, intType, textType, doubleType, dateType, timeType, timestampType :: Oid
+blobType, boolType, intType, textType, doubleType, dateType, timeType, timestampType :: Oid
 boolType      = Oid 16
 intType       = Oid 20
 textType      = Oid 25
@@ -22,6 +22,7 @@ doubleType    = Oid 701
 dateType      = Oid 1082
 timeType      = Oid 1083
 timestampType = Oid 1114
+blobType      = Oid 17
 
 -- | Convert a parameter into an postgres parameter triple.
 fromSqlValue :: Lit a -> Maybe (Oid, BS.ByteString, Format)
@@ -32,6 +33,7 @@ fromSqlValue (LText s)     = Just (textType, encodeUtf8 s, Text)
 fromSqlValue (LDateTime s) = Just (timestampType, encodeUtf8 s, Text)
 fromSqlValue (LTime s)     = Just (timeType, encodeUtf8 s, Text)
 fromSqlValue (LDate s)     = Just (dateType, encodeUtf8 s, Text)
+fromSqlValue (LBlob b)     = Just (blobType, b, Binary)
 fromSqlValue (LNull)       = Nothing
 fromSqlValue (LJust x)     = fromSqlValue x
 fromSqlValue (LCustom l)   = fromSqlValue l
@@ -42,9 +44,25 @@ toSqlValue t val
   | t == boolType    = SqlBool $ readBool val
   | t == intType     = SqlInt $ readInt val
   | t == doubleType  = SqlFloat $ read (unpack val)
+  | t == blobType    = SqlBlob $ pgDecode val
   | t `elem` textish = SqlString (decodeUtf8 val)
   | otherwise        = error $ "BUG: result with unknown type oid: " ++ show t
   where
+    -- PostgreSQL hex strings are of the format \xdeadbeefdeadbeefdeadbeef...
+    pgDecode s
+      | BS.index s 0 == 92 && BS.index s 1 == 120 =
+        BS.pack $ go $ BS.drop 2 s
+      | otherwise =
+        error $ "bad blob string from postgres: " ++ show s
+      where
+        hex n s =
+          case BS.index s n of
+            c | c >= 97   -> c - 87 -- c >= 'a'
+              | c >= 65   -> c - 55 -- c >= 'A'
+              | otherwise -> c - 48 -- c is numeric
+        go s
+          | BS.length s >= 2 = (16*hex 0 s + (hex 1 s)) : go (BS.drop 2 s)
+          | otherwise        = []
     textish = [textType, timestampType, timeType, dateType]
     readBool "f"     = False
     readBool "0"     = False

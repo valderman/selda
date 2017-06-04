@@ -7,6 +7,8 @@ module Database.Selda.SqlType
   , compLit
   , sqlDateTimeFormat, sqlDateFormat, sqlTimeFormat
   ) where
+import Data.ByteString (ByteString, empty)
+import qualified Data.ByteString.Lazy as BSL
 import Data.Proxy
 import Data.Text (Text, pack, unpack)
 import Data.Time
@@ -37,6 +39,8 @@ data SqlTypeRep
   | TDateTime
   | TDate
   | TTime
+  | TBlob
+    deriving (Show, Eq, Ord)
 
 -- | Any datatype representable in (Selda's subset of) SQL.
 class Typeable a => SqlType a where
@@ -47,16 +51,17 @@ class Typeable a => SqlType a where
 
 -- | An SQL literal.
 data Lit a where
-  LText     :: !Text    -> Lit Text
-  LInt      :: !Int     -> Lit Int
-  LDouble   :: !Double  -> Lit Double
-  LBool     :: !Bool    -> Lit Bool
-  LDateTime :: !Text    -> Lit UTCTime
-  LDate     :: !Text    -> Lit Day
-  LTime     :: !Text    -> Lit TimeOfDay
-  LJust     :: !(Lit a) -> Lit (Maybe a)
+  LText     :: !Text       -> Lit Text
+  LInt      :: !Int        -> Lit Int
+  LDouble   :: !Double     -> Lit Double
+  LBool     :: !Bool       -> Lit Bool
+  LDateTime :: !Text       -> Lit UTCTime
+  LDate     :: !Text       -> Lit Day
+  LTime     :: !Text       -> Lit TimeOfDay
+  LJust     :: !(Lit a)    -> Lit (Maybe a)
+  LBlob     :: !ByteString -> Lit ByteString
   LNull     :: Lit (Maybe a)
-  LCustom   :: !(Lit a) -> Lit b
+  LCustom   :: Lit a -> Lit b
 
 instance Eq (Lit a) where
   a == b = compLit a b == EQ
@@ -92,10 +97,11 @@ compLit a             b              = litConTag a `compare` litConTag b
 
 -- | Some value that is representable in SQL.
 data SqlValue where
-  SqlInt    :: !Int    -> SqlValue
-  SqlFloat  :: !Double -> SqlValue
-  SqlString :: !Text   -> SqlValue
-  SqlBool   :: !Bool   -> SqlValue
+  SqlInt    :: !Int        -> SqlValue
+  SqlFloat  :: !Double     -> SqlValue
+  SqlString :: !Text       -> SqlValue
+  SqlBool   :: !Bool       -> SqlValue
+  SqlBlob   :: !ByteString -> SqlValue
   SqlNull   :: SqlValue
 
 instance Show SqlValue where
@@ -103,6 +109,7 @@ instance Show SqlValue where
   show (SqlFloat f)  = "SqlFloat " ++ show f
   show (SqlString s) = "SqlString " ++ show s
   show (SqlBool b)   = "SqlBool " ++ show b
+  show (SqlBlob b)   = "SqlBlob " ++ show b
   show (SqlNull)     = "SqlNull"
 
 instance Show (Lit a) where
@@ -113,6 +120,7 @@ instance Show (Lit a) where
   show (LDateTime s) = show s
   show (LDate s)     = show s
   show (LTime s)     = show s
+  show (LBlob b)     = show b
   show (LJust x)     = "Just " ++ show x
   show (LNull)       = "Nothing"
   show (LCustom l)   = show l
@@ -206,6 +214,20 @@ instance SqlType TimeOfDay where
       _      -> error $ "fromSql: bad time string: " ++ unpack s
   fromSql v             = error $ "fromSql: time column with non-time value: " ++ show v
   defaultValue = LTime "00:00:00"
+
+instance SqlType ByteString where
+  mkLit = LBlob
+  sqlType _ = TBlob
+  fromSql (SqlBlob x) = x
+  fromSql v           = error $ "fromSql: blob column with non-blob value: " ++ show v
+  defaultValue = LBlob empty
+
+instance SqlType BSL.ByteString where
+  mkLit = LCustom . LBlob . BSL.toStrict
+  sqlType _ = TBlob
+  fromSql (SqlBlob x) = BSL.fromStrict x
+  fromSql v           = error $ "fromSql: blob column with non-blob value: " ++ show v
+  defaultValue = LCustom $ LBlob empty
 
 instance SqlType a => SqlType (Maybe a) where
   mkLit (Just x) = LJust $ mkLit x

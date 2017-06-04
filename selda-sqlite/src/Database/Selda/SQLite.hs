@@ -73,6 +73,7 @@ toSqlData (LDateTime s) = SQLText s
 toSqlData (LDate s)     = SQLText s
 toSqlData (LTime s)     = SQLText s
 toSqlData (LBool b)     = SQLInteger $ if b then 1 else 0
+toSqlData (LBlob b)     = SQLBlob b
 toSqlData (LNull)       = SQLNull
 toSqlData (LJust x)     = toSqlData x
 toSqlData (LCustom l)   = toSqlData l
@@ -81,6 +82,6 @@ fromSqlData :: SQLData -> SqlValue
 fromSqlData (SQLInteger i) = SqlInt $ fromIntegral i
 fromSqlData (SQLFloat f)   = SqlFloat f
 fromSqlData (SQLText s)    = SqlString s
-fromSqlData (SQLBlob _)    = error "BUG: SQLite returned BLOB"
+fromSqlData (SQLBlob b)    = SqlBlob b
 fromSqlData SQLNull        = SqlNull
 #endif

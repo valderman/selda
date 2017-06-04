@@ -9,8 +9,9 @@ import System.Process
 changeLog :: ChangeLog
 changeLog =
   [ Version "0.1.8.0" ""
-    "Better backend configuration."
+    "Blobs and better backend configuration."
     [ "Move SQL pretty-printing config into a single type."
+    , "Support for binary blobs."
     ]
   , Version "0.1.7.0" "2017-05-17"
     "More upserts and abstracting over auto-incrementing primary keys."
