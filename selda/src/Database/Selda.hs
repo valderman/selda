@@ -79,7 +79,7 @@ module Database.Selda
   , inner, suchThat
     -- * Expressions over columns
   , Set (..)
-  , RowID, invalidRowId, isInvalidRowId
+  , RowID, invalidRowId, isInvalidRowId, fromRowId
   , (.==), (./=), (.>), (.<), (.>=), (.<=), like
   , (.&&), (.||), not_
   , literal, int, float, text, true, false, null_

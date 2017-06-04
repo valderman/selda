@@ -2,7 +2,7 @@
 -- | Types representable in Selda's subset of SQL.
 module Database.Selda.SqlType
   ( Lit (..), RowID, SqlValue (..), SqlType, SqlTypeRep (..)
-  , invalidRowId, isInvalidRowId, unsafeRowId
+  , invalidRowId, isInvalidRowId, unsafeRowId, fromRowId
   , mkLit, sqlType, fromSql, defaultValue
   , compLit
   , sqlDateTimeFormat, sqlDateFormat, sqlTimeFormat
@@ -147,6 +147,10 @@ isInvalidRowId (RowID n) = n < 0
 --   Do not use unless you are absolutely sure what you're doing.
 unsafeRowId :: Int -> RowID
 unsafeRowId = RowID
+
+-- | Inspect a row identifier.
+fromRowId :: RowID -> Int
+fromRowId (RowID n) = n
 
 instance SqlType RowID where
   mkLit (RowID n) = LCustom $ LInt n
