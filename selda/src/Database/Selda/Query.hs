@@ -12,6 +12,7 @@ import Database.Selda.SQL
 import Database.Selda.Table
 import Database.Selda.Transform
 import Control.Monad.State.Strict
+import Unsafe.Coerce
 
 -- | Query the given table. Result is returned as an inductive tuple, i.e.
 --   @first :*: second :*: third <- query tableOfThree@.
@@ -178,7 +179,7 @@ groupBy (C c) = Query $ do
 
 -- | Drop the first @m@ rows, then get at most @n@ of the remaining rows from the
 --   given subquery.
-limit :: Int -> Int -> Query (Inner s) a -> Query s a
+limit :: Int -> Int -> Query (Inner s) a -> Query s (OuterCols a)
 limit from to q = Query $ do
   (lim_st, res) <- isolate q
   st <- get
@@ -188,7 +189,8 @@ limit from to q = Query $ do
         ss ->
           SQL (allCols ss) (Product ss) [] [] [] (Just (from, to))
   put $ st {sources = sql : sources st}
-  return res
+  -- TODO: replace with safe coercion
+  return $ unsafeCoerce res
 
 -- | Sort the result rows in ascending or descending order on the given row.
 order :: Col s a -> Order -> Query s ()
