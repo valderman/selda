@@ -128,7 +128,7 @@ instance Show (Lit a) where
 -- | A row identifier for some table.
 --   This is the type of auto-incrementing primary keys.
 newtype RowID = RowID Int
-  deriving (Eq, Typeable)
+  deriving (Eq, Ord, Typeable)
 instance Show RowID where
   show (RowID n) = show n
 
