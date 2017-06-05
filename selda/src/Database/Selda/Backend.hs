@@ -1,10 +1,11 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
--- | API for building Selda backends.
+-- | API for building Selda backends and adding support for more types.
 module Database.Selda.Backend
   ( MonadIO (..)
   , QueryRunner, SeldaBackend (..), MonadSelda (..), SeldaT (..), SeldaM
   , SeldaError (..)
-  , Param (..), Lit (..), SqlValue (..), ColAttr (..), SqlTypeRep (..)
+  , Param (..), Lit (..), ColAttr (..)
+  , SqlType (..), SqlValue (..), SqlTypeRep (..)
   , PPConfig (..), defPPConfig
   , sqlDateTimeFormat, sqlDateFormat, sqlTimeFormat
   , runSeldaT

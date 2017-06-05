@@ -69,7 +69,7 @@ module Database.Selda
   , query, transaction, setLocalCache
     -- * Constructing queries
   , Selector, (!), Assignment(..), with
-  , SqlType
+  , SqlType (..)
   , Cols, Columns
   , Order (..)
   , (:*:)(..)
