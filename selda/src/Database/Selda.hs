@@ -87,7 +87,7 @@ module Database.Selda
     -- * Converting between column types
   , round_, just, fromBool, fromInt, toString
     -- * Inner queries
-  , Aggr, Aggregates, OuterCols, LeftCols, Inner, MinMax
+  , Aggr, Aggregates, OuterCols, LeftCols, Inner, SqlOrd
   , innerJoin, leftJoin
   , aggregate, groupBy
   , count, avg, sum_, max_, min_
@@ -142,13 +142,13 @@ import Data.Typeable (eqT, (:~:)(..))
 import Unsafe.Coerce
 
 -- | Any column type that can be used with the 'min_' and 'max_' functions.
-class SqlType a => MinMax a
-instance {-# OVERLAPPABLE #-} (SqlType a, Num a) => MinMax a
-instance MinMax Text
-instance MinMax Day
-instance MinMax UTCTime
-instance MinMax TimeOfDay
-instance MinMax a => MinMax (Maybe a)
+class SqlType a => SqlOrd a
+instance {-# OVERLAPPABLE #-} (SqlType a, Num a) => SqlOrd a
+instance SqlOrd Text
+instance SqlOrd Day
+instance SqlOrd UTCTime
+instance SqlOrd TimeOfDay
+instance SqlOrd a => SqlOrd (Maybe a)
 
 -- | Convenient shorthand for @fmap (! sel) q@.
 --   The following two queries are quivalent:
@@ -191,7 +191,8 @@ suchThat q p = inner $ do
   return x
 infixr 7 `suchThat`
 
-(.==), (./=), (.>), (.<), (.>=), (.<=) :: SqlType a => Col s a -> Col s a -> Col s Bool
+(.==), (./=) :: SqlType a => Col s a -> Col s a -> Col s Bool
+(.>), (.<), (.>=), (.<=) :: SqlOrd a => Col s a -> Col s a -> Col s Bool
 (.==) = liftC2 $ BinOp Eq
 (./=) = liftC2 $ BinOp Neq
 (.>)  = liftC2 $ BinOp Gt
@@ -294,11 +295,11 @@ avg :: (SqlType a, Num a) => Col s a -> Aggr s a
 avg = aggr "AVG"
 
 -- | The greatest value in the given column. Texts are compared lexically.
-max_ :: MinMax a => Col s a -> Aggr s a
+max_ :: SqlOrd a => Col s a -> Aggr s a
 max_ = aggr "MAX"
 
 -- | The smallest value in the given column. Texts are compared lexically.
-min_  :: MinMax a => Col s a -> Aggr s a
+min_  :: SqlOrd a => Col s a -> Aggr s a
 min_ = aggr "MIN"
 
 -- | Sum all values in the given column.
