@@ -37,7 +37,6 @@ import Database.Selda hiding (from)
 import Database.Selda.Table
 import Database.Selda.Types
 import Database.Selda.Selectors
-import Database.Selda.SqlType
 
 -- | Any type which has a corresponding relation.
 --   To make a @Relational@ instance for some type, simply derive 'Generic'.

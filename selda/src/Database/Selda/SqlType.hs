@@ -79,8 +79,9 @@ litConTag (LDateTime{}) = 4
 litConTag (LDate{})     = 5
 litConTag (LTime{})     = 6
 litConTag (LJust{})     = 7
-litConTag (LNull)       = 8
-litConTag (LCustom{})   = 9
+litConTag (LBlob{})     = 8
+litConTag (LNull)       = 9
+litConTag (LCustom{})   = 10
 
 -- | Compare two literals of different type for equality.
 compLit :: Lit a -> Lit b -> Ordering
@@ -91,6 +92,7 @@ compLit (LBool x)     (LBool x')     = x `compare` x'
 compLit (LDateTime x) (LDateTime x') = x `compare` x'
 compLit (LDate x)     (LDate x')     = x `compare` x'
 compLit (LTime x)     (LTime x')     = x `compare` x'
+compLit (LBlob x)     (LBlob x')     = x `compare` x'
 compLit (LJust x)     (LJust x')     = x `compLit` x'
 compLit (LCustom x)   (LCustom x')   = x `compLit` x'
 compLit a             b              = litConTag a `compare` litConTag b

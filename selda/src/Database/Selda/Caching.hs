@@ -47,6 +47,7 @@ instance Hashable (Lit a) where
   hashWithSalt s (LDateTime x) = hashWithSalt s x
   hashWithSalt s (LDate x)     = hashWithSalt s x
   hashWithSalt s (LTime x)     = hashWithSalt s x
+  hashWithSalt s (LBlob x)     = hashWithSalt s x
   hashWithSalt s (LJust x)     = hashWithSalt s x
   hashWithSalt _ (LNull)       = 0
   hashWithSalt s (LCustom l)   = hashWithSalt s l
