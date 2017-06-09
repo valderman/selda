@@ -33,7 +33,7 @@ withSQLite file m = do
         liftIO $ do
           stmts <- allStmts conn
           flip mapM_ stmts $ \(_, stm) -> do
-            finalize $ fromDyn (stmtHandle stm) (error "impossible")
+            finalize $ fromDyn stm (error "BUG: non-statement SQLite statement")
           close db
 
 sqliteBackend :: MVar () -> FilePath -> Database -> SeldaBackend

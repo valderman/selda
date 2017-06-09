@@ -49,6 +49,7 @@ library
     Database.Selda.Generic
     Database.Selda.Unsafe
   other-modules:
+    Database.Selda.Backend.Internal
     Database.Selda.Caching
     Database.Selda.Column
     Database.Selda.Compile

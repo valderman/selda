@@ -1,13 +1,15 @@
 {-# LANGUAGE TypeFamilies, FlexibleInstances, ScopedTypeVariables #-}
 {-# LANGUAGE MultiParamTypeClasses, FlexibleContexts #-}
+-- | Building and executing prepared statements.
 module Database.Selda.Prepared (Preparable, Prepare, prepared) where
-import Database.Selda.Backend
+import Database.Selda.Backend.Internal
 import Database.Selda.Column
 import Database.Selda.Compile
 import Database.Selda.Query.Type
 import Database.Selda.SQL (param, paramType)
 import Database.Selda.Types (TableName)
 import Control.Exception
+import Control.Monad.IO.Class
 import qualified Data.HashMap.Strict as M
 import Data.IORef
 import Data.Proxy

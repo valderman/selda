@@ -10,7 +10,7 @@ module Database.Selda.Frontend
   , dropTable, tryDropTable
   , transaction, setLocalCache
   ) where
-import Database.Selda.Backend
+import Database.Selda.Backend.Internal
 import Database.Selda.Caching
 import Database.Selda.Column
 import Database.Selda.Compile
@@ -23,6 +23,7 @@ import Data.Proxy
 import Data.Text (Text)
 import Control.Monad
 import Control.Monad.Catch
+import Control.Monad.IO.Class
 
 -- | Run a query within a Selda monad. In practice, this is often a 'SeldaT'
 --   transformer on top of some other monad.

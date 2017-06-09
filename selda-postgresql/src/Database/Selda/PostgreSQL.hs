@@ -12,6 +12,7 @@ import qualified Data.Text as T
 import Data.Text.Encoding
 import Database.Selda.Backend
 import Control.Monad.Catch
+import Control.Monad.IO.Class
 
 #ifndef __HASTE__
 import Database.Selda.PostgreSQL.Encoding
