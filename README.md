@@ -634,8 +634,48 @@ getPeopleOfAge yrs = do
   return (map fromRel ps)
 ```
 
+
+Prepared statements
+-------------------
+
+While Selda makes use of prepared statements internally to ensure that any and
+all input is safely escaped, it does not reuse those statements by default.
+Every query is recompiler and replanned each time it is executed.
+To improve the performance of your code, you should make use of the `prepared`
+function, to mark performance-critical queries as reusable.
+
+The `prepared` function converts any function `f` in the `Query` monad into an
+equivalent function `f'` in some `MonadSelda`, provided that all of `f`'s
+arguments are column expressions.
+When `f'` is called for the first time during a connection to a database, it
+automatically gets compiled, prepared and cached before being executed.
+Any subsequent calls to `f'` from the same connection will reuse the prepared
+version.
+
+Note that since most database engines don't allow prepared statements to persist
+across connections, a previously cached statement will get prepared once more if
+called from another connection.
+
+As an example, we modify the `grownupsIn` function we saw earlier to use prepared
+statements.
+
+```
+preparedGrownupsIn :: Text -> SeldaM [Text]
+preparedGrownupsIn = prepared $ \city -> do
+  (name :*: age :*: _) <- select people
+  restrict (age .> 20)
+  (name' :*: home) <- select addresses
+  restrict (home .== city .&& name .== name')
+  return name
+```
+
+Note that the type of the `city` argument is `Col s Text` within the query, but
+when *calling* `preparedGrownupsIn`, we instead pass in a value of type `Text`;
+for convenience, `prepared` automatically converts all arguments to
+prepared functions into their equivalent column types.
+
 And with that, we conclude this tutorial. Hopefully it has been enough to get
-you comfortable started using Selda.
+you comfortably started using Selda.
 For a more detailed API reference, please see Selda's
 [Haddock documentation](http://hackage.haskell.org/package/selda).
 
