@@ -1,7 +1,7 @@
 {-# LANGUAGE GADTs, BangPatterns, OverloadedStrings #-}
 -- | Encoding/decoding for PostgreSQL.
 module Database.Selda.PostgreSQL.Encoding
-  ( toSqlValue, fromSqlValue
+  ( toSqlValue, fromSqlValue, fromSqlType
   , readInt
   ) where
 import Control.Exception (throw)
@@ -12,7 +12,7 @@ import qualified Data.ByteString.Lazy as LBS
 import qualified Data.Text as Text
 import Data.Text.Encoding
 import Database.PostgreSQL.LibPQ (Oid (..), Format (..))
-import Database.Selda.Backend (SeldaError (..), Lit (..), SqlValue (..))
+import Database.Selda.Backend
 import Unsafe.Coerce
 
 -- | OIDs for all types used by Selda.
@@ -39,6 +39,18 @@ fromSqlValue (LBlob b)     = Just (blobType, b, Binary)
 fromSqlValue (LNull)       = Nothing
 fromSqlValue (LJust x)     = fromSqlValue x
 fromSqlValue (LCustom l)   = fromSqlValue l
+
+-- | Get the corresponding OID for an SQL type representation.
+fromSqlType :: SqlTypeRep -> Oid
+fromSqlType TBool     = boolType
+fromSqlType TInt      = intType
+fromSqlType TFloat    = doubleType
+fromSqlType TText     = textType
+fromSqlType TDateTime = timestampType
+fromSqlType TDate     = dateType
+fromSqlType TTime     = timeType
+fromSqlType TBlob     = blobType
+fromSqlType TRowID    = intType
 
 -- | Convert the given postgres return value and type to an @SqlValue@.
 toSqlValue :: Oid -> BS.ByteString -> SqlValue

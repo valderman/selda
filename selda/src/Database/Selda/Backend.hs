@@ -2,13 +2,17 @@
 -- | API for building Selda backends and adding support for more types.
 module Database.Selda.Backend
   ( MonadIO (..)
-  , QueryRunner, SeldaBackend (..), MonadSelda (..), SeldaT (..), SeldaM
+  , StmtID
+  , QueryRunner, SeldaBackend (..), SeldaConnection (..), SeldaStmt (..)
+  , MonadSelda (..), SeldaT (..), SeldaM
   , SeldaError (..)
   , Param (..), Lit (..), ColAttr (..)
   , SqlType (..), SqlValue (..), SqlTypeRep (..)
   , PPConfig (..), defPPConfig
   , sqlDateTimeFormat, sqlDateFormat, sqlTimeFormat
-  , runSeldaT
+  , freshStmtId
+  , newConnection, allStmts
+  , runSeldaT, seldaBackend
   ) where
 import Database.Selda.Caching (invalidate)
 import Database.Selda.SQL (Param (..))
@@ -20,8 +24,12 @@ import Control.Exception (throwIO)
 import Control.Monad.Catch
 import Control.Monad.IO.Class
 import Control.Monad.State
+import Data.Dynamic
+import Data.Hashable
+import qualified Data.HashMap.Strict as M
+import Data.IORef
 import Data.Text (Text)
-import Data.Typeable
+import System.IO.Unsafe (unsafePerformIO)
 
 -- | Thrown by any function in 'SeldaT' if an error occurs.
 data SeldaError
@@ -31,19 +39,73 @@ data SeldaError
 
 instance Exception SeldaError
 
+-- | A prepared statement identifier. Guaranteed to be unique per application.
+newtype StmtID = StmtID Int
+  deriving (Show, Eq, Ord, Hashable)
+
+-- | A connection identifier. Guaranteed to be unique per application.
+newtype ConnID = ConnID Int
+  deriving (Show, Eq, Ord)
+
+{-# NOINLINE nextStmtId #-}
+nextStmtId :: IORef Int
+nextStmtId = unsafePerformIO $ newIORef 1
+
+-- | Generate a fresh statement identifier, guaranteed to be unique per process.
+freshStmtId :: MonadIO m => m StmtID
+freshStmtId = liftIO $ atomicModifyIORef' nextStmtId $ \n -> (n+1, StmtID n)
+
 -- | A function which executes a query and gives back a list of extensible
 --   tuples; one tuple per result row, and one tuple element per column.
 type QueryRunner a = Text -> [Param] -> IO a
 
+-- | A prepared statement.
+data SeldaStmt = SeldaStmt
+ { -- | Backend-specific handle to the prepared statement.
+   stmtHandle :: !Dynamic
+
+   -- | All parameters to be passed to the prepared statement.
+   --   Parameters that are unique to each invocation are specified as indices
+   --   starting at 0.
+   --   Backends implementing @runPrepared@ should probably ignore this field.
+ , stmtParams :: ![Either Int Param]
+   
+   -- | All tables touched by the statement.
+ , stmtTables :: ![TableName]
+ }
+
+data SeldaConnection = SeldaConnection
+  { -- | The backend used by the current connection.
+    connBackend :: !SeldaBackend
+
+    -- | All statements prepared for this connection.
+  , connStmts :: !(IORef (M.HashMap StmtID SeldaStmt))
+  }
+
+-- | Create a new Selda connection for the given backend.
+newConnection :: MonadIO m => SeldaBackend -> m SeldaConnection
+newConnection back = SeldaConnection back <$> liftIO (newIORef M.empty)
+
+-- | Get all statements and their corresponding identifiers for the current
+--   connection.
+allStmts :: SeldaConnection -> IO [(StmtID, SeldaStmt)]
+allStmts = fmap M.toList . readIORef . connStmts
+
 -- | A collection of functions making up a Selda backend.
 data SeldaBackend = SeldaBackend
   { -- | Execute an SQL statement.
-    runStmt       :: QueryRunner (Int, [[SqlValue]])
+    runStmt :: Text -> [Param] -> IO (Int, [[SqlValue]])
 
     -- | Execute an SQL statement and return the last inserted primary key,
     --   where the primary key is auto-incrementing.
     --   Backends must take special care to make this thread-safe.
-  , runStmtWithPK :: QueryRunner Int
+  , runStmtWithPK :: Text -> [Param] -> IO Int
+
+    -- | Prepare a statement using the given statement identifier.
+  , prepareStmt :: StmtID -> [SqlTypeRep] -> Text -> IO Dynamic
+
+    -- | Execute a prepared statement.
+  , runPrepared :: Dynamic -> [Param] -> IO (Int, [[SqlValue]])
 
     -- | SQL pretty-printer configuration.
   , ppConfig :: PPConfig
@@ -51,12 +113,12 @@ data SeldaBackend = SeldaBackend
     -- | A string uniquely identifying the database used by this invocation
     --   of the backend. This could be, for instance, a PostgreSQL connection
     --   string or the absolute path to an SQLite file.
-  , dbIdentifier   :: Text
+  , dbIdentifier :: Text
   }
 
 data SeldaState = SeldaState
-  { -- | Backend in use by the current computation.
-    stBackend :: !SeldaBackend
+  { -- | Connection in use by the current computation.
+    stConnection :: !SeldaConnection
 
     -- | Tables modified by the current transaction.
     --   Invariant: always @Just xs@ during a transaction, and always
@@ -66,8 +128,8 @@ data SeldaState = SeldaState
 
 -- | Some monad with Selda SQL capabilitites.
 class MonadIO m => MonadSelda m where
-  -- | Get the backend in use by the computation.
-  seldaBackend :: m SeldaBackend
+  -- | Get the connection in use by the computation.
+  seldaConnection :: m SeldaConnection
 
   -- | Invalidate the given table as soon as the current transaction finishes.
   --   Invalidate the table immediately if no transaction is ongoing.
@@ -85,6 +147,10 @@ class MonadIO m => MonadSelda m where
                          --   @False@ if it was rolled back.
                  -> m ()
 
+-- | Get the backend in use by the computation.
+seldaBackend :: MonadSelda m => m SeldaBackend
+seldaBackend = connBackend <$> seldaConnection
+
 -- | Monad transformer adding Selda SQL capabilities.
 newtype SeldaT m a = S {unS :: StateT SeldaState m a}
   deriving ( Functor, Applicative, Monad, MonadIO
@@ -92,7 +158,7 @@ newtype SeldaT m a = S {unS :: StateT SeldaState m a}
            )
 
 instance MonadIO m => MonadSelda (SeldaT m) where
-  seldaBackend = S $ fmap stBackend get
+  seldaConnection = S $ fmap stConnection get
 
   invalidateTable tbl = S $ do
     st <- get
@@ -118,5 +184,5 @@ type SeldaM = SeldaT IO
 
 -- | Run a Selda transformer. Backends should use this to implement their
 --   @withX@ functions.
-runSeldaT :: MonadIO m => SeldaT m a -> SeldaBackend -> m a
-runSeldaT m b = fst <$> runStateT (unS m) (SeldaState b Nothing)
+runSeldaT :: MonadIO m => SeldaT m a -> SeldaConnection -> m a
+runSeldaT m c = fst <$> runStateT (unS m) (SeldaState c Nothing)

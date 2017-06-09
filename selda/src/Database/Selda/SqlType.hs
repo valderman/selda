@@ -3,7 +3,7 @@
 module Database.Selda.SqlType
   ( Lit (..), RowID, SqlValue (..), SqlType, SqlTypeRep (..)
   , invalidRowId, isInvalidRowId, unsafeRowId, fromRowId
-  , mkLit, sqlType, fromSql, defaultValue
+  , mkLit, sqlType, litType, fromSql, defaultValue
   , compLit
   , sqlDateTimeFormat, sqlDateFormat, sqlTimeFormat
   ) where
@@ -58,10 +58,27 @@ data Lit a where
   LDateTime :: !Text       -> Lit UTCTime
   LDate     :: !Text       -> Lit Day
   LTime     :: !Text       -> Lit TimeOfDay
-  LJust     :: !(Lit a)    -> Lit (Maybe a)
+  LJust     :: SqlType a => !(Lit a)    -> Lit (Maybe a)
   LBlob     :: !ByteString -> Lit ByteString
-  LNull     :: Lit (Maybe a)
+  LNull     :: SqlType a => Lit (Maybe a)
   LCustom   :: Lit a -> Lit b
+
+-- | The SQL type representation for the given literal.
+litType :: Lit a -> SqlTypeRep
+litType (LText{})     = TText
+litType (LInt{})      = TInt
+litType (LDouble{})   = TFloat
+litType (LBool{})     = TBool
+litType (LDateTime{}) = TDateTime
+litType (LDate{})     = TDate
+litType (LTime{})     = TTime
+litType (LJust x)     = litType x
+litType (LBlob{})     = TBlob
+litType (x@LNull)     = sqlType (proxyFor x)
+  where
+    proxyFor :: Lit (Maybe a) -> Proxy a
+    proxyFor _ = Proxy
+litType (LCustom x)   = litType x
 
 instance Eq (Lit a) where
   a == b = compLit a b == EQ

@@ -35,6 +35,10 @@ queryTests run = test
   , "rounding doubles to ints" ~: run roundToInt
   , "serializing doubles" ~: run serializeDouble
   , "such that works" ~: run testSuchThat
+  , "prepared without args" ~: run preparedNoArgs
+  , "prepared with args" ~: run preparedManyArgs
+  , "prepared interleaved" ~: run preparedInterleaved
+  , "interleaved with different results" ~: run preparedDifferentResults
   , "teardown succeeds" ~: run teardown
   ]
 
@@ -262,3 +266,66 @@ testSuchThat = do
     n2 <- (pName `from` select people) `suchThat` (.== "Velvet")
     return (n1 :*: n2)
   assEq "got wrong result" ["Link" :*: "Velvet"] res
+
+{-# NOINLINE allShortNames #-}
+allShortNames :: SeldaM [Text]
+allShortNames = prepared $ do
+  p <- select people
+  restrict (length_ (p ! pName) .<= 4)
+  order (p ! pName) ascending
+  return (p ! pName)
+
+preparedNoArgs = do
+    res1 <- allShortNames
+    res2 <- allShortNames
+    res3 <- allShortNames
+    assEq "got wrong result" res res1
+    ass "subsequent calls gave different results" (all (== res1) [res2, res3])
+  where
+    res = ["Link", "Miyu"]
+
+{-# NOINLINE allNamesLike #-}
+-- Extra restricts to force the presence of a few non-argument parameters.
+allNamesLike :: Int -> Text -> SeldaM [Text]
+allNamesLike = prepared $ \len s -> do
+  p <- select people
+  restrict (length_ (p ! pName) .> 0)
+  restrict (p ! pName `like` s)
+  restrict (length_ (p ! pName) .> 1)
+  restrict (length_ (p ! pName) .<= len)
+  restrict (length_ (p ! pName) .<= 100)
+  restrict (length_ (p ! pName) .<= 200)
+  order (p ! pName) ascending
+  return (p ! pName)
+
+preparedManyArgs = do
+    res1 <- allNamesLike 4 "%y%"
+    res2 <- allNamesLike 5 "%y%"
+    res3 <- allNamesLike 6 "%y%"
+    assEq "got wrong result" res res1
+    ass "subsequent calls gave different results" (all (== res1) [res2, res3])
+  where
+    res = ["Miyu"]
+
+preparedInterleaved = do
+    asn1 <- allShortNames
+    anl1 <- allNamesLike 4 "%y%"
+    asn2 <- allShortNames
+    anl2 <- allNamesLike 5 "%y%"
+    asn3 <- allShortNames
+    anl3 <- allNamesLike 6 "%y%"
+    assEq "wrong result from allShortNames" asnres asn1
+    assEq "wrong result from allNamesLike" anlres anl1
+    ass "subsequent allShortNames calls gave different results"
+        (all (==asn1) [asn2, asn3])
+    ass "subsequent allNamesLike calls gave different results"
+        (all (==anl1) [anl2, anl3])
+  where
+    asnres = ["Link", "Miyu"]
+    anlres = ["Miyu"]
+
+preparedDifferentResults = do
+  res1 <- allNamesLike 4 "%y%"
+  res2 <- allNamesLike 10 "%y%"
+  assEq "wrong result from first query" ["Miyu"] res1
+  assEq "wrong result from second query" ["Kobayashi", "Miyu"] res2

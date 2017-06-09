@@ -7,6 +7,7 @@ import Database.Selda.SqlType
 import Database.Selda.Types
 import Control.Exception
 import Data.Monoid hiding (Product)
+import Data.Proxy
 import System.IO.Unsafe
 
 -- | A source for an SQL query.
@@ -62,6 +63,14 @@ instance Eq Param where
   Param a == Param b = compLit a b == EQ
 instance Ord Param where
   compare (Param a) (Param b) = compLit a b
+
+-- | Create a parameter from the given value.
+param :: SqlType a => a -> Param
+param = Param . mkLit
+
+-- | The SQL type of the given parameter.
+paramType :: Param -> SqlTypeRep
+paramType (Param p) = litType p
 
 -- | Exception indicating the use of a default value.
 --   If any values throwing this during evaluation of @param xs@ will be

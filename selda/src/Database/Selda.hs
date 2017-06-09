@@ -96,6 +96,9 @@ module Database.Selda
   , insert, insert_, insertWithPK, tryInsert, def
   , update, update_, upsert
   , deleteFrom, deleteFrom_
+    -- * Prepared statements
+  , Preparable, Prepare
+  , prepared
     -- * Defining schemas
   , TableSpec, ColSpecs, ColSpec, TableName, ColName
   , NonNull, IsNullable, Nullable, NotNullable
@@ -125,6 +128,7 @@ import Database.Selda.Column
 import Database.Selda.Compile
 import Database.Selda.Frontend
 import Database.Selda.Inner
+import Database.Selda.Prepared
 import Database.Selda.Query
 import Database.Selda.Query.Type
 import Database.Selda.Selectors
