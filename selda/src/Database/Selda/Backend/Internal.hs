@@ -63,6 +63,9 @@ data SeldaStmt = SeldaStmt
  { -- | Backend-specific handle to the prepared statement.
    stmtHandle :: !Dynamic
 
+   -- | The SQL code for the statement.
+ , stmtText :: !Text
+
    -- | All parameters to be passed to the prepared statement.
    --   Parameters that are unique to each invocation are specified as indices
    --   starting at 0.

@@ -3,6 +3,7 @@
 -- | Building and executing prepared statements.
 module Database.Selda.Prepared (Preparable, Prepare, prepared) where
 import Database.Selda.Backend.Internal
+import Database.Selda.Caching
 import Database.Selda.Column
 import Database.Selda.Compile
 import Database.Selda.Query.Type
@@ -61,9 +62,7 @@ instance (MonadSelda m, a ~ Res (ResultT q), Result (ResultT q)) =>
       Just stm -> do
         -- Statement already prepared for this connection; just execute it.
         liftIO $ do
-          let hdl = stmtHandle stm
-          res <- runPrepared backend hdl (replaceParams (stmtParams stm) args)
-          return $ map (toRes (Proxy :: Proxy (ResultT q))) (snd res)
+          runQuery backend stm args
       _ -> do
         -- Statement wasn't prepared for this connection; prepare and execute.
         (q, params, reps, ts) <- mkQuery firstParamIx qry []
@@ -74,10 +73,23 @@ instance (MonadSelda m, a ~ Res (ResultT q), Result (ResultT q)) =>
                 { stmtHandle = hdl
                 , stmtParams = params
                 , stmtTables = ts
+                , stmtText = q
                 }
           atomicModifyIORef' (connStmts conn) $ \m -> (M.insert sid stm m, ())
-          res <- runPrepared backend hdl params'
-          return $ map (toRes (Proxy :: Proxy (ResultT q))) (snd res)
+          runQuery backend stm args
+    where
+      runQuery backend stm args = do
+        let ps = replaceParams (stmtParams stm) args
+            key = (dbIdentifier backend, stmtText stm, ps)
+            hdl = stmtHandle stm
+        mres <- cached key
+        case mres of
+          Just res -> do
+            return res
+          _ -> do
+            res <- runPrepared backend hdl ps
+            cache (stmtTables stm) key res
+            return $ map (toRes (Proxy :: Proxy (ResultT q))) (snd res)
 
 instance (SqlType a, Preparable b) => Preparable (Col s a -> b) where
   mkQuery n f ts = mkQuery (n+1) (f x) (sqlType (Proxy :: Proxy a) : ts)
