@@ -243,8 +243,6 @@ descending = Desc
 --   For an auto-incrementing primary key, the default value is the next key.
 --
 --   Using @def@ in any other context than insertion results in a runtime error.
---   Likewise, if @def@ is given for a column that does not have a default
---   value, the insertion will fail.
 def :: SqlType a => a
 def = throw DefaultValueException
 

@@ -119,7 +119,7 @@ instance Result a => Preparable (Query s a) where
 --   it may get prepared twice.
 --   While this does not affect the correctness of your program, and is
 --   fairly unlikely to happen, if you want to be absolutely sure that your
---   queries aren't re-prepared a single time more than absolutely necessary,
+--   queries aren't re-prepared more than absolutely necessary,
 --   consider adding a @NOINLINE@ annotation to each prepared function.
 --
 --   A usage example:
