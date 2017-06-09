@@ -68,8 +68,7 @@ instance (MonadSelda m, a ~ Res (ResultT q), Result (ResultT q)) =>
         (q, params, reps, ts) <- mkQuery firstParamIx qry []
         liftIO $ do
           hdl <- prepareStmt backend sid reps q
-          let params' = replaceParams params args
-              stm = SeldaStmt
+          let stm = SeldaStmt
                 { stmtHandle = hdl
                 , stmtParams = params
                 , stmtTables = ts

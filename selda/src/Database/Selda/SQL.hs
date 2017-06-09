@@ -7,7 +7,6 @@ import Database.Selda.SqlType
 import Database.Selda.Types
 import Control.Exception
 import Data.Monoid hiding (Product)
-import Data.Proxy
 import System.IO.Unsafe
 
 -- | A source for an SQL query.
