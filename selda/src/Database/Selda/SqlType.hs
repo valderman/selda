@@ -44,9 +44,17 @@ data SqlTypeRep
 
 -- | Any datatype representable in (Selda's subset of) SQL.
 class Typeable a => SqlType a where
-  mkLit        :: a -> Lit a
-  sqlType      :: Proxy a -> SqlTypeRep
-  fromSql      :: SqlValue -> a
+  -- | Create a literal of this type.
+  mkLit :: a -> Lit a
+
+  -- | The SQL representation for this type.
+  sqlType :: Proxy a -> SqlTypeRep
+  sqlType _ = litType (defaultValue :: Lit a)
+
+  -- | Convert an SqlValue into this type.
+  fromSql :: SqlValue -> a
+
+  -- | Default value when using 'def' at this type.
   defaultValue :: Lit a
 
 -- | An SQL literal.
@@ -58,7 +66,7 @@ data Lit a where
   LDateTime :: !Text       -> Lit UTCTime
   LDate     :: !Text       -> Lit Day
   LTime     :: !Text       -> Lit TimeOfDay
-  LJust     :: SqlType a => !(Lit a)    -> Lit (Maybe a)
+  LJust     :: SqlType a => !(Lit a) -> Lit (Maybe a)
   LBlob     :: !ByteString -> Lit ByteString
   LNull     :: SqlType a => Lit (Maybe a)
   LCustom   :: Lit a -> Lit b
