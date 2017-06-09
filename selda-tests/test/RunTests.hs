@@ -10,6 +10,7 @@ import Tests.Query (queryTests)
 import Tests.Mutable (mutableTests, invalidateCacheAfterTransaction)
 import Tests.Validation (validationTests)
 import Tests.NonDB (noDBTests)
+import Tests.MultiConn (multiConnTests)
 import Tables (teardown)
 
 #ifdef POSTGRES
@@ -52,11 +53,14 @@ allTests f = TestList
   , "mutable tests"            ~: mutableTests (freshEnv f)
   , "mutable tests (caching)"  ~: mutableTests caching
   , "cache + transaction race" ~: invalidateCacheAfterTransaction run
+  , "multi-connection tests"   ~: multiConnTests open
   ]
   where
     caching m = freshEnv f (setLocalCache 1000 >> m)
 #ifdef POSTGRES
+    open = pgOpen pgConnectInfo
     run = withPostgreSQL pgConnectInfo
 #else
+    open = sqliteOpen f
     run = withSQLite f
 #endif

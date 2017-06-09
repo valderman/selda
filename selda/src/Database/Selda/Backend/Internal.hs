@@ -82,11 +82,15 @@ data SeldaConnection = SeldaConnection
 
     -- | All statements prepared for this connection.
   , connStmts :: !(IORef (M.HashMap StmtID SeldaStmt))
-  }
+
+    -- | Is the connection closed?
+  , connClosed :: !(IORef Bool)
+}
 
 -- | Create a new Selda connection for the given backend.
 newConnection :: MonadIO m => SeldaBackend -> m SeldaConnection
-newConnection back = SeldaConnection back <$> liftIO (newIORef M.empty)
+newConnection back =
+  SeldaConnection back <$> liftIO (newIORef M.empty) <*> liftIO (newIORef False)
 
 -- | Get all statements and their corresponding identifiers for the current
 --   connection.
@@ -117,6 +121,9 @@ data SeldaBackend = SeldaBackend
     --   of the backend. This could be, for instance, a PostgreSQL connection
     --   string or the absolute path to an SQLite file.
   , dbIdentifier :: Text
+
+    -- | Close the currently open connection.
+  , closeConnection :: SeldaConnection -> IO ()
   }
 
 data SeldaState = SeldaState
@@ -188,4 +195,8 @@ type SeldaM = SeldaT IO
 -- | Run a Selda transformer. Backends should use this to implement their
 --   @withX@ functions.
 runSeldaT :: MonadIO m => SeldaT m a -> SeldaConnection -> m a
-runSeldaT m c = fst <$> runStateT (unS m) (SeldaState c Nothing)
+runSeldaT m c = do
+  closed <- liftIO $ readIORef (connClosed c)
+  when closed $ do
+    liftIO $ throwM $ DbError "runSeldaT called with a closed connection"
+  fst <$> runStateT (unS m) (SeldaState c Nothing)

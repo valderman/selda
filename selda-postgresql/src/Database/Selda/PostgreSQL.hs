@@ -3,7 +3,7 @@
 module Database.Selda.PostgreSQL
   ( PGConnectInfo (..)
   , withPostgreSQL, on, auth
-  , pgBackend
+  , pgOpen, seldaClose
   , pgConnString
   ) where
 import Data.Dynamic
@@ -72,14 +72,21 @@ withPostgreSQL :: (MonadIO m, MonadThrow m, MonadMask m)
 withPostgreSQL _ _ = return $ error "withPostgreSQL called in JS context"
 #else
 withPostgreSQL ci m = do
+  c <- pgOpen ci
+  runSeldaT m c `finally` seldaClose c
+
+-- | Open a new PostgreSQL connection. The connection will persist across
+--   calls to 'runSeldaT', and must be explicitly closed using 'seldaClose'
+--   when no longer needed.
+pgOpen :: (MonadIO m, MonadThrow m) => PGConnectInfo -> m SeldaConnection
+pgOpen ci = do
   conn <- liftIO $ connectdb connstr
   st <- liftIO $ status conn
   case st of
     ConnectionOk -> do
       let backend = pgBackend (decodeUtf8 connstr) conn
       liftIO $ runStmt backend "SET client_min_messages TO WARNING;" []
-      c <- newConnection backend
-      runSeldaT m c `finally` liftIO (finish conn)
+      newConnection backend
     nope -> do
       connFailed nope
   where
@@ -94,16 +101,17 @@ pgBackend :: T.Text       -- ^ Unique database identifier. Preferably the
           -> Connection   -- ^ PostgreSQL connection object.
           -> SeldaBackend
 pgBackend ident c = SeldaBackend
-  { runStmt        = \q ps -> right <$> pgQueryRunner c False q ps
-  , runStmtWithPK  = \q ps -> left <$> pgQueryRunner c True q ps
-  , prepareStmt    = pgPrepare c
-  , runPrepared    = pgRun c
-  , ppConfig       = defPPConfig
+  { runStmt         = \q ps -> right <$> pgQueryRunner c False q ps
+  , runStmtWithPK   = \q ps -> left <$> pgQueryRunner c True q ps
+  , prepareStmt     = pgPrepare c
+  , runPrepared     = pgRun c
+  , ppConfig        = defPPConfig
     { ppType = pgColType defPPConfig
     , ppAutoIncInsert = "DEFAULT"
     , ppColAttrs = ppColAttrs defPPConfig . filter (/= AutoIncrement)
     }
-  , dbIdentifier   = ident
+  , dbIdentifier    = ident
+  , closeConnection = \_ -> finish c
   }
   where
     left (Left x) = x

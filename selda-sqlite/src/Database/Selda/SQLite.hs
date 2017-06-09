@@ -1,6 +1,6 @@
 {-# LANGUAGE GADTs, CPP, OverloadedStrings #-}
 -- | SQLite3 backend for Selda.
-module Database.Selda.SQLite (withSQLite) where
+module Database.Selda.SQLite (withSQLite, sqliteOpen, seldaClose) where
 import Database.Selda
 import Database.Selda.Backend
 import Data.Dynamic
@@ -12,13 +12,11 @@ import Database.SQLite3
 import System.Directory (makeAbsolute)
 #endif
 
--- | Perform the given computation over an SQLite database.
---   The database is guaranteed to be closed when the computation terminates.
-withSQLite :: (MonadIO m, MonadMask m) => FilePath -> SeldaT m a -> m a
-#ifdef __HASTE__
-withSQLite _ _ = return $ error "withSQLite called in JS context"
-#else
-withSQLite file m = do
+-- | Open a new connection to an SQLite database.
+--   The connection is reusable across calls to `runSeldaT`, and must be
+--   explicitly closed using 'seldaClose' when no longer needed.
+sqliteOpen :: (MonadIO m, MonadCatch m) => FilePath -> m SeldaConnection
+sqliteOpen file = do
   lock <- liftIO $ newMVar ()
   edb <- try $ liftIO $ open (pack file)
   case edb of
@@ -28,22 +26,31 @@ withSQLite file m = do
       absFile <- liftIO $ makeAbsolute file
       let backend = sqliteBackend lock absFile db
       liftIO $ runStmt backend "PRAGMA foreign_keys = ON;" []
-      conn <- newConnection backend
-      runSeldaT m conn `finally` do
-        liftIO $ do
-          stmts <- allStmts conn
-          flip mapM_ stmts $ \(_, stm) -> do
-            finalize $ fromDyn stm (error "BUG: non-statement SQLite statement")
-          close db
+      newConnection backend
+
+-- | Perform the given computation over an SQLite database.
+--   The database is guaranteed to be closed when the computation terminates.
+withSQLite :: (MonadIO m, MonadMask m) => FilePath -> SeldaT m a -> m a
+#ifdef __HASTE__
+withSQLite _ _ = return $ error "withSQLite called in JS context"
+#else
+withSQLite file m = do
+  conn <- sqliteOpen file
+  runSeldaT m conn `finally` seldaClose conn
 
 sqliteBackend :: MVar () -> FilePath -> Database -> SeldaBackend
 sqliteBackend lock dbfile db = SeldaBackend
-  { runStmt        = \q ps -> snd <$> sqliteQueryRunner lock db q ps
-  , runStmtWithPK  = \q ps -> fst <$> sqliteQueryRunner lock db q ps
-  , prepareStmt    = \_ _ -> sqlitePrepare db
-  , runPrepared    = sqliteRunPrepared lock db
-  , ppConfig       = defPPConfig
-  , dbIdentifier   = pack dbfile
+  { runStmt         = \q ps -> snd <$> sqliteQueryRunner lock db q ps
+  , runStmtWithPK   = \q ps -> fst <$> sqliteQueryRunner lock db q ps
+  , prepareStmt     = \_ _ -> sqlitePrepare db
+  , runPrepared     = sqliteRunPrepared lock db
+  , ppConfig        = defPPConfig
+  , dbIdentifier    = pack dbfile
+  , closeConnection = \conn -> do
+      stmts <- allStmts conn
+      flip mapM_ stmts $ \(_, stm) -> do
+        finalize $ fromDyn stm (error "BUG: non-statement SQLite statement")
+      close db
   }
 
 sqlitePrepare :: Database -> Text -> IO Dynamic

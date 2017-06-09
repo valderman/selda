@@ -25,6 +25,7 @@ test-suite selda-testsuite
   other-modules:
     Tables
     Utils
+    Tests.MultiConn
     Tests.Mutable
     Tests.NonDB
     Tests.Query
