@@ -36,6 +36,9 @@ library
     build-depends:
         bytestring       >=0.9 && <0.11
       , postgresql-libpq >=0.9 && <0.10
+  if impl(ghc < 7.11)
+    build-depends:
+      transformers  >=0.4 && <0.6
   hs-source-dirs:
     src
   default-language:
