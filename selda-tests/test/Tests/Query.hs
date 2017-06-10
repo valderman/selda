@@ -39,6 +39,7 @@ queryTests run = test
   , "prepared with args" ~: run preparedManyArgs
   , "prepared interleaved" ~: run preparedInterleaved
   , "interleaved with different results" ~: run preparedDifferentResults
+  , "order in correct order" ~: run orderCorrectOrder
   , "teardown succeeds" ~: run teardown
   ]
 
@@ -329,3 +330,34 @@ preparedDifferentResults = do
   res2 <- allNamesLike 10 "%y%"
   assEq "wrong result from first query" ["Miyu"] res1
   assEq "wrong result from second query" ["Kobayashi", "Miyu"] res2
+
+orderCorrectOrder = do
+    insert_ people ["Amber" :*: 19 :*: Nothing :*: 123]
+
+    res1 <- query $ do
+      p <- select people
+      order (p ! pName) ascending
+      order (p ! pAge) ascending
+      return (p ! pName)
+
+    res2 <- query $ do
+      p <- select people
+      order (p ! pName) descending
+      order (p ! pAge) ascending
+      return (p ! pName)
+
+    res3 <- query $ do
+      p <- select people
+      order (p ! pAge) descending
+      order (p ! pName) ascending
+      return (p ! pName)
+
+    deleteFrom_ people $ \p -> p ! pName .== "Amber"
+
+    assEq "latest ordering did not take precedence in first query" ans1 res1
+    assEq "latest ordering did not take precedence in second query" ans2 res2
+    assEq "latest ordering did not take precedence in third query" ans3 res3
+  where
+    ans1 = ["Miyu", "Amber", "Velvet", "Kobayashi", "Link"]
+    ans2 = ["Miyu", "Velvet", "Amber", "Kobayashi", "Link"]
+    ans3 = ["Amber", "Kobayashi", "Link", "Miyu", "Velvet"]
