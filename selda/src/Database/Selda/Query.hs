@@ -86,8 +86,8 @@ restrict (C p) = Query $ do
 -- > -- SELECT COUNT(name) AS c, address FROM housing GROUP BY name HAVING c > 1
 -- >
 -- > numPpl = do
--- >   num_tenants :*: address <- aggregate $ do
--- >     _ :*: address <- select housing
+-- >   (num_tenants :*: address) <- aggregate $ do
+-- >     (_ :*: address) <- select housing
 -- >     groupBy address
 -- >     return (count address :*: some address)
 -- >  restrict (num_tenants .> 1)
@@ -121,9 +121,9 @@ aggregate q = Query $ do
 --
 -- > getAddresses :: Query s (Col s Text :*: Col s (Maybe Text))
 -- > getAddresses = do
--- >   name :*: _ <- select people
--- >   _ :*: address <- leftJoin (\(n :*: _) -> n .== name)
--- >                             (select addresses)
+-- >   (name :*: _) <- select people
+-- >   (_ :*: address) <- leftJoin (\(n :*: _) -> n .== name)
+-- >                               (select addresses)
 -- >   return (name :*: address)
 leftJoin :: (Columns a, Columns (OuterCols a), Columns (LeftCols a))
          => (OuterCols a -> Col s Bool)
@@ -168,7 +168,7 @@ someJoin jointype check q = Query $ do
 --   how many people have a pet at home:
 --
 -- > aggregate $ do
--- >   name :*: pet_name <- select people
+-- >   (name :*: pet_name) <- select people
 -- >   name' <- groupBy name
 -- >   return (name' :*: count(pet_name) > 0)
 groupBy :: Col (Inner s) a -> Query (Inner s) (Aggr (Inner s) a)
@@ -193,6 +193,26 @@ limit from to q = Query $ do
   return $ unsafeCoerce res
 
 -- | Sort the result rows in ascending or descending order on the given row.
+--
+--   If multiple @order@ directives are given, later directives are given
+--   precedence but do not cancel out earlier ordering directives.
+--   To get a list of persons sorted primarily on age and secondarily on name:
+--
+-- > peopleInAgeAndNameOrder = do
+-- >   (name :*: age) <- select people
+-- >   order name ascending
+-- >   order age ascending
+-- >   return name
+--
+--   For a table @["Alice" :*: 20, "Bob" :*: 20, "Eve" :*: 18]@, this query
+--   will always return @["Eve", "Alice", "Bob"]@.
+--
+--   The reason for later orderings taking precedence and not the other way
+--   around is composability: @order@ should always sort the current
+--   result set to avoid weird surprises when a previous @order@ directive
+--   is buried somewhere deep in an earlier query.
+--   However, the ordering must always be stable, to ensure that previous
+--   calls to order are not simply erased.
 order :: Col s a -> Order -> Query s ()
 order (C c) o = Query $ do
   st <- get
