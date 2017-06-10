@@ -6,7 +6,6 @@ import Database.Selda.Backend
 import Data.Dynamic
 import Data.Text (pack)
 import Control.Monad.Catch
-import Control.Concurrent
 #ifndef __HASTE__
 import Database.SQLite3
 import System.Directory (makeAbsolute)
@@ -17,14 +16,13 @@ import System.Directory (makeAbsolute)
 --   explicitly closed using 'seldaClose' when no longer needed.
 sqliteOpen :: (MonadIO m, MonadCatch m) => FilePath -> m SeldaConnection
 sqliteOpen file = do
-  lock <- liftIO $ newMVar ()
   edb <- try $ liftIO $ open (pack file)
   case edb of
     Left e@(SQLError{}) -> do
       throwM (DbError (show e))
     Right db -> do
       absFile <- liftIO $ makeAbsolute file
-      let backend = sqliteBackend lock absFile db
+      let backend = sqliteBackend absFile db
       liftIO $ runStmt backend "PRAGMA foreign_keys = ON;" []
       newConnection backend
 
@@ -38,12 +36,12 @@ withSQLite file m = do
   conn <- sqliteOpen file
   runSeldaT m conn `finally` seldaClose conn
 
-sqliteBackend :: MVar () -> FilePath -> Database -> SeldaBackend
-sqliteBackend lock dbfile db = SeldaBackend
-  { runStmt         = \q ps -> snd <$> sqliteQueryRunner lock db q ps
-  , runStmtWithPK   = \q ps -> fst <$> sqliteQueryRunner lock db q ps
+sqliteBackend :: FilePath -> Database -> SeldaBackend
+sqliteBackend dbfile db = SeldaBackend
+  { runStmt         = \q ps -> snd <$> sqliteQueryRunner db q ps
+  , runStmtWithPK   = \q ps -> fst <$> sqliteQueryRunner db q ps
   , prepareStmt     = \_ _ -> sqlitePrepare db
-  , runPrepared     = sqliteRunPrepared lock db
+  , runPrepared     = sqliteRunPrepared db
   , ppConfig        = defPPConfig
   , dbIdentifier    = pack dbfile
   , closeConnection = \conn -> do
@@ -60,26 +58,22 @@ sqlitePrepare db qry = do
     Left e@(SQLError{}) -> throwM (SqlError (show e))
     Right r             -> return $ toDyn r
 
-sqliteRunPrepared :: MVar () -> Database -> Dynamic -> [Param] -> IO (Int, [[SqlValue]])
-sqliteRunPrepared lock db hdl params = do
+sqliteRunPrepared :: Database -> Dynamic -> [Param] -> IO (Int, [[SqlValue]])
+sqliteRunPrepared db hdl params = do
   eres <- try $ do
-    takeMVar lock
     let Just stm = fromDynamic hdl
     sqliteRunStmt db stm params `finally` do
-      putMVar lock ()
       clearBindings stm
       reset stm
   case eres of
     Left e@(SQLError{}) -> throwM (SqlError (show e))
     Right res           -> return (snd res)
 
-sqliteQueryRunner :: MVar () -> Database -> QueryRunner (Int, (Int, [[SqlValue]]))
-sqliteQueryRunner lock db qry params = do
+sqliteQueryRunner :: Database -> QueryRunner (Int, (Int, [[SqlValue]]))
+sqliteQueryRunner db qry params = do
     eres <- try $ do
       stm <- prepare db qry
-      takeMVar lock
       sqliteRunStmt db stm params `finally` do
-        putMVar lock ()
         finalize stm
     case eres of
       Left e@(SQLError{}) -> throwM (SqlError (show e))

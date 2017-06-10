@@ -19,7 +19,7 @@ import Database.Selda.SqlType
 import Database.Selda.Table (Table, ColAttr (..), tableName)
 import Database.Selda.SQL.Print.Config
 import Database.Selda.Types (TableName)
-import Control.Exception (throwIO)
+import Control.Concurrent
 import Control.Monad.Catch
 import Control.Monad.IO.Class
 import Control.Monad.State
@@ -85,12 +85,18 @@ data SeldaConnection = SeldaConnection
 
     -- | Is the connection closed?
   , connClosed :: !(IORef Bool)
+
+    -- | Lock to prevent this connection from being used concurrently by
+    --   multiple invocations of 'runSeldaT'.
+  , connLock :: !(MVar ())
 }
 
 -- | Create a new Selda connection for the given backend.
 newConnection :: MonadIO m => SeldaBackend -> m SeldaConnection
 newConnection back =
-  SeldaConnection back <$> liftIO (newIORef M.empty) <*> liftIO (newIORef False)
+  liftIO $ SeldaConnection back <$> newIORef M.empty
+                                <*> newIORef False
+                                <*> newMVar ()
 
 -- | Get all statements and their corresponding identifiers for the current
 --   connection.
@@ -180,7 +186,7 @@ instance MonadIO m => MonadSelda (SeldaT m) where
     st <- get
     case stTouchedTables st of
       Nothing -> put $ st {stTouchedTables = Just []}
-      Just _  -> liftIO $ throwIO $ SqlError "attempted to nest transactions"
+      Just _  -> liftIO $ throwM $ SqlError "attempted to nest transactions"
 
   endTransaction committed = S $ do
     st <- get
@@ -194,9 +200,13 @@ type SeldaM = SeldaT IO
 
 -- | Run a Selda transformer. Backends should use this to implement their
 --   @withX@ functions.
-runSeldaT :: MonadIO m => SeldaT m a -> SeldaConnection -> m a
+runSeldaT :: (MonadIO m, MonadMask m) => SeldaT m a -> SeldaConnection -> m a
 runSeldaT m c = do
-  closed <- liftIO $ readIORef (connClosed c)
-  when closed $ do
-    liftIO $ throwM $ DbError "runSeldaT called with a closed connection"
-  fst <$> runStateT (unS m) (SeldaState c Nothing)
+    liftIO $ takeMVar (connLock c)
+    go `finally` liftIO (putMVar (connLock c) ())
+  where
+    go = do
+      closed <- liftIO $ readIORef (connClosed c)
+      when closed $ do
+        liftIO $ throwM $ DbError "runSeldaT called with a closed connection"
+      fst <$> runStateT (unS m) (SeldaState c Nothing)
