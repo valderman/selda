@@ -2,7 +2,7 @@
 --   in queries.
 module Database.Selda.Backend
   ( MonadSelda (..), SeldaT, SeldaM, SeldaError (..)
-  , StmtID, QueryRunner, SeldaBackend (..), SeldaConnection
+  , StmtID, BackendID (..), QueryRunner, SeldaBackend (..), SeldaConnection
   , SqlType (..), SqlValue (..), SqlTypeRep (..)
   , Param (..), Lit (..), ColAttr (..)
   , PPConfig (..), defPPConfig

@@ -34,26 +34,33 @@ type family Equiv q f where
   Equiv (Col s a -> q) (a -> f) = Equiv q f
   Equiv (Query s a)    (m [b])  = Res a ~ b
 
+type CompResult = (Text, [Either Int Param], [SqlTypeRep], [TableName])
+
 class Preparable q where
   -- | Prepare the query and parameter list.
   mkQuery :: MonadSelda m
           => Int -- ^ Next argument index.
           -> q   -- ^ The query.
           -> [SqlTypeRep] -- ^ The list of param types so far.
-          -> m (Text, [Either Int Param], [SqlTypeRep], [TableName])
+          -> m CompResult
 
 -- | Some parameterized query @q@ that can be prepared into a function @f@
 --   in some @MonadSelda@.
 class Prepare q f where
   -- | Build the function that prepares and execute the query.
-  mkFun :: Preparable q => StmtID -> q -> [Param] -> f
+  mkFun :: Preparable q
+        => IORef (Maybe (BackendID, CompResult))
+        -> StmtID
+        -> q
+        -> [Param]
+        -> f
 
 instance (SqlType a, Prepare q b) => Prepare q (a -> b) where
-  mkFun sid qry ps x = mkFun sid qry (param x : ps)
+  mkFun ref sid qry ps x = mkFun ref sid qry (param x : ps)
 
 instance (MonadSelda m, a ~ Res (ResultT q), Result (ResultT q)) =>
          Prepare q (m [a]) where
-  mkFun sid qry arguments = do
+  mkFun ref sid qry arguments = do
     conn <- seldaConnection
     let backend = connBackend conn
         args = reverse arguments
@@ -64,8 +71,18 @@ instance (MonadSelda m, a ~ Res (ResultT q), Result (ResultT q)) =>
         liftIO $ do
           runQuery conn stm args
       _ -> do
-        -- Statement wasn't prepared for this connection; prepare and execute.
-        (q, params, reps, ts) <- mkQuery firstParamIx qry []
+        -- Statement wasn't prepared for this connection; check if it was at
+        -- least previously compiled for this backend.
+        compiled <- liftIO $ readIORef ref
+        (q, params, reps, ts) <- case compiled of
+          Just (bid, comp) | bid == backendId backend -> do
+            return comp
+          _ -> do
+            comp <- mkQuery firstParamIx qry []
+            liftIO $ writeIORef ref (Just (backendId backend, comp))
+            return comp
+
+        -- Prepare and execute
         liftIO $ do
           hdl <- prepareStmt backend sid reps q
           let stm = SeldaStmt
@@ -137,8 +154,9 @@ instance Result a => Preparable (Query s a) where
 {-# NOINLINE prepared #-}
 prepared :: (Preparable q, Prepare q f, Equiv q f) => q -> f
 prepared q = unsafePerformIO $ do
+  ref <- newIORef Nothing
   sid <- freshStmtId
-  return $ mkFun sid q []
+  return $ mkFun ref sid q []
 
 -- | Replace every indexed parameter with the corresponding provided parameter.
 --   Keep all non-indexed parameters in place.

@@ -103,6 +103,7 @@ pgBackend c = SeldaBackend
   , runStmtWithPK   = \q ps -> left <$> pgQueryRunner c True q ps
   , prepareStmt     = pgPrepare c
   , runPrepared     = pgRun c
+  , backendId       = PostgreSQL
   , ppConfig        = defPPConfig
     { ppType = pgColType defPPConfig
     , ppAutoIncInsert = "DEFAULT"

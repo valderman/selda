@@ -43,6 +43,7 @@ sqliteBackend db = SeldaBackend
   , prepareStmt     = \_ _ -> sqlitePrepare db
   , runPrepared     = sqliteRunPrepared db
   , ppConfig        = defPPConfig
+  , backendId       = SQLite
   , closeConnection = \conn -> do
       stmts <- allStmts conn
       flip mapM_ stmts $ \(_, stm) -> do

@@ -1,7 +1,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 -- | Internal backend API.
 module Database.Selda.Backend.Internal
-  ( StmtID
+  ( StmtID, BackendID (..)
   , QueryRunner, SeldaBackend (..), SeldaConnection (..), SeldaStmt (..)
   , MonadSelda (..), SeldaT (..), SeldaM
   , SeldaError (..)
@@ -29,6 +29,13 @@ import qualified Data.HashMap.Strict as M
 import Data.IORef
 import Data.Text (Text)
 import System.IO.Unsafe (unsafePerformIO)
+
+-- | Uniquely identifies some particular backend.
+--
+--   When publishing a new backend, consider submitting a pull request with a
+--   constructor for your backend instead of using the @Other@ constructor.
+data BackendID = SQLite | PostgreSQL | Other Text
+  deriving (Show, Eq, Ord)
 
 -- | Thrown by any function in 'SeldaT' if an error occurs.
 data SeldaError
@@ -131,6 +138,9 @@ data SeldaBackend = SeldaBackend
 
     -- | Close the currently open connection.
   , closeConnection :: SeldaConnection -> IO ()
+
+    -- | Unique identifier for this backend.
+  , backendId :: BackendID
   }
 
 data SeldaState = SeldaState
