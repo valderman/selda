@@ -84,9 +84,9 @@ pgOpen ci = do
   st <- liftIO $ status conn
   case st of
     ConnectionOk -> do
-      let backend = pgBackend (decodeUtf8 connstr) conn
+      let backend = pgBackend conn
       liftIO $ runStmt backend "SET client_min_messages TO WARNING;" []
-      newConnection backend
+      newConnection backend (decodeUtf8 connstr)
     nope -> do
       connFailed nope
   where
@@ -96,11 +96,9 @@ pgOpen ci = do
       ]
 
 -- | Create a `SeldaBackend` for PostgreSQL `Connection`
-pgBackend :: T.Text       -- ^ Unique database identifier. Preferably the
-                          --   connection string used to open the connection.
-          -> Connection   -- ^ PostgreSQL connection object.
+pgBackend :: Connection   -- ^ PostgreSQL connection object.
           -> SeldaBackend
-pgBackend ident c = SeldaBackend
+pgBackend c = SeldaBackend
   { runStmt         = \q ps -> right <$> pgQueryRunner c False q ps
   , runStmtWithPK   = \q ps -> left <$> pgQueryRunner c True q ps
   , prepareStmt     = pgPrepare c
@@ -110,7 +108,6 @@ pgBackend ident c = SeldaBackend
     , ppAutoIncInsert = "DEFAULT"
     , ppColAttrs = ppColAttrs defPPConfig . filter (/= AutoIncrement)
     }
-  , dbIdentifier    = ident
   , closeConnection = \_ -> finish c
   }
   where

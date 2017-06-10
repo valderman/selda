@@ -62,7 +62,7 @@ instance (MonadSelda m, a ~ Res (ResultT q), Result (ResultT q)) =>
       Just stm -> do
         -- Statement already prepared for this connection; just execute it.
         liftIO $ do
-          runQuery backend stm args
+          runQuery conn stm args
       _ -> do
         -- Statement wasn't prepared for this connection; prepare and execute.
         (q, params, reps, ts) <- mkQuery firstParamIx qry []
@@ -75,11 +75,12 @@ instance (MonadSelda m, a ~ Res (ResultT q), Result (ResultT q)) =>
                 , stmtText = q
                 }
           atomicModifyIORef' (connStmts conn) $ \m -> (M.insert sid stm m, ())
-          runQuery backend stm args
+          runQuery conn stm args
     where
-      runQuery backend stm args = do
-        let ps = replaceParams (stmtParams stm) args
-            key = (dbIdentifier backend, stmtText stm, ps)
+      runQuery conn stm args = do
+        let backend = connBackend conn
+            ps = replaceParams (stmtParams stm) args
+            key = (connDbId conn, stmtText stm, ps)
             hdl = stmtHandle stm
         mres <- cached key
         case mres of

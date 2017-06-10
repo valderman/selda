@@ -21,10 +21,10 @@ sqliteOpen file = do
     Left e@(SQLError{}) -> do
       throwM (DbError (show e))
     Right db -> do
-      absFile <- liftIO $ makeAbsolute file
-      let backend = sqliteBackend absFile db
+      absFile <- liftIO $ pack <$> makeAbsolute file
+      let backend = sqliteBackend db
       liftIO $ runStmt backend "PRAGMA foreign_keys = ON;" []
-      newConnection backend
+      newConnection backend absFile
 
 -- | Perform the given computation over an SQLite database.
 --   The database is guaranteed to be closed when the computation terminates.
@@ -36,14 +36,13 @@ withSQLite file m = do
   conn <- sqliteOpen file
   runSeldaT m conn `finally` seldaClose conn
 
-sqliteBackend :: FilePath -> Database -> SeldaBackend
-sqliteBackend dbfile db = SeldaBackend
+sqliteBackend :: Database -> SeldaBackend
+sqliteBackend db = SeldaBackend
   { runStmt         = \q ps -> snd <$> sqliteQueryRunner db q ps
   , runStmtWithPK   = \q ps -> fst <$> sqliteQueryRunner db q ps
   , prepareStmt     = \_ _ -> sqlitePrepare db
   , runPrepared     = sqliteRunPrepared db
   , ppConfig        = defPPConfig
-  , dbIdentifier    = pack dbfile
   , closeConnection = \conn -> do
       stmts <- allStmts conn
       flip mapM_ stmts $ \(_, stm) -> do

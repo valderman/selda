@@ -239,8 +239,9 @@ setLocalCache = liftIO . setMaxItems
 queryWith :: forall s m a. (MonadSelda m, Result a)
           => QueryRunner (Int, [[SqlValue]]) -> Query s a -> m [Res a]
 queryWith qr q = do
-  backend <- seldaBackend
-  let db = dbIdentifier backend
+  conn <- seldaConnection
+  let backend = connBackend conn
+      db = connDbId conn
       cacheKey = (db, qs, ps)
       (tables, qry@(qs, ps)) = compileWithTables (ppConfig backend) q
   mres <- liftIO $ cached cacheKey

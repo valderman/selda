@@ -80,6 +80,11 @@ data SeldaConnection = SeldaConnection
   { -- | The backend used by the current connection.
     connBackend :: !SeldaBackend
 
+    -- | A string uniquely identifying the database used by this connection.
+    --   This could be, for instance, a PostgreSQL connection
+    --   string or the absolute path to an SQLite file.
+  , connDbId :: Text
+
     -- | All statements prepared for this connection.
   , connStmts :: !(IORef (M.HashMap StmtID SeldaStmt))
 
@@ -91,12 +96,13 @@ data SeldaConnection = SeldaConnection
   , connLock :: !(MVar ())
 }
 
--- | Create a new Selda connection for the given backend.
-newConnection :: MonadIO m => SeldaBackend -> m SeldaConnection
-newConnection back =
-  liftIO $ SeldaConnection back <$> newIORef M.empty
-                                <*> newIORef False
-                                <*> newMVar ()
+-- | Create a new Selda connection for the given backend and database
+--   identifier string.
+newConnection :: MonadIO m => SeldaBackend -> Text -> m SeldaConnection
+newConnection back dbid =
+  liftIO $ SeldaConnection back dbid <$> newIORef M.empty
+                                     <*> newIORef False
+                                     <*> newMVar ()
 
 -- | Get all statements and their corresponding identifiers for the current
 --   connection.
@@ -122,11 +128,6 @@ data SeldaBackend = SeldaBackend
 
     -- | SQL pretty-printer configuration.
   , ppConfig :: PPConfig
-
-    -- | A string uniquely identifying the database used by this invocation
-    --   of the backend. This could be, for instance, a PostgreSQL connection
-    --   string or the absolute path to an SQLite file.
-  , dbIdentifier :: Text
 
     -- | Close the currently open connection.
   , closeConnection :: SeldaConnection -> IO ()
