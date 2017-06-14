@@ -32,7 +32,7 @@ data PGConnectInfo = PGConnectInfo
   , pgUsername :: Maybe T.Text
     -- | Password for authentication, if necessary.
   , pgPassword :: Maybe T.Text
-  }
+  } deriving (Show)
 
 -- | Connect to the given database on the given host, on the default PostgreSQL
 --   port (5432):

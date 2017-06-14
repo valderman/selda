@@ -13,7 +13,7 @@ data PPConfig = PPConfig
     -- | Parameter placeholder for the @n@th parameter.
   , ppPlaceholder :: Int -> Text
 
-    -- | List of column attributes, such as 
+    -- | List of column attributes, such as
   , ppColAttrs :: [ColAttr] -> Text
 
     -- | The value used for the next value for an auto-incrementing column.
@@ -42,6 +42,7 @@ defType TDateTime = "DATETIME"
 defType TDate     = "DATE"
 defType TTime     = "TIME"
 defType TBlob     = "BLOB"
+defType TJsonb     = "JSONB"
 
 -- | Default compilation for a column attribute.
 defColAttr :: ColAttr -> Text

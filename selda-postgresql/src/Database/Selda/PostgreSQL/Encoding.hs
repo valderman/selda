@@ -15,6 +15,9 @@ import Database.PostgreSQL.LibPQ (Oid (..), Format (..))
 import Database.Selda.Backend
 import Unsafe.Coerce
 
+import Data.Aeson
+import Data.Maybe (fromJust)
+
 -- | OIDs for all types used by Selda.
 blobType, boolType, intType, textType, doubleType, dateType, timeType, timestampType :: Oid
 boolType      = Oid 16
@@ -25,6 +28,8 @@ dateType      = Oid 1082
 timeType      = Oid 1083
 timestampType = Oid 1114
 blobType      = Oid 17
+jsonType      = Oid 114
+jsonbType     = Oid 3802
 
 -- | Convert a parameter into an postgres parameter triple.
 fromSqlValue :: Lit a -> Maybe (Oid, BS.ByteString, Format)
@@ -39,6 +44,8 @@ fromSqlValue (LBlob b)     = Just (blobType, b, Binary)
 fromSqlValue (LNull)       = Nothing
 fromSqlValue (LJust x)     = fromSqlValue x
 fromSqlValue (LCustom l)   = fromSqlValue l
+fromSqlValue (LJson j)    = Just (jsonType, unChunk $ encode j, Text) -- ^ TODO check
+fromSqlValue (LJsonb j)    = Just (jsonbType, unChunk $ encode j, Text) -- ^ TODO check
 
 -- | Get the corresponding OID for an SQL type representation.
 fromSqlType :: SqlTypeRep -> Oid
@@ -59,6 +66,8 @@ toSqlValue t val
   | t == intType     = SqlInt $ readInt val
   | t == doubleType  = SqlFloat $ read (unpack val)
   | t == blobType    = SqlBlob $ pgDecode val
+  | t == jsonType    = SqlJson $ (fromJust (decodeStrict' val :: Maybe Value))
+  | t == jsonbType   = SqlJsonb $ (fromJust (decodeStrict' val :: Maybe Value))
   | t `elem` textish = SqlString (decodeUtf8 val)
   | otherwise        = error $ "BUG: result with unknown type oid: " ++ show t
   where

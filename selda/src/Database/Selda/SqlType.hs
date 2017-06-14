@@ -13,6 +13,7 @@ import Data.Proxy
 import Data.Text (Text, pack, unpack)
 import Data.Time
 import Data.Typeable
+import Data.Aeson (Value(..))
 
 -- | Format string used to represent date and time when
 --   talking to the database backend.
@@ -39,6 +40,8 @@ data SqlTypeRep
   | TDateTime
   | TDate
   | TTime
+  | TJson
+  | TJsonb
   | TBlob
     deriving (Show, Eq, Ord)
 
@@ -69,6 +72,8 @@ data Lit a where
   LJust     :: SqlType a => !(Lit a) -> Lit (Maybe a)
   LBlob     :: !ByteString -> Lit ByteString
   LNull     :: SqlType a => Lit (Maybe a)
+  LJson     :: !Value     -> Lit Value
+  LJsonb    :: !Value     -> Lit Value
   LCustom   :: Lit a -> Lit b
 
 -- | The SQL type representation for the given literal.
@@ -82,6 +87,8 @@ litType (LDate{})     = TDate
 litType (LTime{})     = TTime
 litType (LJust x)     = litType x
 litType (LBlob{})     = TBlob
+litType (LJson{})     = TJson
+litType (LJsonb{})    = TJsonb
 litType (x@LNull)     = sqlType (proxyFor x)
   where
     proxyFor :: Lit (Maybe a) -> Proxy a
@@ -107,6 +114,8 @@ litConTag (LJust{})     = 7
 litConTag (LBlob{})     = 8
 litConTag (LNull)       = 9
 litConTag (LCustom{})   = 10
+litConTag (LJson{})     = 11
+litConTag (LJsonb{})    = 12
 
 -- | Compare two literals of different type for equality.
 compLit :: Lit a -> Lit b -> Ordering
@@ -118,6 +127,8 @@ compLit (LDateTime x) (LDateTime x') = x `compare` x'
 compLit (LDate x)     (LDate x')     = x `compare` x'
 compLit (LTime x)     (LTime x')     = x `compare` x'
 compLit (LBlob x)     (LBlob x')     = x `compare` x'
+-- compLit (LJson x)     (LJson x')     = x `compare` x'
+-- compLit (LJsonb x)    (LJsonb x')    = x `compare` x'
 compLit (LJust x)     (LJust x')     = x `compLit` x'
 compLit (LCustom x)   (LCustom x')   = x `compLit` x'
 compLit a             b              = litConTag a `compare` litConTag b
@@ -129,6 +140,8 @@ data SqlValue where
   SqlString :: !Text       -> SqlValue
   SqlBool   :: !Bool       -> SqlValue
   SqlBlob   :: !ByteString -> SqlValue
+  SqlJson   :: !Value -> SqlValue
+  SqlJsonb  :: !Value -> SqlValue
   SqlNull   :: SqlValue
 
 instance Show SqlValue where
@@ -137,6 +150,8 @@ instance Show SqlValue where
   show (SqlString s) = "SqlString " ++ show s
   show (SqlBool b)   = "SqlBool " ++ show b
   show (SqlBlob b)   = "SqlBlob " ++ show b
+  show (SqlJson b)   = "SqlJson " ++ show b
+  show (SqlJsonb b)   = "SqlJsonb " ++ show b
   show (SqlNull)     = "SqlNull"
 
 instance Show (Lit a) where
@@ -148,6 +163,8 @@ instance Show (Lit a) where
   show (LDate s)     = show s
   show (LTime s)     = show s
   show (LBlob b)     = show b
+  show (LJson b)     = show b
+  show (LJsonb b)     = show b
   show (LJust x)     = "Just " ++ show x
   show (LNull)       = "Nothing"
   show (LCustom l)   = show l
@@ -252,6 +269,13 @@ instance SqlType ByteString where
   fromSql (SqlBlob x) = x
   fromSql v           = error $ "fromSql: blob column with non-blob value: " ++ show v
   defaultValue = LBlob empty
+
+instance SqlType Value where
+  mkLit = LJsonb
+  sqlType _ = TJsonb
+  fromSql (SqlJsonb x) = x
+  fromSql v           = error $ "fromSql: blob column with non-blob value: " ++ show v
+  defaultValue = LJsonb (Object mempty)
 
 instance SqlType BSL.ByteString where
   mkLit = LCustom . LBlob . BSL.toStrict
