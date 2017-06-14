@@ -11,7 +11,7 @@ description:         This package provides an EDSL for writing portable, type-sa
                      To use this package you need at least one backend package, in addition to
                      this package. There are currently two different backend packages:
                      selda-sqlite and selda-postgresql.
-homepage:            https://github.com/valderman/selda
+homepage:            https://selda.link
 license:             MIT
 license-file:        LICENSE
 author:              Anton Ekblad
@@ -21,7 +21,6 @@ build-type:          Simple
 extra-source-files:  ChangeLog.md
 cabal-version:       >=1.10
 tested-with:         GHC == 7.10.3, GHC == 8.0.2
-homepage:            https://selda.link
 
 extra-source-files:
   README.md
