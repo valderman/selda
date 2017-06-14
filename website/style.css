@@ -1,0 +1,109 @@
+body {
+    line-height: 1.5em;
+    font-family: sans-serif;
+}
+
+/* Logo and headings */
+h1 {
+    text-align: center;
+    padding: 0.5em;
+    margin: 0;
+    line-height: 1.2em;
+}
+
+#logo {
+    position: absolute;
+    left: 0;
+    right: 0;
+    width: 20em;
+    max-width: 90%;
+    margin: auto;
+}
+
+/* The menu (non-mobile) */
+ul.menu {
+    position: absolute;
+    left: 0;
+    padding: 0;
+    margin: 0;
+    width: 100%;
+    top: 20em;
+    list-style-type: none;
+    background-color: black;
+    text-align: center;
+}
+
+.menu li {
+    display: inline-block;
+    padding: 0;
+    font-size: large;
+}
+
+.menu li a {
+    color: white;
+    display: block;
+    padding: 1em;
+    text-decoration: none;
+    font-weight: bold;
+    font-family: sans-serif;
+}
+
+.menu li a:hover {
+    background-color: #202020;
+}
+
+/* Lower half of page */
+#content {
+    position: absolute;
+    left: 0;
+    right: 0;
+    margin: auto;
+    top: 25em;
+    width: 80%;
+}
+
+.pane {
+    display: inline;
+    width: 45%;
+    padding: 1em;
+}
+
+/* Code blocks */
+pre {
+    padding-left: 0.5em;
+    padding-right: 0.5em;
+    border-radius: 0.5em;
+    line-height: 1.2em;
+    background-color: #f0f0f0;
+}
+
+pre code {
+    padding: 0.5em;
+    display: block;
+}
+
+@media (min-width: 950px) {
+    code.narrowcode {display: none;}
+    #content {
+        width: 60%;
+        min-width: 60em;
+    }
+    #left {float: left;}
+    #right {float: right;}
+}
+
+@media (max-width: 949px) {
+    code.widecode {display: none;}
+    .menu li a {
+        padding-left: 0.5em;
+        padding-right: 0.5em;
+    }
+
+    h1 {
+        font-size: 1.5em;
+    }
+
+    #content {
+        top: 23em;
+    }
+}

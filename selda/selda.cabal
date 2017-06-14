@@ -21,6 +21,7 @@ build-type:          Simple
 extra-source-files:  ChangeLog.md
 cabal-version:       >=1.10
 tested-with:         GHC == 7.10.3, GHC == 8.0.2
+homepage:            https://selda.link
 
 extra-source-files:
   README.md

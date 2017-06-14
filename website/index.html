@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" href="style.css">
+    <link rel="stylesheet" type="text/css" href="highlight.css">
+    <meta name="description" content="Selda is a monadic database interface library for Haskell. It uses advanced type magic to enable seamless prepared statements, well-scoped, fully general inner queries, automatic in-process caching, and much more.">
+    <script async src="highlight.pack.js"></script>
+    <script>window.onload = function(){hljs.initHighlighting();};</script>
+    <title>Selda: A Relational Database Library for Haskell</title>
+  </head>
+  <body>
+    <h1>Selda: A Relational Database Library for Haskell</h1>
+    <img src="selda.png" alt="The Selda logo" id="logo">
+    <ul class="menu">
+      <li><a href="https://hackage.haskell.org/package/selda#readme">Tutorial</a></li>
+      <li><a href="https://hackage.haskell.org/package/selda">API Docs</a></li>
+      <li><a href="https://github.com/valderman/selda">Source Code</a></li>
+    </ul>
+    <div id="content">
+      <div class="pane" id="left">
+        <h2>Installation</h2>
+        <pre><code class="widecode shell">
+$ cabal update
+$ cabal install selda-sqlite selda-postgresql
+          </code><code class="narrowcode shell">
+$ cabal update
+$ cabal install selda-sqlite
+$ cabal install selda-postgresql
+        </code></pre>
+        <h2>Features</h2>
+        <ul>
+          <li>Type-safe queries, inserts, updates and deletes</li>
+          <li>Monadic query language with general inner queries</li>
+          <li>Seamless prepared statements</li>
+          <li>Upserts, transactions and constraints</li>
+          <li>Minimal dependencies</li>
+          <li>In-process caching</li>
+          <li>Backends for PostgreSQL and SQLite</li>
+          <li>...and much more!</li>
+        </ul>
+      </div>
+      <div class="pane" id="right">
+        <h2>By example</h2>
+        <pre><code class="haskell">
+people :: Table (Text :*: Int :*: Maybe Text)
+(people, name :*: pet :*: age)
+  = tableWithSelectors "people"
+  $   primary "name"
+  :*: required "age"
+  :*: optional "pet"
+
+main = withSQLite "people.sqlite" $ do
+  createTable people
+
+  insert_ people
+    [ "Velvet"    :*: 19 :*: Just "orthros"
+    , "Kobayashi" :*: 23 :*: Just "dragon"
+    , "Miyu"      :*: 10 :*: Nothing
+    ]
+
+  adults &lt;- query $ do
+    person &lt;- select people
+    restrict (person ! age .&gt; 18)
+    return (person ! name :*: person ! pet)
+
+  liftIO $ print adults
+        </code></pre>
+      </div>
+    </div>
+  </body>
+</html>
