@@ -16,6 +16,9 @@ import System.Directory (makeAbsolute)
 --   explicitly closed using 'seldaClose' when no longer needed.
 sqliteOpen :: (MonadIO m, MonadCatch m) => FilePath -> m SeldaConnection
 sqliteOpen file = do
+#ifdef __HASTE__
+  error "sqliteOpen called in JS context"
+#else
   edb <- try $ liftIO $ open (pack file)
   case edb of
     Left e@(SQLError{}) -> do
@@ -25,6 +28,7 @@ sqliteOpen file = do
       let backend = sqliteBackend db
       liftIO $ runStmt backend "PRAGMA foreign_keys = ON;" []
       newConnection backend absFile
+#endif
 
 -- | Perform the given computation over an SQLite database.
 --   The database is guaranteed to be closed when the computation terminates.
