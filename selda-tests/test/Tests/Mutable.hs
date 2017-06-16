@@ -54,6 +54,7 @@ mutableTests freshEnv = test
   , "isIn query gives right result"  ~: freshEnv isInQuery
   , "strict blob column"             ~: freshEnv blobColumn
   , "lazy blob column"               ~: freshEnv lazyBlobColumn
+  , "insertWhen/Unless"              ~: freshEnv whenUnless
   ]
 
 tryDropNeverFails = teardown
@@ -567,3 +568,28 @@ lazyBlobColumn = do
     blobs = table "blobs" $ required "key" :*: required "value"
     someBlob = "\0\1\2\3hello!漢字"
     otherBlob = "blah"
+
+whenUnless = do
+    setup
+
+    insertUnless people (\t -> t ! pName .== "Lord Buckethead") theBucket
+    oneBucket <- query $ select people `suchThat` ((.== "Lord Buckethead") . (! pName))
+    assEq "Lord Buckethead wasn't inserted" theBucket oneBucket
+
+    insertWhen people (\t -> t ! pName .== "Lord Buckethead") theSara
+    oneSara <- query $ select people `suchThat` ((.== "Sara") . (! pName))
+    assEq "Sara wasn't inserted" theSara oneSara
+
+    insertUnless people (\t -> t ! pName .== "Lord Buckethead")
+      ["Jessie" :*: 16 :*: Nothing :*: 10^6]
+    noJessie <- query $ select people `suchThat` ((.== "Jessie") . (! pName))
+    assEq "Jessie was wrongly inserted" [] noJessie
+
+    insertWhen people (\t -> t ! pName .== "Jessie")
+      ["Lavinia" :*: 16 :*: Nothing :*: 10^8]
+    noLavinia <- query $ select people `suchThat` ((.== "Lavinia") . (! pName))
+    assEq "Lavinia was wrongly inserted" [] noLavinia
+    teardown
+  where
+    theBucket = ["Lord Buckethead" :*: 30 :*: Nothing :*: 0]
+    theSara = ["Sara" :*: 14 :*: Nothing :*: 0]

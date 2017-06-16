@@ -3,7 +3,7 @@
 module Database.Selda.Frontend
   ( Result, Res, MonadIO (..), MonadSelda (..), SeldaT
   , query
-  , insert, insert_, insertWithPK, tryInsert, insertUnless
+  , insert, insert_, insertWithPK, tryInsert, insertWhen, insertUnless
   , update, update_, upsert
   , deleteFrom, deleteFrom_
   , createTable, tryCreateTable
@@ -109,7 +109,8 @@ upsert tbl check upd rows = transaction $ do
 
 -- | Perform the given insert, if no rows already present in the table match
 --   the given predicate.
---   Returns the primary key of the inserted row, if the insert was performed.
+--   Returns the primary key of the last inserted row,
+--   if the insert was performed.
 --   If called on a table which doesn't have an auto-incrementing primary key,
 --   @Just id@ is always returned on successful insert, where @id@ is a row
 --   identifier guaranteed to not match any row in any table.
@@ -124,6 +125,24 @@ insertUnless :: ( MonadCatch m
              -> [a]
              -> m (Maybe RowID)
 insertUnless tbl check rows = upsert tbl check id rows
+
+-- | Like 'insertUnless', but performs the insert when at least one row matches
+--   the predicate.
+insertWhen :: ( MonadCatch m
+              , MonadSelda m
+              , Insert a
+              , Columns (Cols s a)
+              , Result (Cols s a)
+              )
+           => Table a
+           -> (Cols s a -> Col s Bool)
+           -> [a]
+           -> m (Maybe RowID)
+insertWhen tbl check rows = transaction $ do
+  matches <- update tbl check id
+  if matches > 0
+    then Just <$> insertWithPK tbl rows
+    else pure Nothing
 
 -- | Like 'insert', but does not return anything.
 --   Use this when you really don't care about how many rows were inserted.

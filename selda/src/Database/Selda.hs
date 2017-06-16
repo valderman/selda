@@ -93,7 +93,7 @@ module Database.Selda
   , count, avg, sum_, max_, min_
     -- * Modifying tables
   , Insert
-  , insert, insert_, insertWithPK, tryInsert, def
+  , insert, insert_, insertWithPK, tryInsert, insertUnless, insertWhen, def
   , update, update_, upsert
   , deleteFrom, deleteFrom_
     -- * Prepared statements
@@ -140,6 +140,7 @@ import Database.Selda.Table.Foreign
 import Database.Selda.Types
 import Database.Selda.Unsafe
 import Control.Exception (throw)
+import Control.Monad.Catch
 import Data.Text (Text)
 import Data.Time (Day, TimeOfDay, UTCTime)
 import Data.Typeable (eqT, (:~:)(..))
