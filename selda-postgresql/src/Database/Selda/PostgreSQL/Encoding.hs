@@ -1,9 +1,19 @@
-{-# LANGUAGE GADTs, BangPatterns, OverloadedStrings #-}
+{-# LANGUAGE GADTs, BangPatterns, OverloadedStrings, CPP #-}
 -- | Encoding/decoding for PostgreSQL.
 module Database.Selda.PostgreSQL.Encoding
   ( toSqlValue, fromSqlValue, fromSqlType
   , readInt
   ) where
+#ifdef __HASTE__
+
+toSqlValue, fromSqlValue, fromSqlType, readInt :: a
+toSqlValue = undefined
+fromSqlValue = undefined
+fromSqlType = undefined
+readInt = undefined
+
+#else
+
 import Control.Exception (throw)
 import qualified Data.ByteString as BS
 import Data.ByteString.Builder
@@ -112,3 +122,4 @@ unChunk bs =
   case LBS.toChunks bs of
     [bs'] -> bs'
     bss   -> BS.concat bss
+#endif

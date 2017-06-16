@@ -6,6 +6,7 @@ module Database.Selda.PostgreSQL
   , pgOpen, seldaClose
   , pgConnString
   ) where
+import qualified Data.ByteString.Char8 as BS
 import Data.Dynamic
 import Data.Monoid
 import qualified Data.Text as T
@@ -17,7 +18,6 @@ import Control.Monad.IO.Class
 #ifndef __HASTE__
 import Database.Selda.PostgreSQL.Encoding
 import Database.PostgreSQL.LibPQ hiding (user, pass, db, host)
-import qualified Data.ByteString.Char8 as BS
 #endif
 
 -- | PostgreSQL connection information.
@@ -63,6 +63,26 @@ auth ci (user, pass) = ci
   }
 infixl 4 `auth`
 
+-- | Convert `PGConnectInfo` into `ByteString`
+pgConnString :: PGConnectInfo -> BS.ByteString
+#ifdef __HASTE__
+pgConnString PGConnectInfo{..} = error "pgConnString called in JS context"
+#else
+pgConnString PGConnectInfo{..} = mconcat
+  [ "host=", encodeUtf8 pgHost, " "
+  , "port=", BS.pack (show pgPort), " "
+  , "dbname=", encodeUtf8 pgDatabase, " "
+  , case pgUsername of
+      Just user -> "user=" <> encodeUtf8 user <> " "
+      _         -> ""
+  , case pgPassword of
+      Just pass -> "password=" <> encodeUtf8 pass <> " "
+      _         -> ""
+  , "connect_timeout=10", " "
+  , "client_encoding=UTF8"
+  ]
+#endif
+
 -- | Perform the given computation over a PostgreSQL database.
 --   The database connection is guaranteed to be closed when the computation
 --   terminates.
@@ -74,11 +94,15 @@ withPostgreSQL _ _ = return $ error "withPostgreSQL called in JS context"
 withPostgreSQL ci m = do
   c <- pgOpen ci
   runSeldaT m c `finally` seldaClose c
+#endif
 
 -- | Open a new PostgreSQL connection. The connection will persist across
 --   calls to 'runSeldaT', and must be explicitly closed using 'seldaClose'
 --   when no longer needed.
 pgOpen :: (MonadIO m, MonadThrow m) => PGConnectInfo -> m SeldaConnection
+#ifdef __HASTE__
+pgOpen _ = return $ error "pgOpen called in JS context"
+#else
 pgOpen ci = do
   conn <- liftIO $ connectdb connstr
   st <- liftIO $ status conn
@@ -116,22 +140,6 @@ pgBackend c = SeldaBackend
     left _        = error "impossible"
     right (Right x) = x
     right _         = error "impossible"
-
--- | Convert `PGConnectInfo` into `ByteString`
-pgConnString :: PGConnectInfo -> BS.ByteString
-pgConnString PGConnectInfo{..} = mconcat
-  [ "host=", encodeUtf8 pgHost, " "
-  , "port=", BS.pack (show pgPort), " "
-  , "dbname=", encodeUtf8 pgDatabase, " "
-  , case pgUsername of
-      Just user -> "user=" <> encodeUtf8 user <> " "
-      _         -> ""
-  , case pgPassword of
-      Just pass -> "password=" <> encodeUtf8 pass <> " "
-      _         -> ""
-  , "connect_timeout=10", " "
-  , "client_encoding=UTF8"
-  ]
 
 pgQueryRunner :: Connection -> Bool -> T.Text -> [Param] -> IO (Either Int (Int, [[SqlValue]]))
 pgQueryRunner c return_lastid q ps = do
