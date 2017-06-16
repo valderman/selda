@@ -140,7 +140,6 @@ import Database.Selda.Table.Foreign
 import Database.Selda.Types
 import Database.Selda.Unsafe
 import Control.Exception (throw)
-import Control.Monad.Catch
 import Data.Text (Text)
 import Data.Time (Day, TimeOfDay, UTCTime)
 import Data.Typeable (eqT, (:~:)(..))
