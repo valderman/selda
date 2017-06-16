@@ -8,7 +8,13 @@ import System.Process
 
 changeLog :: ChangeLog
 changeLog =
-  [ Version "0.1.8.0" "2017-06-10"
+  [ Version "0.1.9.0" "2017-06-16"
+    "Conditional inserts and documentation fixes."
+    [ "Properly document semantics of order."
+    , "Export conditional inserts."
+    , "Fix Haste build for backends."
+    ]
+  , Version "0.1.8.0" "2017-06-10"
     "Blobs prepared statements and better backend configuration."
     [ "Move SQL pretty-printing config into a single type."
     , "Support for binary blobs."
