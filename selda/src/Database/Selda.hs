@@ -250,7 +250,7 @@ def = throw DefaultValueException
 --   Useful for creating expressions over optional columns:
 --
 -- > people :: Table (Text :*: Int :*: Maybe Text)
--- > people = table "people" $ required "name" ¤ required "age" ¤ optional "pet"
+-- > people = table "people" $ required "name" :*: required "age" :*: optional "pet"
 -- >
 -- > peopleWithCats = do
 -- >   name :*: _ :*: pet <- select people

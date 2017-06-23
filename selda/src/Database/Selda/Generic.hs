@@ -155,7 +155,7 @@ toRels = map toRel
 -- > demoPerson = fromRel ("Miyu" :*: 10)
 -- >
 -- > adhoc :: Table (Text :*: Int)
--- > adhoc = table "adhoc" $ required "name" ¤ required "age"
+-- > adhoc = table "adhoc" $ required "name" :*: required "age"
 -- >
 -- > getPersons1 :: MonadSelda m => m [SimplePerson]
 -- > getPersons1 = map fromRel <$> query (select adhoc)
