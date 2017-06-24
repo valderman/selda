@@ -44,10 +44,10 @@ query q = do
 --
 -- > people :: Table (Int :*: Text :*: Int :*: Maybe Text)
 -- > people = table "ppl"
--- >        $ autoPrimary "id"
--- >        ¤ required "name"
--- >        ¤ required "age"
--- >        ¤ optional "pet"
+-- >        $   autoPrimary "id"
+-- >        :*: required "name"
+-- >        :*: required "age"
+-- >        :*: optional "pet"
 -- >
 -- > main = withSQLite "my_database.sqlite" $ do
 -- >   insert_ people
