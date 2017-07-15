@@ -395,7 +395,7 @@ allPeople :: Query s (Col s Text :*: Col s Text)
 allPeople = do
   (people_name :*: _ :*: _) <- select people
   (addresses_name :*: city) <- select addresses
-  restrict (people_name == addresses_name)
+  restrict (people_name .== addresses_name)
   return (people_name :*: city)
 ```
 
@@ -418,7 +418,7 @@ Velvet's address (or for anyone else who does not have an entry in the
 `addresses` table), you would have to use a join:
 
 ```
-allPeople' :: Query s (Col s Text :*: Col s Maybe Text)
+allPeople' :: Query s (Col s Text :*: Col s (Maybe Text))
 allPeople' = do
   (name :*: _ :*: _) <- select people
   (_ :*: city) <- leftJoin (\(name' :*: _) -> name .== name')
@@ -478,7 +478,7 @@ countHomes = do
   (owner :*: homes) <- aggregate $ do
     (owner :*: city) <- select addresses
     owner' <- groupBy owner
-    return (count city :*: owner')
+    return (owner' :*: count city)
   restrict (owner .== name)
   order homes descending
   return (owner :*: homes)
