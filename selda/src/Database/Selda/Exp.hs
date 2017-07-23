@@ -20,6 +20,7 @@ data Exp sql a where
   BinOp   :: !(BinOp a b) -> !(Exp sql a) -> !(Exp sql a) -> Exp sql b
   UnOp    :: !(UnOp a b) -> !(Exp sql a) -> Exp sql b
   Fun2    :: !Text -> !(Exp sql a) -> !(Exp sql b) -> Exp sql c
+  If      :: !(Exp sql Bool) -> !(Exp sql a) -> !(Exp sql a) -> Exp sql a
   Cast    :: !SqlTypeRep -> !(Exp sql a) -> Exp sql b
   AggrEx  :: !Text -> !(Exp sql a) -> Exp sql b
   InList  :: !(Exp sql a) -> ![Exp sql a] -> Exp sql Bool
@@ -63,6 +64,7 @@ instance Names sql => Names (Exp sql a) where
   allNamesIn (BinOp _ a b) = allNamesIn a ++ allNamesIn b
   allNamesIn (UnOp _ a)    = allNamesIn a
   allNamesIn (Fun2 _ a b)  = allNamesIn a ++ allNamesIn b
+  allNamesIn (If a b c)    = allNamesIn a ++ allNamesIn b ++ allNamesIn c
   allNamesIn (Cast _ x)    = allNamesIn x
   allNamesIn (AggrEx _ x)  = allNamesIn x
   allNamesIn (InList x xs) = concatMap allNamesIn (x:xs)

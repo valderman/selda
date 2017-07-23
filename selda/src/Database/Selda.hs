@@ -83,7 +83,7 @@ module Database.Selda
   , (.==), (./=), (.>), (.<), (.>=), (.<=), like
   , (.&&), (.||), not_
   , literal, int, float, text, true, false, null_
-  , roundTo, length_, isNull
+  , roundTo, length_, isNull, ifThenElse
     -- * Converting between column types
   , round_, just, fromBool, fromInt, toString
     -- * Inner queries
@@ -338,3 +338,7 @@ fromInt = cast
 -- | Convert any column to a string.
 toString :: Col s a -> Col s Text
 toString = cast
+
+-- | Perform a conditional on a column
+ifThenElse :: Col s Bool -> Col s a -> Col s a -> Col s a
+ifThenElse = liftC3 If
