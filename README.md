@@ -675,6 +675,43 @@ when *calling* `preparedGrownupsIn`, we instead pass in a value of type `Text`;
 for convenience, `prepared` automatically converts all arguments to
 prepared functions into their equivalent column types.
 
+
+Foreign keys
+------------
+
+To add a foreign key constraint on a column, use the `fk` function.
+This function takes two parameters: a column of the table being defined, and
+a tuple of the `(table, column)` the foreign key refers to.
+The table identifier is simply a value of type `Table t`, while the column
+is specified using a selector of type `Selector t a`.
+
+The following example creates a table to store users, and one to store blog
+posts. The `users` table stores a name, a password, and a unique identifier
+for each user.
+The `posts` table stores, for each post, the post body, a unique
+post identifier, and the identifier of the user who wrote the post.
+The column storing a post's author has a foreign key constraint on the `userid`
+column of the `users` table, to ensure that each post has a valid author.
+
+```
+users :: Table (RowID :*: Text)
+users = table "users"
+  $   primary "userid"
+  :*: required "username"
+  :*: required "password"
+(userId :*: userName :*: userPass) = selectors users
+
+posts :: Table (RowID :*: RowID :*: Text)
+posts = table "posts"
+  $   primary "postid"
+  :*: required "authorid" `fk` (users, userId)
+  :*: required "post_body"
+```
+
+Note that a foreign key can *only* refer to a column which is either
+a primary key or has a unique constraint. This is not specific to Selda, but
+a restriction of SQL.
+
 And with that, we conclude this tutorial. Hopefully it has been enough to get
 you comfortably started using Selda.
 For a more detailed API reference, please see Selda's
