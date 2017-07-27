@@ -187,7 +187,7 @@ validate name cis
     pkDupes =
       ["multiple primary keys" | (Primary:_:_) <- soup $ concatMap colAttrs cis]
     nonPkFks =
-      [ "column is used as a foreign key, but is not a primary key of its table: "
+      [ "column is used as a foreign key, but is not primary or unique: "
           <> fromTableName ftn <> "." <> fromColName fcn
       | ci <- cis
       , (Table ftn fcs _, fcn) <- colFKs ci
