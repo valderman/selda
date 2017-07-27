@@ -12,6 +12,7 @@ module Database.Selda.Backend
   ) where
 import Database.Selda.Backend.Internal
 import Control.Monad
+import Control.Monad.Catch
 import Control.Monad.IO.Class
 import Data.IORef
 
@@ -20,6 +21,6 @@ import Data.IORef
 --   Passing a closed connection to 'runSeldaT' results in a 'SeldaError'
 --   being thrown. Closing a connection more than once is a no-op.
 seldaClose :: MonadIO m => SeldaConnection -> m ()
-seldaClose c = liftIO $ do
+seldaClose c = liftIO $ mask_ $ do
   closed <- atomicModifyIORef' (connClosed c) $ \closed -> (True, closed)
   unless closed $ closeConnection (connBackend c) c

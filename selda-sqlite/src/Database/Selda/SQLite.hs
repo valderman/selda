@@ -14,20 +14,23 @@ import System.Directory (makeAbsolute)
 -- | Open a new connection to an SQLite database.
 --   The connection is reusable across calls to `runSeldaT`, and must be
 --   explicitly closed using 'seldaClose' when no longer needed.
-sqliteOpen :: (MonadIO m, MonadCatch m) => FilePath -> m SeldaConnection
+sqliteOpen :: (MonadIO m, MonadMask m) => FilePath -> m SeldaConnection
 sqliteOpen file = do
 #ifdef __HASTE__
   error "sqliteOpen called in JS context"
 #else
-  edb <- try $ liftIO $ open (pack file)
-  case edb of
-    Left e@(SQLError{}) -> do
-      throwM (DbError (show e))
-    Right db -> do
-      absFile <- liftIO $ pack <$> makeAbsolute file
-      let backend = sqliteBackend db
-      liftIO $ runStmt backend "PRAGMA foreign_keys = ON;" []
-      newConnection backend absFile
+  mask_ $ do
+    edb <- try $ liftIO $ open (pack file)
+    case edb of
+      Left e@(SQLError{}) -> do
+        throwM (DbError (show e))
+      Right db -> flip catch (handler db) $ do
+        absFile <- liftIO $ pack <$> makeAbsolute file
+        let backend = sqliteBackend db
+        liftIO $ runStmt backend "PRAGMA foreign_keys = ON;" []
+        newConnection backend absFile
+  where
+    handler db (SomeException e) = liftIO (close db) >> throwM e
 #endif
 
 -- | Perform the given computation over an SQLite database.
@@ -36,9 +39,9 @@ withSQLite :: (MonadIO m, MonadMask m) => FilePath -> SeldaT m a -> m a
 #ifdef __HASTE__
 withSQLite _ _ = return $ error "withSQLite called in JS context"
 #else
-withSQLite file m = do
+withSQLite file m = mask $ \restore -> do
   conn <- sqliteOpen file
-  runSeldaT m conn `finally` seldaClose conn
+  restore (runSeldaT m conn) `finally` seldaClose conn
 
 sqliteBackend :: Database -> SeldaBackend
 sqliteBackend db = SeldaBackend
