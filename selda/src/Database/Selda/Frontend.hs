@@ -63,9 +63,9 @@ insert _ [] = do
   return 0
 insert t cs = do
   cfg <- ppConfig <$> seldaBackend
-  res <- uncurry exec $ compileInsert cfg t cs
+  res <- mapM (uncurry exec) $ compileInsert cfg t cs
   invalidateTable t
-  return res
+  return (sum res)
 
 -- | Attempt to insert a list of rows into a table, but don't raise an error
 --   if the insertion fails. Returns @True@ if the insertion succeeded, otherwise
@@ -159,9 +159,9 @@ insertWithPK t cs = do
   if tableHasAutoPK t
     then do
       res <- liftIO $ do
-        uncurry (runStmtWithPK b) $ compileInsert (ppConfig b) t cs
+        mapM (uncurry (runStmtWithPK b)) $ compileInsert (ppConfig b) t cs
       invalidateTable t
-      return $ unsafeRowId res
+      return $ unsafeRowId (last res)
     else do
       insert_ t cs
       return invalidRowId

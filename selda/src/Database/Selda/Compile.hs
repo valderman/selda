@@ -44,9 +44,21 @@ compileWithTables cfg = compSql cfg . snd . compQuery
 -- | Compile an @INSERT@ query, given the keyword representing default values
 --   in the target SQL dialect, a table and a list of items corresponding
 --   to the table.
-compileInsert :: Insert a => PPConfig -> Table a -> [a] -> (Text, [Param])
-compileInsert _ _ []       = (empty, [])
-compileInsert cfg tbl rows = compInsert cfg tbl (map params rows)
+compileInsert :: Insert a => PPConfig -> Table a -> [a] -> [(Text, [Param])]
+compileInsert _ _ [] =
+  [(empty, [])]
+compileInsert cfg tbl rows =
+    case ppMaxInsertParams cfg of
+      Nothing -> [compInsert cfg tbl rows']
+      Just n  -> map (compInsert cfg tbl) (chunk (n `div` rowlen) rows')
+  where
+    rows' = map params rows
+    rowlen = length (head rows')
+    chunk chunksize xs =
+      case splitAt chunksize xs of
+        ([], []) -> []
+        (x, [])  -> [x]
+        (x, xs') -> x : chunk chunksize xs'
 
 -- | Compile an @UPDATE@ query.
 compileUpdate :: forall s a. (Columns (Cols s a), Result (Cols s a))

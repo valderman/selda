@@ -55,6 +55,8 @@ mutableTests freshEnv = test
   , "strict blob column"             ~: freshEnv blobColumn
   , "lazy blob column"               ~: freshEnv lazyBlobColumn
   , "insertWhen/Unless"              ~: freshEnv whenUnless
+  , "insert >999 parameters"         ~: freshEnv manyParameters
+  , "empty insertion"                ~: freshEnv emptyInsert
   ]
 
 tryDropNeverFails = teardown
@@ -593,3 +595,21 @@ whenUnless = do
   where
     theBucket = ["Lord Buckethead" :*: 30 :*: Nothing :*: 0]
     theSara = ["Sara" :*: 14 :*: Nothing :*: 0]
+
+manyParameters = do
+    tryDropTable things
+    createTable things
+    inserted <- insert things [0..1000]
+    actuallyInserted <- query $ aggregate $ count <$> select things
+    dropTable things
+    assEq "insert returned wrong insertion count" 1001 inserted
+    assEq "wrong number of items inserted" [1001] actuallyInserted
+  where
+    things :: Table Int
+    things = table "things" $ required "number"
+
+emptyInsert = do
+  setup
+  inserted <- insert people []
+  assEq "wrong insertion count reported" 0 inserted
+  teardown

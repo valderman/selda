@@ -45,7 +45,7 @@ sqliteBackend db = SeldaBackend
   , runStmtWithPK   = \q ps -> fst <$> sqliteQueryRunner db q ps
   , prepareStmt     = \_ _ -> sqlitePrepare db
   , runPrepared     = sqliteRunPrepared db
-  , ppConfig        = defPPConfig
+  , ppConfig        = defPPConfig {ppMaxInsertParams = Just 999}
   , backendId       = SQLite
   , closeConnection = \conn -> do
       stmts <- allStmts conn

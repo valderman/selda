@@ -19,6 +19,14 @@ data PPConfig = PPConfig
     -- | The value used for the next value for an auto-incrementing column.
     --   For instance, @DEFAULT@ for PostgreSQL, and @NULL@ for SQLite.
   , ppAutoIncInsert :: Text
+
+    -- | Insert queries may have at most this many parameters; if an insertion
+    --   has more parameters than this, it will be chunked.
+    --
+    --   Note that only insertions of multiple rows are chunked. If your table
+    --   has more than this many columns, you should really rethink
+    --   your database design.
+  , ppMaxInsertParams :: Maybe Int
   }
 
 -- | Default settings for pretty-printing.
