@@ -1,5 +1,5 @@
 name:                selda
-version:             0.1.9.0
+version:             0.1.10.0
 synopsis:            Type-safe, high-level EDSL for interacting with relational databases.
 description:         This package provides an EDSL for writing portable, type-safe, high-level
                      database code. Its feature set includes querying and modifying databases,
