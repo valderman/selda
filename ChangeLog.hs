@@ -12,6 +12,7 @@ changeLog =
     "Async exception safety, bug and MonadSelda API fixes."
     [ "Async exception safety."
     , "Allow MonadSelda instances not built on SeldaT."
+    , "Chunk very large insertions on backends that request it (i.e. SQLite)."
     ]
   , Version "0.1.9.0" "2017-06-16"
     "Conditional inserts and documentation fixes."
