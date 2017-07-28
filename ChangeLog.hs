@@ -8,7 +8,11 @@ import System.Process
 
 changeLog :: ChangeLog
 changeLog =
-  [ Version "0.1.9.0" "2017-06-16"
+  [ Version "0.1.10.0" ""
+    "Async exception safety."
+    [ "Async exception safety."
+    ]
+  , Version "0.1.9.0" "2017-06-16"
     "Conditional inserts and documentation fixes."
     [ "Properly document semantics of order."
     , "Export conditional inserts."
