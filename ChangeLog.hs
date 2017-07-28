@@ -9,8 +9,9 @@ import System.Process
 changeLog :: ChangeLog
 changeLog =
   [ Version "0.1.10.0" ""
-    "Async exception safety."
+    "Async exception safety, bug and MonadSelda API fixes."
     [ "Async exception safety."
+    , "Allow MonadSelda instances not built on SeldaT."
     ]
   , Version "0.1.9.0" "2017-06-16"
     "Conditional inserts and documentation fixes."

@@ -121,7 +121,8 @@ cached' k rc = do
     updatePrio (Just (_, v)) = (Just v, Just (nextPrio rc, v))
     updatePrio _             = (Nothing, Nothing)
 
--- | Invalidate all items in cache that depend on the given table.
+-- | Invalidate all items in the per-process cache that depend on
+--   the given table.
 invalidate :: [TableName] -> IO ()
 invalidate tns = atomicModifyIORef' theCache $ \c -> (foldl' (flip invalidate') c tns, ())
 

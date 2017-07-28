@@ -10,6 +10,7 @@ module Database.Selda.Backend.Internal
   , PPConfig (..), defPPConfig
   , sqlDateTimeFormat, sqlDateFormat, sqlTimeFormat
   , freshStmtId
+  , invalidate
   , newConnection, allStmts
   , runSeldaT, seldaBackend
   ) where
@@ -184,7 +185,7 @@ newtype SeldaT m a = S {unS :: StateT SeldaState m a}
            , MonadThrow, MonadCatch, MonadMask, MonadTrans
            )
 
-instance MonadIO m => MonadSelda (SeldaT m) where
+instance (MonadIO m, MonadMask m) => MonadSelda (SeldaT m) where
   seldaConnection = S $ fmap stConnection get
 
   invalidateTable tbl = S $ do
@@ -199,7 +200,7 @@ instance MonadIO m => MonadSelda (SeldaT m) where
       Nothing -> put $ st {stTouchedTables = Just []}
       Just _  -> liftIO $ throwM $ SqlError "attempted to nest transactions"
 
-  endTransaction committed = S $ do
+  endTransaction committed = S $ mask_ $ do
     st <- get
     case stTouchedTables st of
       Just ts | committed -> liftIO $ invalidate ts
@@ -216,7 +217,6 @@ runSeldaT m c =
     bracket (liftIO $ takeMVar (connLock c))
             (const $ liftIO $ putMVar (connLock c) ())
             (const go)
-            
   where
     go = do
       closed <- liftIO $ readIORef (connClosed c)
