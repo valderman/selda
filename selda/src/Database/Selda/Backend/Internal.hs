@@ -212,9 +212,11 @@ type SeldaM = SeldaT IO
 -- | Run a Selda transformer. Backends should use this to implement their
 --   @withX@ functions.
 runSeldaT :: (MonadIO m, MonadMask m) => SeldaT m a -> SeldaConnection -> m a
-runSeldaT m c = mask $ \restore -> do
-    liftIO $ takeMVar (connLock c)
-    restore go `finally` liftIO (putMVar (connLock c) ())
+runSeldaT m c =
+    bracket (liftIO $ takeMVar (connLock c))
+            (const $ liftIO $ putMVar (connLock c) ())
+            (const go)
+            
   where
     go = do
       closed <- liftIO $ readIORef (connClosed c)

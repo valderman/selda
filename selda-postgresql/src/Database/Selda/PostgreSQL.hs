@@ -91,9 +91,7 @@ withPostgreSQL :: (MonadIO m, MonadThrow m, MonadMask m)
 #ifdef __HASTE__
 withPostgreSQL _ _ = return $ error "withPostgreSQL called in JS context"
 #else
-withPostgreSQL ci m = mask $ \restore -> do
-  c <- pgOpen ci
-  restore (runSeldaT m c) `finally` seldaClose c
+withPostgreSQL ci m = bracket (pgOpen ci) seldaClose (runSeldaT m)
 #endif
 
 -- | Open a new PostgreSQL connection. The connection will persist across
@@ -103,23 +101,21 @@ pgOpen :: (MonadIO m, MonadMask m) => PGConnectInfo -> m SeldaConnection
 #ifdef __HASTE__
 pgOpen _ = return $ error "pgOpen called in JS context"
 #else
-pgOpen ci = mask_ $ do
-  conn <- liftIO $ connectdb connstr
-  st <- liftIO $ status conn
-  case st of
-    ConnectionOk -> do
-      let backend = pgBackend conn
-      flip catch (handler conn) $ do
+pgOpen ci =
+  bracketOnError (liftIO $ connectdb connstr) (liftIO . finish) $ \conn -> do
+    st <- liftIO $ status conn
+    case st of
+      ConnectionOk -> do
+        let backend = pgBackend conn
         liftIO $ runStmt backend "SET client_min_messages TO WARNING;" []
         newConnection backend (decodeUtf8 connstr)
-    nope -> do
-      connFailed nope
-  where
-    handler conn (SomeException e) = liftIO (finish conn) >> throwM e
-    connstr = pgConnString ci
-    connFailed f = throwM $ DbError $ unwords
-      [ "unable to connect to postgres server: " ++ show f
-      ]
+      nope -> do
+        connFailed nope
+    where
+      connstr = pgConnString ci
+      connFailed f = throwM $ DbError $ unwords
+        [ "unable to connect to postgres server: " ++ show f
+        ]
 
 -- | Create a `SeldaBackend` for PostgreSQL `Connection`
 pgBackend :: Connection   -- ^ PostgreSQL connection object.

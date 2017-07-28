@@ -60,6 +60,10 @@ instance (SqlType a, Prepare q b) => Prepare q (a -> b) where
 
 instance (MonadSelda m, a ~ Res (ResultT q), Result (ResultT q)) =>
          Prepare q (m [a]) where
+  -- This function uses read/writeIORef instead of atomicModifyIORef.
+  -- For once, this is actually safe: the IORef points to a single compiled
+  -- statement, so the only consequence of a race between the read and the write
+  -- is that the statement gets compiled (note: NOT prepared) twice.
   mkFun ref sid qry arguments = do
     conn <- seldaConnection
     let backend = connBackend conn
@@ -68,8 +72,7 @@ instance (MonadSelda m, a ~ Res (ResultT q), Result (ResultT q)) =>
     case M.lookup sid stmts of
       Just stm -> do
         -- Statement already prepared for this connection; just execute it.
-        liftIO $ do
-          runQuery conn stm args
+        liftIO $ runQuery conn stm args
       _ -> do
         -- Statement wasn't prepared for this connection; check if it was at
         -- least previously compiled for this backend.
@@ -83,7 +86,7 @@ instance (MonadSelda m, a ~ Res (ResultT q), Result (ResultT q)) =>
             return comp
 
         -- Prepare and execute
-        liftIO $ do
+        liftIO $ mask $ \restore -> do
           hdl <- prepareStmt backend sid reps q
           let stm = SeldaStmt
                 { stmtHandle = hdl
@@ -92,7 +95,7 @@ instance (MonadSelda m, a ~ Res (ResultT q), Result (ResultT q)) =>
                 , stmtText = q
                 }
           atomicModifyIORef' (connStmts conn) $ \m -> (M.insert sid stm m, ())
-          runQuery conn stm args
+          restore $ runQuery conn stm args
     where
       runQuery conn stm args = do
         let backend = connBackend conn

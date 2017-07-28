@@ -19,18 +19,16 @@ sqliteOpen file = do
 #ifdef __HASTE__
   error "sqliteOpen called in JS context"
 #else
-  mask_ $ do
+  mask $ \restore -> do
     edb <- try $ liftIO $ open (pack file)
     case edb of
       Left e@(SQLError{}) -> do
         throwM (DbError (show e))
-      Right db -> flip catch (handler db) $ do
+      Right db -> flip onException (liftIO (close db)) . restore $ do
         absFile <- liftIO $ pack <$> makeAbsolute file
         let backend = sqliteBackend db
         liftIO $ runStmt backend "PRAGMA foreign_keys = ON;" []
         newConnection backend absFile
-  where
-    handler db (SomeException e) = liftIO (close db) >> throwM e
 #endif
 
 -- | Perform the given computation over an SQLite database.
@@ -39,9 +37,7 @@ withSQLite :: (MonadIO m, MonadMask m) => FilePath -> SeldaT m a -> m a
 #ifdef __HASTE__
 withSQLite _ _ = return $ error "withSQLite called in JS context"
 #else
-withSQLite file m = mask $ \restore -> do
-  conn <- sqliteOpen file
-  restore (runSeldaT m conn) `finally` seldaClose conn
+withSQLite file m = bracket (sqliteOpen file) seldaClose (runSeldaT m)
 
 sqliteBackend :: Database -> SeldaBackend
 sqliteBackend db = SeldaBackend
