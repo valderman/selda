@@ -37,6 +37,7 @@ defPPConfig = PPConfig
     , ppPlaceholder = T.cons '$' . T.pack . show
     , ppColAttrs = T.unwords . map defColAttr
     , ppAutoIncInsert = "NULL"
+    , ppMaxInsertParams = Nothing
     }
 
 -- | Default compilation for SQL types.
