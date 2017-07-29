@@ -225,20 +225,10 @@ tryDropTable = withInval $ void . flip exec [] . compileDropTable Ignore
 -- | Perform the given computation atomically.
 --   If an exception is raised during its execution, the enture transaction
 --   will be rolled back, and the exception re-thrown.
-transaction :: (MonadSelda m, MonadThrow m, MonadCatch m) => m a -> m a
-transaction m = do
-  beginTransaction
-  void $ exec "BEGIN TRANSACTION" []
-  res <- try m
-  case res of
-    Left (SomeException e) -> do
-      void $ exec "ROLLBACK" []
-      endTransaction False
-      throwM e
-    Right x -> do
-      void $ exec "COMMIT" []
-      endTransaction True
-      return x
+transaction :: (MonadSelda m, MonadCatch m) => m a -> m a
+transaction m =
+  wrapTransaction (void $ exec "COMMIT" []) (void $ exec "ROLLBACK" []) $ do
+    exec "BEGIN TRANSACTION" [] *> m
 
 -- | Set the maximum local cache size to @n@. A cache size of zero disables
 --   local cache altogether. Changing the cache size will also flush all

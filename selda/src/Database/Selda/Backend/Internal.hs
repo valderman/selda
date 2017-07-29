@@ -21,6 +21,7 @@ import Database.Selda.Table (Table, ColAttr (..), tableName)
 import Database.Selda.SQL.Print.Config
 import Database.Selda.Types (TableName)
 import Control.Concurrent
+import Control.Exception (throw)
 import Control.Monad.Catch
 import Control.Monad.IO.Class
 import Control.Monad.State
@@ -163,17 +164,26 @@ class MonadIO m => MonadSelda m where
   --   Invalidate the table immediately if no transaction is ongoing.
   invalidateTable :: Table a -> m ()
 
-  -- | Indicates the start of a new transaction.
-  --   Starts bookkeeping to invalidate all tables modified during
-  --   the transaction at the next call to 'endTransaction'.
-  beginTransaction :: m ()
-
-  -- | Indicates the end of the current transaction.
-  --   Invalidates all tables that were modified since the last call to
-  --   'beginTransaction', unless the transaction was rolled back.
-  endTransaction :: Bool -- ^ @True@ if the transaction was committed,
-                         --   @False@ if it was rolled back.
-                 -> m ()
+  -- | Safely wrap a transaction. To ensure consistency of the in-process cache,
+  --   it is important that any cached tables modified during a transaction are
+  --   invalidated ONLY if that transaction succeeds, AFTER the changes become
+  --   visible in the database.
+  --
+  --   In order to be thread-safe in the presence of asynchronous exceptions,
+  --   instances should:
+  --
+  --   1. Mask async exceptions.
+  --   2. Start bookkeeping of tables invalidated during the transaction.
+  --   3. Perform the transaction, with async exceptions restored.
+  --   4. Commit transaction, invalidate tables, and disable bookkeeping; OR
+  --   5. If an exception was raised, rollback transaction and
+  --      disable bookkeeping.
+  --
+  --   See the instance for 'SeldaT' for an example of how to do this safely.
+  wrapTransaction :: m () -- ^ Signal transaction commit to SQL backend.
+                  -> m () -- ^ Signal transaction rollback to SQL backend.
+                  -> m a  -- ^ Transaction to perform.
+                  -> m a
 
 -- | Get the backend in use by the computation.
 seldaBackend :: MonadSelda m => m SeldaBackend
@@ -194,18 +204,17 @@ instance (MonadIO m, MonadMask m) => MonadSelda (SeldaT m) where
       Nothing -> liftIO $ invalidate [tableName tbl]
       Just ts -> put $ st {stTouchedTables = Just (tableName tbl : ts)}
 
-  beginTransaction = S $ do
-    st <- get
-    case stTouchedTables st of
-      Nothing -> put $ st {stTouchedTables = Just []}
-      Just _  -> liftIO $ throwM $ SqlError "attempted to nest transactions"
-
-  endTransaction committed = S $ mask_ $ do
-    st <- get
-    case stTouchedTables st of
-      Just ts | committed -> liftIO $ invalidate ts
-      _                   -> return ()
-    put $ st {stTouchedTables = Nothing}
+  wrapTransaction commit rollback m = mask $ \restore -> do
+    S $ modify' $ \st ->
+      case stTouchedTables st of
+        Nothing -> st {stTouchedTables = Just []}
+        Just _  -> throw $ SqlError "attempted to nest transactions"
+    x <- restore m `onException` rollback
+    commit
+    st <- S get
+    maybe (return ()) (liftIO . invalidate) (stTouchedTables st)
+    S $ put $ st {stTouchedTables = Nothing}
+    return x
 
 -- | The simplest form of Selda computation; 'SeldaT' specialized to 'IO'.
 type SeldaM = SeldaT IO
