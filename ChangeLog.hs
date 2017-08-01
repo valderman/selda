@@ -8,7 +8,7 @@ import System.Process
 
 changeLog :: ChangeLog
 changeLog =
-  [ Version "0.1.10.0" ""
+  [ Version "0.1.10.0" "2017-08-01"
     "Async exception safety, bug and API fixes. Also, GHC 8.2 support."
     [ "Async exception safety."
     , "Allow MonadSelda instances not built on SeldaT."

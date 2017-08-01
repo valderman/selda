@@ -31,6 +31,7 @@ import Control.Monad.State
 import Data.Dynamic
 import Data.Proxy
 import Data.Text (pack)
+import Data.Typeable
 import GHC.Generics hiding (R, (:*:), Selector)
 import qualified GHC.Generics as G ((:*:)(..), Selector)
 import Unsafe.Coerce
@@ -38,9 +39,6 @@ import Database.Selda hiding (from)
 import Database.Selda.Table
 import Database.Selda.Types
 import Database.Selda.Selectors
-
-import Data.Typeable
-import Debug.Trace
 
 -- | Any type which has a corresponding relation.
 --   To make a @Relational@ instance for some type, simply derive 'Generic'.
