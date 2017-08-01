@@ -21,6 +21,9 @@ matrix:
     - env: CABALVER=1.24 GHCVER=8.0.2
       compiler: ": #GHC 8.0.2"
       addons: {apt: {packages: [cabal-install-1.24,ghc-8.0.2,libpq-dev], sources: [hvr-ghc]}}
+    - env: CABALVER=1.24 GHCVER=8.2.1
+      compiler: ": #GHC 8.2.1"
+      addons: {apt: {packages: [cabal-install-1.24,ghc-8.2.1,libpq-dev], sources: [hvr-ghc]}}
 
 before_script:
  - psql -c 'create database test;' -U postgres

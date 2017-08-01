@@ -9,6 +9,7 @@ import Control.Exception
 import Data.Dynamic
 import Data.List (sort, group)
 import Data.Monoid
+import Data.Proxy
 import Data.Text (unpack, intercalate, any)
 
 -- | An error occurred when validating a database table.

@@ -20,7 +20,7 @@ category:            Database
 build-type:          Simple
 extra-source-files:  ChangeLog.md
 cabal-version:       >=1.10
-tested-with:         GHC == 7.10.3, GHC == 8.0.2
+tested-with:         GHC == 7.10.3, GHC == 8.0.2, GHC == 8.2.1
 
 extra-source-files:
   README.md
@@ -93,6 +93,9 @@ library
   if impl(ghc < 7.11)
     build-depends:
       transformers  >=0.4 && <0.6
+  if impl(ghc >= 8.2)
+    build-depends:
+      hashable >= 1.2.6.1
   if !flag(haste) && flag(localcache)
     build-depends:
       psqueues >=0.2 && <0.3

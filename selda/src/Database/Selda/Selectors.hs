@@ -7,6 +7,7 @@ import Database.Selda.Types
 import Database.Selda.Column
 import Data.Dynamic
 import Data.List (foldl')
+import Data.Proxy
 import Unsafe.Coerce
 
 -- | Get the value at the given index from the given inductive tuple.
