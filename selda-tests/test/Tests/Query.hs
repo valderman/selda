@@ -32,6 +32,7 @@ queryTests run = test
   , "select from empty value table" ~: run selectEmptyValues
   , "aggregate from empty value table" ~: run aggregateEmptyValues
   , "inner join" ~: run testInnerJoin
+  , "simple if-then-else" ~: run simpleIfThenElse
   , "rounding doubles to ints" ~: run roundToInt
   , "serializing doubles" ~: run serializeDouble
   , "such that works" ~: run testSuchThat
@@ -245,6 +246,22 @@ testInnerJoin = do
       [ Just "horse"  :*: "Kakariko"
       , Just "dragon" :*: "Tokyo"
       , Nothing       :*: "Fuyukishi"
+      ]
+
+simpleIfThenElse = do
+    ppl <- query $ do
+      name :*: age :*: _ :*: _ <- select people
+      let ageGroup = ifThenElse (age .< 18)  (text "Child") $
+                     ifThenElse (age .>= 65) (text "Elder")
+                                             (text "Adult")
+      return (name :*: age :*: ageGroup)
+    assEq "wrong results from ifThenElse" (sort res) (sort ppl)
+  where
+    res =
+      [ "Link"      :*: 125 :*: "Elder"
+      , "Velvet"    :*: 19  :*: "Adult"
+      , "Kobayashi" :*: 23  :*: "Adult"
+      , "Miyu"      :*: 10  :*: "Child"
       ]
 
 roundToInt = do
