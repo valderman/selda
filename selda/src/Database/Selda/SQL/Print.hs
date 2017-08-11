@@ -220,6 +220,11 @@ ppCol (Fun2 f a b)   = do
   a' <- ppCol a
   b' <- ppCol b
   pure $ mconcat [f, "(", a', ", ", b', ")"]
+ppCol (If a b c)     = do
+  a' <- ppCol a
+  b' <- ppCol b
+  c' <- ppCol c
+  pure $ mconcat ["CASE WHEN ", a', " THEN ", b', " ELSE ", c', " END"]
 ppCol (AggrEx f x)   = ppUnOp (Fun f) x
 ppCol (Cast t x)     = do
   x' <- ppCol x

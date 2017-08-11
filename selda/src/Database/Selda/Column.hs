@@ -3,7 +3,7 @@
 module Database.Selda.Column
   ( Cols, Columns
   , Col (..), SomeCol (..), Exp (..), UnOp (..), BinOp (..)
-  , toTup, fromTup, liftC, liftC2
+  , toTup, fromTup, liftC, liftC2, liftC3
   , allNamesIn
   , literal
   ) where
@@ -45,6 +45,9 @@ literal = C . Lit . mkLit
 
 instance IsString (Col s Text) where
   fromString = literal . fromString
+
+liftC3 :: (Exp SQL a -> Exp SQL b -> Exp SQL c -> Exp SQL d) -> Col s a -> Col s b -> Col s c -> Col s d
+liftC3 f (C a) (C b) (C c) = C (f a b c)
 
 liftC2 :: (Exp SQL a -> Exp SQL b -> Exp SQL c) -> Col s a -> Col s b -> Col s c
 liftC2 f (C a) (C b) = C (f a b)
