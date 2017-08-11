@@ -96,14 +96,11 @@ aggregate :: (Columns (OuterCols a), Aggregates a)
           => Query (Inner s) a
           -> Query s (OuterCols a)
 aggregate q = Query $ do
-  -- Run query in isolation, then rename the remaining vars and generate outer
-  -- query.
-  st <- get
   (gst, aggrs) <- isolate q
   cs <- mapM rename $ unAggrs aggrs
   let sql = state2sql gst
       sql' = SQL cs (Product [sql]) [] (groupCols gst) [] Nothing
-  put $ st {sources = sql' : sources st}
+  modify $ \st -> st {sources = sql' : sources st}
   pure $ toTup [n | Named n _ <- cs]
 
 -- | Perform a @LEFT JOIN@ with the current result set (i.e. the outer query)

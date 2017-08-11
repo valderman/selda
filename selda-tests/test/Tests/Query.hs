@@ -40,6 +40,7 @@ queryTests run = test
   , "prepared interleaved" ~: run preparedInterleaved
   , "interleaved with different results" ~: run preparedDifferentResults
   , "order in correct order" ~: run orderCorrectOrder
+  , "multiple aggregates in sequence" ~: run multipleAggregates
   , "teardown succeeds" ~: run teardown
   ]
 
@@ -361,3 +362,26 @@ orderCorrectOrder = do
     ans1 = ["Miyu", "Amber", "Velvet", "Kobayashi", "Link"]
     ans2 = ["Miyu", "Velvet", "Amber", "Kobayashi", "Link"]
     ans3 = ["Amber", "Kobayashi", "Link", "Miyu", "Velvet"]
+
+-- Test case for #42: name supply was erroneously overwritten when using
+-- aggregates.
+multipleAggregates = do
+  res <- query $ do
+    (name :*: _ :*: _) <- select people
+
+    (owner :*: homes) <- aggregate $ do
+      (owner :*: city) <- select addresses
+      owner' <- groupBy owner
+      return (owner' :*: count city)
+    restrict (owner .== name)
+
+    (owner2 :*: homesInTokyo) <- aggregate $ do
+      (owner :*: city) <- select addresses
+      restrict (city .== "Tokyo")
+      owner' <- groupBy owner
+      return (owner' :*: count city)
+    restrict (owner2 .== name)
+
+    order homes descending
+    return (owner :*: homes :*: homesInTokyo)
+  assEq "wrong result for aggregate query" ["Kobayashi" :*: 1 :*: 1] res
