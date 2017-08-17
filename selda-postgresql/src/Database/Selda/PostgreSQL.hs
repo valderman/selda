@@ -3,7 +3,7 @@
 module Database.Selda.PostgreSQL
   ( PGConnectInfo (..)
   , withPostgreSQL, on, auth
-  , pgOpen, seldaClose
+  , pgOpen, pgOpen', seldaClose
   , pgConnString
   ) where
 import qualified Data.ByteString.Char8 as BS
@@ -101,18 +101,20 @@ pgOpen :: (MonadIO m, MonadMask m) => PGConnectInfo -> m SeldaConnection
 #ifdef __HASTE__
 pgOpen _ = return $ error "pgOpen called in JS context"
 #else
-pgOpen ci =
-  bracketOnError (liftIO $ connectdb connstr) (liftIO . finish) $ \conn -> do
+pgOpen ci = pgOpen' $ pgConnString ci
+
+pgOpen' :: (MonadIO m, MonadMask m) => BS.ByteString -> m SeldaConnection
+pgOpen' connStr =
+  bracketOnError (liftIO $ connectdb connStr) (liftIO . finish) $ \conn -> do
     st <- liftIO $ status conn
     case st of
       ConnectionOk -> do
         let backend = pgBackend conn
         liftIO $ runStmt backend "SET client_min_messages TO WARNING;" []
-        newConnection backend (decodeUtf8 connstr)
+        newConnection backend (decodeUtf8 connStr)
       nope -> do
         connFailed nope
     where
-      connstr = pgConnString ci
       connFailed f = throwM $ DbError $ unwords
         [ "unable to connect to postgres server: " ++ show f
         ]
