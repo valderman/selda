@@ -8,7 +8,13 @@ import System.Process
 
 changeLog :: ChangeLog
 changeLog =
-  [ Version "0.1.10.1" "2017-08-11"
+  [ Version "0.1.11.0" "2017-09-08"
+    "Conditionals, SELECT DISTINCT, and bug fixes."
+    [ "Fix name generation in the presence of isIn over queries."
+    , "SELECT DISTINCT support."
+    , "Conditional expressions and matchNull."
+    ]
+  , Version "0.1.10.1" "2017-08-11"
     "Code generation bug fix."
     [ "Fix name generation in the presence of multiple aggregates."
     ]
