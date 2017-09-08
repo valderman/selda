@@ -45,6 +45,7 @@ queryTests run = test
   , "isIn inner query renaming (#46)" ~: run isInQueryRenaming
   , "distinct on multiple queries" ~: run selectDistinct
   , "distinct on single query" ~: run selectValuesDistinct
+  , "matchNull" ~: run simpleMatchNull
   , "teardown succeeds" ~: run teardown
   ]
 
@@ -431,3 +432,17 @@ selectDistinct = do
 selectValuesDistinct = do
   res <- query $ distinct $ selectValues $ replicate 5 ("Link" :: Text)
   assEq "wrong result set" ["Link"] res
+
+simpleMatchNull = do
+    res <- query $ do
+      (name :*: _ :*: pet :*: _) <- select people
+      order name ascending
+      return $ (name :*: matchNull 0 length_ pet)
+    assEq "wrong result set" expected res
+  where
+    expected =
+      [ "Kobayashi" :*: 6
+      , "Link" :*: 5
+      , "Miyu" :*: 0
+      , "Velvet" :*: 0
+      ]

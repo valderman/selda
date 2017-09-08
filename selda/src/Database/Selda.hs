@@ -83,7 +83,7 @@ module Database.Selda
   , (.==), (./=), (.>), (.<), (.>=), (.<=), like
   , (.&&), (.||), not_
   , literal, int, float, text, true, false, null_
-  , roundTo, length_, isNull, ifThenElse
+  , roundTo, length_, isNull, ifThenElse, matchNull
     -- * Converting between column types
   , round_, just, fromBool, fromInt, toString
     -- * Inner queries
@@ -213,6 +213,13 @@ infixl 4 .<=
 -- | Is the given column null?
 isNull :: Col s (Maybe a) -> Col s Bool
 isNull = liftC $ UnOp IsNull
+
+-- | Applies the given function to the given nullable column where it isn't null,
+--   and returns the given default value where it is.
+--
+--   This is the Selda equivalent of 'maybe'.
+matchNull :: SqlType a => Col s b -> (Col s a -> Col s b) -> Col s (Maybe a) -> Col s b
+matchNull def f x = ifThenElse (isNull x) def (f (cast x))
 
 -- | Any container type for which we can check object membership.
 class Set set where
