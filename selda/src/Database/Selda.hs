@@ -219,7 +219,7 @@ isNull = liftC $ UnOp IsNull
 --
 --   This is the Selda equivalent of 'maybe'.
 matchNull :: SqlType a => Col s b -> (Col s a -> Col s b) -> Col s (Maybe a) -> Col s b
-matchNull def f x = ifThenElse (isNull x) def (f (cast x))
+matchNull nullvalue f x = ifThenElse (isNull x) nullvalue (f (cast x))
 
 -- | Any container type for which we can check object membership.
 class Set set where
