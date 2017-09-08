@@ -46,6 +46,7 @@ queryTests run = test
   , "distinct on multiple queries" ~: run selectDistinct
   , "distinct on single query" ~: run selectValuesDistinct
   , "matchNull" ~: run simpleMatchNull
+  , "ifThenElse" ~: run simpleIfThenElse
   , "teardown succeeds" ~: run teardown
   ]
 
