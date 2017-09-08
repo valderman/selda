@@ -3,7 +3,7 @@
 -- | Selda SQL compilation.
 module Database.Selda.Compile
   ( Result, Res
-  , toRes, compQuery
+  , toRes, compQuery, compQueryWithFreshScope
   , compile, compileWith, compileWithTables
   , compileInsert, compileUpdate, compileDelete
   )
@@ -22,6 +22,10 @@ import Data.Proxy
 import Data.Text (Text, empty)
 import Data.Typeable (Typeable)
 
+-- For scope supply
+import Data.IORef
+import System.IO.Unsafe
+
 -- | Compile a query into a parameterised SQL statement.
 --
 --   The types given are tailored for SQLite. To translate SQLite types into
@@ -39,7 +43,7 @@ compileWithTables :: Result a
                   => PPConfig
                   -> Query s a
                   -> ([TableName], (Text, [Param]))
-compileWithTables cfg = compSql cfg . snd . compQuery
+compileWithTables cfg = compSql cfg . snd . compQuery 0
 
 -- | Compile an @INSERT@ query, given the keyword representing default values
 --   in the target SQL dialect, a table and a list of items corresponding
@@ -83,15 +87,26 @@ compileDelete cfg tbl check = compDelete cfg (tableName tbl) predicate
 
 -- | Compile a query to an SQL AST.
 --   Groups are ignored, as they are only used by 'aggregate'.
-compQuery :: Result a => Query s a -> (Int, SQL)
-compQuery q =
+compQuery :: Result a => Scope -> Query s a -> (Int, SQL)
+compQuery ns q =
     (nameSupply st, SQL final (Product [srcs]) [] [] [] Nothing)
   where
-    (cs, st) = runQueryM q
+    (cs, st) = runQueryM ns q
     final = finalCols cs
     sql = state2sql st
     live = colNames final ++ allNonOutputColNames sql
     srcs = removeDeadCols live sql
+
+{-# NOINLINE scopeSupply #-}
+scopeSupply :: IORef Scope
+scopeSupply = unsafePerformIO $ newIORef 1
+
+-- | Get a fresh scope from the global scope supply, then use it to compile
+--   the given query.
+compQueryWithFreshScope :: Result a => Query s a -> (Int, SQL)
+compQueryWithFreshScope q = unsafePerformIO $ do
+  s <- atomicModifyIORef' scopeSupply (\s -> (s+1, s))
+  return $ compQuery s q
 
 -- | An acceptable query result type; one or more columns stitched together
 --   with @:*:@.

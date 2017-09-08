@@ -41,7 +41,8 @@ queryTests run = test
   , "prepared interleaved" ~: run preparedInterleaved
   , "interleaved with different results" ~: run preparedDifferentResults
   , "order in correct order" ~: run orderCorrectOrder
-  , "multiple aggregates in sequence" ~: run multipleAggregates
+  , "multiple aggregates in sequence (#42)" ~: run multipleAggregates
+  , "isIn inner query renaming (#46)" ~: run isInQueryRenaming
   , "teardown succeeds" ~: run teardown
   ]
 
@@ -402,3 +403,17 @@ multipleAggregates = do
     order homes descending
     return (owner :*: homes :*: homesInTokyo)
   assEq "wrong result for aggregate query" ["Kobayashi" :*: 1 :*: 1] res
+
+isInQueryRenaming = do
+  res <- query $ do
+    (name :*: _ :*: _) <- select people
+    restrict $ (int 1) `isIn` (do
+        (name2 :*: age :*: _) <- select people
+        (name3 :*: city) <- select addresses
+        restrict (name3 .== name2)
+        restrict (name .== name2)
+        restrict (city .== "Kakariko")
+        return (int 1)
+      )
+    return name
+  assEq "wrong list of people returned" ["Link"] res
