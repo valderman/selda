@@ -49,6 +49,19 @@ instance Names SQL where
     , allNamesIn source
     ]
 
+-- | Build a plain SQL query with the given columns and source, with no filters,
+--   ordering, etc.
+sqlFrom :: [SomeCol SQL] -> SqlSource -> SQL
+sqlFrom cs src = SQL
+  { cols = cs
+  , source = src
+  , restricts = []
+  , groups = []
+  , ordering = []
+  , limits = Nothing
+  , distinct = False
+  }
+
 -- | The order in which to sort result rows.
 data Order = Asc | Desc
   deriving (Show, Ord, Eq)

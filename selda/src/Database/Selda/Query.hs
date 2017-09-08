@@ -1,14 +1,15 @@
 {-# LANGUAGE FlexibleContexts, OverloadedStrings #-}
 -- | Query monad and primitive operations.
 module Database.Selda.Query
-  ( select, selectValues, distinct
+  ( select, selectValues, Database.Selda.Query.distinct
   , restrict, groupBy, limit, order
   , aggregate, leftJoin, innerJoin
   ) where
+import Data.Maybe (isNothing)
 import Database.Selda.Column
 import Database.Selda.Inner
 import Database.Selda.Query.Type
-import Database.Selda.SQL hiding (distinct)
+import Database.Selda.SQL as SQL
 import Database.Selda.Table
 import Database.Selda.Transform
 import Control.Monad.State.Strict
@@ -20,7 +21,7 @@ select :: Columns (Cols s a) => Table a -> Query s (Cols s a)
 select (Table name cs _) = Query $ do
     rns <- mapM (rename . Some . Col) cs'
     st <- get
-    put $ st {sources = SQL rns (TableName name) [] [] [] Nothing False : sources st}
+    put $ st {sources = sqlFrom rns (TableName name) : sources st}
     return $ toTup [n | Named n _ <- rns]
   where
     cs' = map colName cs
@@ -30,14 +31,14 @@ select (Table name cs _) = Query $ do
 selectValues :: (Insert a, Columns (Cols s a)) => [a] -> Query s (Cols s a)
 selectValues [] = Query $ do
   st <- get
-  put $ st {sources = SQL [] EmptyTable [] [] [] Nothing False : sources st}
+  put $ st {sources = sqlFrom [] EmptyTable : sources st}
   return $ toTup (repeat "NULL")
 selectValues (row:rows) = Query $ do
     names <- mapM (const freshName) firstrow
     let rns = [Named n (Col n) | n <- names]
         row' = mkFirstRow names
     s <- get
-    put $ s {sources = SQL rns (Values row' rows') [] [] [] Nothing False : sources s}
+    put $ s {sources = sqlFrom rns (Values row' rows') : sources s}
     return $ toTup [n | Named n _ <- rns]
   where
     firstrow = map defToVal $ params row
@@ -60,10 +61,10 @@ restrict (C p) = Query $ do
       -- of the query where they are renamed, so if the restrict predicate
       -- contains any vars renamed in this query, we must add another query
       -- just for the restrict.
-      [SQL cs s ps gs os lim dist] | not $ p `wasRenamedIn` cs ->
-        st {sources = [SQL cs s (p : ps) gs os lim dist]}
+      [sql] | not $ p `wasRenamedIn` cols sql ->
+        st {sources = [sql {restricts = p : restricts sql}]}
       ss ->
-        st {sources = [SQL (allCols ss) (Product ss) [p] [] [] Nothing False]}
+        st {sources = [(sqlFrom (allCols ss) (Product ss)) {restricts = [p]}]}
   where
     wasRenamedIn predicate cs =
       let cs' = [n | Named n _ <- cs]
@@ -98,9 +99,8 @@ aggregate :: (Columns (OuterCols a), Aggregates a)
 aggregate q = Query $ do
   (gst, aggrs) <- isolate q
   cs <- mapM rename $ unAggrs aggrs
-  let sql = state2sql gst
-      sql' = SQL cs (Product [sql]) [] (groupCols gst) [] Nothing False
-  modify $ \st -> st {sources = sql' : sources st}
+  let sql = (sqlFrom cs (Product [state2sql gst])) {groups = groupCols gst}
+  modify $ \st -> st {sources = sql : sources st}
   pure $ toTup [n | Named n _ <- cs]
 
 -- | Perform a @LEFT JOIN@ with the current result set (i.e. the outer query)
@@ -151,11 +151,10 @@ someJoin jointype check q = Query $ do
   st <- get
   let nameds = [n | Named n _ <- cs]
       left = state2sql st
-      right = SQL cs (Product [state2sql join_st]) [] [] [] Nothing False
+      right = sqlFrom cs (Product [state2sql join_st])
       C on = check $ toTup nameds
       outCols = [Some $ Col n | Named n _ <- cs] ++ allCols [left]
-      sql = SQL outCols (Join jointype on left right) [] [] [] Nothing False
-  put $ st {sources = [sql]}
+  put $ st {sources = [sqlFrom outCols (Join jointype on left right)]}
   pure $ toTup nameds
 
 -- | Group an aggregate query by a column.
@@ -180,12 +179,10 @@ limit :: Int -> Int -> Query (Inner s) a -> Query s (OuterCols a)
 limit from to q = Query $ do
   (lim_st, res) <- isolate q
   st <- get
-  let sql = case sources lim_st of
-        [SQL cs s ps gs os Nothing dist] ->
-          SQL cs s ps gs os (Just (from, to)) dist
-        ss ->
-          SQL (allCols ss) (Product ss) [] [] [] (Just (from, to)) False
-  put $ st {sources = sql : sources st}
+  let sql' = case sources lim_st of
+        [sql] | isNothing (limits sql) -> sql
+        ss                             -> sqlFrom (allCols ss) (Product ss)
+  put $ st {sources = sql' {limits = Just (from, to)} : sources st}
   -- TODO: replace with safe coercion
   return $ unsafeCoerce res
 
@@ -213,21 +210,17 @@ limit from to q = Query $ do
 order :: Col s a -> Order -> Query s ()
 order (C c) o = Query $ do
   st <- get
-  put $ case sources st of
-    [SQL cs s ps gs os lim dist] ->
-      st {sources = [SQL cs s ps gs ((o, Some c):os) lim dist]}
-    ss ->
-      st {sources = [SQL (allCols ss) (Product ss) [] [] [(o, Some c)] Nothing False]}
+  case sources st of
+    [sql] -> put st {sources = [sql {ordering = (o, Some c) : ordering sql}]}
+    ss    -> put st {sources = [sql {ordering = [(o,Some c)]}]}
+      where sql = sqlFrom (allCols ss) (Product ss)
 
 -- | Remove all duplicates from the result set.
 distinct :: Query s a -> Query s a
 distinct q = Query $ do
   (inner_st, res) <- isolate q
   st <- get
-  let sql = case sources inner_st of
-        [SQL cs s ps gs os lim _] ->
-          SQL cs s ps gs os lim True
-        ss ->
-          SQL (allCols ss) (Product ss) [] [] [] Nothing True
-  put $ st {sources = [sql]}
+  case sources inner_st of
+    [sql] -> put st {sources = [sql {SQL.distinct = True}]}
+    ss    -> put st {sources = [sqlFrom (allCols ss) (Product ss)]}
   return res
