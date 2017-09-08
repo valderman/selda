@@ -109,7 +109,7 @@ freshQueryName = do
 
 -- | Pretty-print an SQL AST.
 ppSql :: SQL -> PP Text
-ppSql (SQL cs src r gs ord lim) = do
+ppSql (SQL cs src r gs ord lim dist) = do
   cs' <- mapM ppSomeCol cs
   src' <- ppSrc src
   r' <- ppRestricts r
@@ -117,7 +117,7 @@ ppSql (SQL cs src r gs ord lim) = do
   ord' <- ppOrder ord
   lim' <- ppLimit lim
   pure $ mconcat
-    [ "SELECT ", result cs'
+    [ "SELECT ", if dist then "DISTINCT " else "", result cs'
     , src'
     , r'
     , gs'

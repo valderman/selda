@@ -68,7 +68,7 @@ state2sql :: GenState -> SQL
 state2sql (GenState [sql] srs _ _ _) =
   sql {restricts = restricts sql ++ srs}
 state2sql (GenState ss srs _ _ _) =
-  SQL (allCols ss) (Product ss) srs [] [] Nothing
+  SQL (allCols ss) (Product ss) srs [] [] Nothing False
 
 -- | Get all output columns from a list of SQL ASTs.
 allCols :: [SQL] -> [SomeCol SQL]

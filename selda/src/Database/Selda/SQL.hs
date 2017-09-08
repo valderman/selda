@@ -1,5 +1,6 @@
 {-# LANGUAGE GADTs, OverloadedStrings, ScopedTypeVariables, RecordWildCards #-}
 {-# LANGUAGE TypeOperators, FlexibleInstances, UndecidableInstances #-}
+{-# LANGUAGE RankNTypes #-}
 -- | SQL AST and parameters for prepared statements.
 module Database.Selda.SQL where
 import Database.Selda.Exp
@@ -28,6 +29,7 @@ data SQL = SQL
   , groups    :: ![SomeCol SQL]
   , ordering  :: ![(Order, SomeCol SQL)]
   , limits    :: !(Maybe (Int, Int))
+  , distinct  :: !Bool
   }
 
 instance Names SqlSource where

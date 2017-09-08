@@ -43,6 +43,8 @@ queryTests run = test
   , "order in correct order" ~: run orderCorrectOrder
   , "multiple aggregates in sequence (#42)" ~: run multipleAggregates
   , "isIn inner query renaming (#46)" ~: run isInQueryRenaming
+  , "distinct on multiple queries" ~: run selectDistinct
+  , "distinct on single query" ~: run selectValuesDistinct
   , "teardown succeeds" ~: run teardown
   ]
 
@@ -417,3 +419,15 @@ isInQueryRenaming = do
       )
     return name
   assEq "wrong list of people returned" ["Link"] res
+
+selectDistinct = do
+  res <- query $ distinct $ do
+    (name :*: _ :*: _) <- select people
+    select people
+    order name ascending
+    return name
+  assEq "wrong result set" ["Kobayashi", "Link", "Miyu", "Velvet"] res
+
+selectValuesDistinct = do
+  res <- query $ distinct $ selectValues $ replicate 5 ("Link" :: Text)
+  assEq "wrong result set" ["Link"] res

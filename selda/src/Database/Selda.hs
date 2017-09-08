@@ -73,7 +73,7 @@ module Database.Selda
   , Cols, Columns
   , Order (..)
   , (:*:)(..)
-  , select, selectValues, from
+  , select, selectValues, from, distinct
   , restrict, limit
   , order , ascending, descending
   , inner, suchThat
@@ -132,7 +132,7 @@ import Database.Selda.Prepared
 import Database.Selda.Query
 import Database.Selda.Query.Type
 import Database.Selda.Selectors
-import Database.Selda.SQL
+import Database.Selda.SQL hiding (distinct)
 import Database.Selda.SqlType
 import Database.Selda.Table
 import Database.Selda.Table.Compile
