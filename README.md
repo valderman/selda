@@ -723,7 +723,7 @@ TODOs
 
 Features that would be nice to have but are not yet implemented.
 
-* If/else.
+* Monadic if/else.
 * Streaming
 * Type-safe migrations
 * `SELECT INTO`.
