@@ -59,7 +59,6 @@ ul.menu {
     right: 0;
     margin: auto;
     top: 25em;
-    width: 80%;
 }
 
 .pane {
@@ -85,7 +84,7 @@ pre code {
 @media (min-width: 950px) {
     code.narrowcode {display: none;}
     #content {
-        width: 60%;
+        width: 80%;
         min-width: 60em;
     }
     #left {float: left;}
@@ -105,5 +104,6 @@ pre code {
 
     #content {
         top: 23em;
+        width: 80%;
     }
 }
