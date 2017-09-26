@@ -9,16 +9,15 @@ Selda
 
 What is Selda?
 ==============
-Selda is an embedded domain-specific language for interacting with relational
-databases. It was inspired by [LINQ](https://en.wikipedia.org/wiki/Language_Integrated_Query) and
+[Selda](https://selda.link) is a Haskell library for interacting with SQL-based relational databases.
+It was inspired by [LINQ](https://en.wikipedia.org/wiki/Language_Integrated_Query) and
 [Opaleye](http://hackage.haskell.org/package/opaleye).
 
 
 Features
 ========
 
-* Monadic interface: no need to be a category theory wizard just to write a few
-  database queries.
+* Monadic interface.
 * Portable: backends for SQLite and PostgreSQL.
 * Generic: easy integration with your existing Haskell types.
 * Creating, dropping and querying tables using type-safe database schemas.
@@ -28,8 +27,8 @@ Features
 * Transactions, uniqueness constraints and foreign keys.
 * Seamless prepared statements.
 * Configurable, automatic, consistent in-process caching of query results.
-* Lightweight and modular: non-essential features are optional or split into
-  add-on packages.
+* Lightweight and modular: few dependencies, and non-essential features are
+  optional or split into add-on packages.
 
 
 Getting started
