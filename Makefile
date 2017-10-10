@@ -9,7 +9,7 @@ help:
 	@echo "check        - build package, run tests, do a cabal sanity check"
 	@echo "travischeck  - like check, but with appropriate PGConnectInfo"
 	@echo "sqlite       - build and install sqlite backend"
-	@echo "postgres     - build and install sqlite backend"
+	@echo "postgres     - build and install postgres backend"
 	@echo "upload       - upload packages to Hackage"
 	@echo "upload-selda - upload only the main selda package"
 	@echo "haddock      - build Haddock docs"
