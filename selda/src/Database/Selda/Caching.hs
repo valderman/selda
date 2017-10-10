@@ -22,6 +22,10 @@ import Database.Selda.Types (TableName)
 
 type CacheKey = (Text, Text, [Param])
 
+-- | Reduce all parts of a cache key to HNF.
+seqCK :: CacheKey -> a -> a
+seqCK (db, q, ps) x = db `seq` q `seq` ps `seq` x
+
 #ifdef NO_LOCALCACHE
 
 cache :: Typeable a => [TableName] -> CacheKey -> a -> IO ()
@@ -81,7 +85,7 @@ theCache = unsafePerformIO $ newIORef emptyCache
 
 -- | Cache the given value, with the given table dependencies.
 cache :: Typeable a => [TableName] -> CacheKey -> a -> IO ()
-cache tns k v = atomicModifyIORef' theCache $ \c -> (cache' tns k v c, ())
+cache tns k v = k `seqCK` atomicModifyIORef' theCache (\c -> (cache' tns k v c, ()))
 
 cache' :: Typeable a => [TableName] -> CacheKey -> a -> ResultCache -> ResultCache
 cache' tns k v rc
@@ -105,7 +109,7 @@ cache' tns k v rc
 
 -- | Get the cached value for the given key, if it exists.
 cached :: forall a. Typeable a => CacheKey -> IO (Maybe a)
-cached k = atomicModifyIORef' theCache $ cached' k
+cached k = k `seqCK` atomicModifyIORef' theCache (cached' k)
 
 cached' :: forall a. Typeable a => CacheKey -> ResultCache -> (ResultCache, Maybe a)
 cached' k rc = do

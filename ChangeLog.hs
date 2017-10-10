@@ -8,7 +8,11 @@ import System.Process
 
 changeLog :: ChangeLog
 changeLog =
-  [ Version "0.1.11.0" "2017-09-08"
+  [ Version "0.1.11.1" "2017-10-10"
+    "Fix a rare but serious cache bug."
+    [ "Fix rare infinite loop bug in in-process cache."
+    ]
+  , Version "0.1.11.0" "2017-09-08"
     "Conditionals, SELECT DISTINCT, and bug fixes."
     [ "Fix name generation in the presence of isIn over queries."
     , "SELECT DISTINCT support."
