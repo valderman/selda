@@ -57,6 +57,7 @@ mutableTests freshEnv = test
   , "insertWhen/Unless"              ~: freshEnv whenUnless
   , "insert >999 parameters"         ~: freshEnv manyParameters
   , "empty insertion"                ~: freshEnv emptyInsert
+  , "correct boolean representation" ~: freshEnv boolTable
   ]
 
 tryDropNeverFails = teardown
@@ -613,3 +614,14 @@ emptyInsert = do
   inserted <- insert people []
   assEq "wrong insertion count reported" 0 inserted
   teardown
+
+boolTable = do
+    tryDropTable tbl
+    createTable tbl
+    insert tbl [def :*: True, def :*: False, def :*: def]
+    bs <- query $ second <$> select tbl
+    assEq "wrong values inserted into table" [True, False, False] bs
+    dropTable tbl
+  where
+    tbl :: Table (RowID :*: Bool)
+    tbl = table "booltable" $ autoPrimary "id" :*: required "thebool"
