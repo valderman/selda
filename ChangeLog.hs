@@ -8,7 +8,11 @@ import System.Process
 
 changeLog :: ChangeLog
 changeLog =
-  [ Version "0.1.11.1" "2017-10-10"
+  [ Version "0.1.11.2" "2017-12-14"
+    "PostgreSQL bugfix release."
+    [ "Fix treatment of booleans in PostgreSQL backend."
+    ]
+  , Version "0.1.11.1" "2017-10-10"
     "Fix a rare but serious cache bug."
     [ "Fix rare infinite loop bug in in-process cache."
     ]
