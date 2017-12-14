@@ -14,11 +14,17 @@ help:
 	@echo "upload-selda - upload only the main selda package"
 	@echo "haddock      - build Haddock docs"
 	@echo "sandbox      - create shared sandbox"
+	@echo "deps         - install dependencies"
 
 build:
 	cd ./selda ; cabal configure
 	cp -f README.md ./selda/README.md
 	cabal install $(PACKAGES)
+
+deps:
+	cd ./selda ; cabal install --only-dependencies
+	cabal install $(PACKAGES)
+	cabal install ./selda-tests --only-dependencies --enable-tests
 
 travischeck:
 	echo '{-# LANGUAGE OverloadedStrings #-}' > selda-tests/PGConnectInfo.hs
