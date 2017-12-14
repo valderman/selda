@@ -787,7 +787,7 @@ machine. To set up a VM for the PostgreSQL backend tests:
     ```
     Where `$PASSWORD` is the password from the VM's login screen.
 * Log in to the VM and disable the built-in firewall by running
-    `sudo systemctl disable gufw ; sudo systemctl stop gufw`.
+    `sudo systemctl disable ufw ; sudo systemctl stop ufw`.
 * From your host machine, create the test database:
     ```
     $ psql -h 127.0.0.1 -U postgres -W
