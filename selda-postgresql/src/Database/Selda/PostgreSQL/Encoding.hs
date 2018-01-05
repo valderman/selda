@@ -19,6 +19,7 @@ import qualified Data.ByteString as BS
 import Data.ByteString.Builder
 import Data.ByteString.Char8 (unpack)
 import qualified Data.ByteString.Lazy as LBS
+import Data.Either
 import qualified Data.Text as Text
 import Data.Text.Encoding
 import Database.PostgreSQL.LibPQ (Oid (..), Format (..))
@@ -26,9 +27,12 @@ import Database.Selda.Backend
 import Unsafe.Coerce
 
 -- | OIDs for all types used by Selda.
-blobType, boolType, intType, textType, doubleType, dateType, timeType, timestampType :: Oid
+-- | A good source for these are:
+-- | https://godoc.org/github.com/lib/pq/oid
+blobType, boolType, intType, integerType, textType, doubleType, dateType, timeType, timestampType :: Oid
 boolType      = Oid 16
 intType       = Oid 20
+integerType   = Oid 1700
 textType      = Oid 25
 doubleType    = Oid 701
 dateType      = Oid 1082
@@ -40,6 +44,7 @@ blobType      = Oid 17
 fromSqlValue :: Lit a -> Maybe (Oid, BS.ByteString, Format)
 fromSqlValue (LBool b)     = Just (boolType, toBS $ if b then word8 1 else word8 0, Binary)
 fromSqlValue (LInt n)      = Just (intType, toBS $ int64BE (fromIntegral n), Binary)
+fromSqlValue (LInteger n)  = Just (integerType, encodeUtf8 . Text.pack $ show n, Text)
 fromSqlValue (LDouble f)   = Just (doubleType, toBS $ int64BE (unsafeCoerce f), Binary)
 fromSqlValue (LText s)     = Just (textType, encodeUtf8 $ Text.filter (/= '\0') s, Binary)
 fromSqlValue (LDateTime s) = Just (timestampType, encodeUtf8 s, Text)
@@ -54,6 +59,7 @@ fromSqlValue (LCustom l)   = fromSqlValue l
 fromSqlType :: SqlTypeRep -> Oid
 fromSqlType TBool     = boolType
 fromSqlType TInt      = intType
+fromSqlType TInteger  = integerType
 fromSqlType TFloat    = doubleType
 fromSqlType TText     = textType
 fromSqlType TDateTime = timestampType
@@ -67,6 +73,7 @@ toSqlValue :: Oid -> BS.ByteString -> SqlValue
 toSqlValue t val
   | t == boolType    = SqlBool $ readBool val
   | t == intType     = SqlInt $ readInt val
+  | t == integerType = SqlInteger $ readInteger val
   | t == doubleType  = SqlFloat $ read (unpack val)
   | t == blobType    = SqlBlob $ pgDecode val
   | t `elem` textish = SqlString (decodeUtf8 val)
@@ -109,6 +116,13 @@ readInt s
     go !i !acc
       | len > i   = go (i+1) (acc * 10 + fromIntegral (BS.index s i - asciiZero))
       | otherwise = acc
+
+readInteger :: BS.ByteString -> Integer
+readInteger = read . Text.unpack . decodeUtf8
+
+fromRight :: b -> Either a b -> b
+fromRight _ (Right b) = b
+fromRight b _         = b
 
 -- | Reify a builder to a strict bytestring.
 toBS :: Builder -> BS.ByteString

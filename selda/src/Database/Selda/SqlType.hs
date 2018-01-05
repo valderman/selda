@@ -34,6 +34,7 @@ data SqlTypeRep
   = TText
   | TRowID
   | TInt
+  | TInteger
   | TFloat
   | TBool
   | TDateTime
@@ -61,6 +62,7 @@ class Typeable a => SqlType a where
 data Lit a where
   LText     :: !Text       -> Lit Text
   LInt      :: !Int        -> Lit Int
+  LInteger  :: !Integer    -> Lit Integer
   LDouble   :: !Double     -> Lit Double
   LBool     :: !Bool       -> Lit Bool
   LDateTime :: !Text       -> Lit UTCTime
@@ -75,6 +77,7 @@ data Lit a where
 litType :: Lit a -> SqlTypeRep
 litType (LText{})     = TText
 litType (LInt{})      = TInt
+litType (LInteger{})  = TInteger
 litType (LDouble{})   = TFloat
 litType (LBool{})     = TBool
 litType (LDateTime{}) = TDateTime
@@ -98,20 +101,22 @@ instance Ord (Lit a) where
 litConTag :: Lit a -> Int
 litConTag (LText{})     = 0
 litConTag (LInt{})      = 1
-litConTag (LDouble{})   = 2
-litConTag (LBool{})     = 3
-litConTag (LDateTime{}) = 4
-litConTag (LDate{})     = 5
-litConTag (LTime{})     = 6
-litConTag (LJust{})     = 7
-litConTag (LBlob{})     = 8
-litConTag (LNull)       = 9
-litConTag (LCustom{})   = 10
+litConTag (LInteger{})  = 2
+litConTag (LDouble{})   = 3
+litConTag (LBool{})     = 4
+litConTag (LDateTime{}) = 5
+litConTag (LDate{})     = 6
+litConTag (LTime{})     = 7
+litConTag (LJust{})     = 8
+litConTag (LBlob{})     = 9
+litConTag (LNull)       = 10
+litConTag (LCustom{})   = 11
 
 -- | Compare two literals of different type for equality.
 compLit :: Lit a -> Lit b -> Ordering
 compLit (LText x)     (LText x')     = x `compare` x'
 compLit (LInt x)      (LInt x')      = x `compare` x'
+compLit (LInteger x)  (LInteger x')  = x `compare` x'
 compLit (LDouble x)   (LDouble x')   = x `compare` x'
 compLit (LBool x)     (LBool x')     = x `compare` x'
 compLit (LDateTime x) (LDateTime x') = x `compare` x'
@@ -124,24 +129,27 @@ compLit a             b              = litConTag a `compare` litConTag b
 
 -- | Some value that is representable in SQL.
 data SqlValue where
-  SqlInt    :: !Int        -> SqlValue
-  SqlFloat  :: !Double     -> SqlValue
-  SqlString :: !Text       -> SqlValue
-  SqlBool   :: !Bool       -> SqlValue
-  SqlBlob   :: !ByteString -> SqlValue
-  SqlNull   :: SqlValue
+  SqlInt     :: !Int        -> SqlValue
+  SqlInteger :: !Integer    -> SqlValue
+  SqlFloat   :: !Double     -> SqlValue
+  SqlString  :: !Text       -> SqlValue
+  SqlBool    :: !Bool       -> SqlValue
+  SqlBlob    :: !ByteString -> SqlValue
+  SqlNull    :: SqlValue
 
 instance Show SqlValue where
-  show (SqlInt n)    = "SqlInt " ++ show n
-  show (SqlFloat f)  = "SqlFloat " ++ show f
-  show (SqlString s) = "SqlString " ++ show s
-  show (SqlBool b)   = "SqlBool " ++ show b
-  show (SqlBlob b)   = "SqlBlob " ++ show b
-  show (SqlNull)     = "SqlNull"
+  show (SqlInt n)     = "SqlInt " ++ show n
+  show (SqlInteger n) = "SqlInteger " ++ show n
+  show (SqlFloat f)   = "SqlFloat " ++ show f
+  show (SqlString s)  = "SqlString " ++ show s
+  show (SqlBool b)    = "SqlBool " ++ show b
+  show (SqlBlob b)    = "SqlBlob " ++ show b
+  show (SqlNull)      = "SqlNull"
 
 instance Show (Lit a) where
   show (LText s)     = show s
   show (LInt i)      = show i
+  show (LInteger i)  = show i
   show (LDouble d)   = show d
   show (LBool b)     = show b
   show (LDateTime s) = show s
@@ -192,6 +200,13 @@ instance SqlType Int where
   fromSql (SqlInt x) = x
   fromSql v          = error $ "fromSql: int column with non-int value: " ++ show v
   defaultValue = LInt 0
+
+instance SqlType Integer where
+  mkLit = LInteger
+  sqlType _ = TInteger
+  fromSql (SqlInteger x) = x
+  fromSql v              = error $ "fromSql: integer column with non-integer value: " ++ show v
+  defaultValue = LInteger 0
 
 instance SqlType Double where
   mkLit = LDouble
