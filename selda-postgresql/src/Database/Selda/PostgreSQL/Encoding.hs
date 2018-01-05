@@ -120,10 +120,6 @@ readInt s
 readInteger :: BS.ByteString -> Integer
 readInteger = read . Text.unpack . decodeUtf8
 
-fromRight :: b -> Either a b -> b
-fromRight _ (Right b) = b
-fromRight b _         = b
-
 -- | Reify a builder to a strict bytestring.
 toBS :: Builder -> BS.ByteString
 toBS = unChunk . toLazyByteString
