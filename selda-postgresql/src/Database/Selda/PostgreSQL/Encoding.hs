@@ -19,7 +19,6 @@ import qualified Data.ByteString as BS
 import Data.ByteString.Builder
 import Data.ByteString.Char8 (unpack)
 import qualified Data.ByteString.Lazy as LBS
-import Data.Either
 import qualified Data.Text as Text
 import Data.Text.Encoding
 import Database.PostgreSQL.LibPQ (Oid (..), Format (..))

@@ -143,13 +143,12 @@ pgBackend c = SeldaBackend
 
 pgQueryRunner :: Connection -> Bool -> T.Text -> [Param] -> IO (Either Int (Int, [[SqlValue]]))
 pgQueryRunner c return_lastid q ps = do
-    mres <- execParams c (encodeUtf8 q') theList Text
+    mres <- execParams c (encodeUtf8 q') [fromSqlValue p | Param p <- ps] Text
     unlessError c errmsg mres $ \res -> do
       if return_lastid
         then Left <$> getLastId res
         else Right <$> getRows res
   where
-    theList = [fromSqlValue p | Param p <- ps]
     errmsg = "error executing query `" ++ T.unpack q' ++ "'"
     q' | return_lastid = q <> " RETURNING LASTVAL();"
        | otherwise     = q
