@@ -42,8 +42,17 @@ compileFK col (Table ftbl _ _, fcol) n = mconcat
 compileTableCol :: PPConfig -> ColInfo -> Text
 compileTableCol cfg ci = Text.unwords
   [ fromColName (colName ci)
-  , ppType cfg (colType ci) <> " " <> ppColAttrs cfg (colAttrs ci)
+  , postgresColFix $ Text.words (ppType cfg (colType ci) <> " " <> ppColAttrs cfg (colAttrs ci))
   ]
+
+-- dirty temporary postgres column fix
+postgresColFix :: [Text] -> Text
+postgresColFix types
+  -- this recognizes when person intended to use Int field as primary auto incrementing key
+  | "SERIAL" `elem` types && "INT8" `elem` types = Text.unwords ("SERIAL" : filter (\x -> x /= "INT8" && x /= "SERIAL") types)
+  -- this removes SERIAL from column definition when column type is not INT8
+  | "SERIAL" `elem` types && not ("INT8" `elem` types) = Text.unwords $ filter (/= "SERIAL") types
+  | otherwise = Text.unwords types
 
 -- | Compile a @DROP TABLE@ query.
 compileDropTable :: OnError -> Table a -> Text

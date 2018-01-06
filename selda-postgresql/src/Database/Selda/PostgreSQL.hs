@@ -131,7 +131,7 @@ pgBackend c = SeldaBackend
   , ppConfig        = defPPConfig
     { ppType = pgColType defPPConfig
     , ppAutoIncInsert = "DEFAULT"
-    , ppColAttrs = ppColAttrs defPPConfig . filter (/= AutoIncrement)
+    , ppColAttrs = T.unwords . map pgColAttr
     }
   , closeConnection = \_ -> finish c
   }
@@ -229,4 +229,12 @@ pgColType _ TFloat    = "FLOAT8"
 pgColType _ TDateTime = "TIMESTAMP"
 pgColType _ TBlob     = "BYTEA"
 pgColType cfg t       = ppType cfg t
+
+-- | Custom compilation for a postgres column attribute.
+pgColAttr :: ColAttr -> T.Text
+pgColAttr Primary       = "PRIMARY KEY"
+pgColAttr AutoIncrement = "SERIAL"
+pgColAttr Required      = "NOT NULL"
+pgColAttr Optional      = "NULL"
+pgColAttr Unique        = "UNIQUE"
 #endif
