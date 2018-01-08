@@ -110,7 +110,7 @@ pgOpen' connStr =
     case st of
       ConnectionOk -> do
         let backend = pgBackend conn
-        liftIO $ runStmt backend "SET client_min_messages TO WARNING;" []
+        _ <- liftIO $ runStmt backend "SET client_min_messages TO WARNING;" []
         newConnection backend (decodeUtf8 connStr)
       nope -> do
         connFailed nope
