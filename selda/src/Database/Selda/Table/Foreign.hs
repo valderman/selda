@@ -10,7 +10,6 @@ import Unsafe.Coerce
 --   If the referenced column is not a primary key or has a
 --   uniqueness constraint, a 'ValidationError' will be thrown
 --   during validation.
--- | Like 'fk', but for nullable foreign keys.
 fk :: ColSpec a -> (Table t, Selector t a) -> ColSpec a
 fk cs@(ColSpec [c]) (tbl, Selector i) =
     ColSpec [c {colFKs = thefk : colFKs c}]
