@@ -110,7 +110,7 @@ module Database.Selda
   , fk, optFk, unique
     -- * Creating and dropping tables
   , createTable, tryCreateTable
-  , dropTable, tryDropTable
+  , validateTable, dropTable, tryDropTable
     -- * Compiling and inspecting queries
   , OnError (..)
   , compile
@@ -153,6 +153,13 @@ instance SqlOrd Day
 instance SqlOrd UTCTime
 instance SqlOrd TimeOfDay
 instance SqlOrd a => SqlOrd (Maybe a)
+
+-- | Validate a table schema.
+--   Throws a 'ValidationError' if the schema does not validate.
+--   Currently does not check the schema against what's actually in the
+--   current database.
+validateTable :: MonadSelda m => Table a -> m ()
+validateTable t = validate (tableName t) (tableCols t) `seq` return ()
 
 -- | Convenient shorthand for @fmap (! sel) q@.
 --   The following two queries are quivalent:

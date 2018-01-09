@@ -47,6 +47,7 @@ queryTests run = test
   , "distinct on single query" ~: run selectValuesDistinct
   , "matchNull" ~: run simpleMatchNull
   , "ifThenElse" ~: run simpleIfThenElse
+  , "validateTable validates" ~: run validateTableValidates
   , "teardown succeeds" ~: run teardown
   ]
 
@@ -447,3 +448,10 @@ simpleMatchNull = do
       , "Miyu" :*: 0
       , "Velvet" :*: 0
       ]
+
+validateTableValidates = do
+    validateTable people
+    assertFail $ validateTable bad
+  where
+    bad :: Table (RowID :*: RowID)
+    bad = table "bad" $ primary "a" :*: primary "b"
