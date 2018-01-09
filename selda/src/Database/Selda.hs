@@ -107,7 +107,7 @@ module Database.Selda
   , table, tableWithSelectors, selectors
   , required, optional
   , primary, autoPrimary
-  , fk, unique
+  , fk, optFk, unique
     -- * Creating and dropping tables
   , createTable, tryCreateTable
   , dropTable, tryDropTable

@@ -15,7 +15,7 @@ data OnError = Fail | Ignore
 
 -- | Compile a @CREATE TABLE@ query from a table definition.
 compileCreateTable :: PPConfig -> OnError -> Table a -> Text
-compileCreateTable customColType ifex tbl = mconcat
+compileCreateTable customColType ifex tbl = ensureValid `seq` mconcat
   [ "CREATE TABLE ", ifNotExists ifex, fromTableName (tableName tbl), "("
   , intercalate ", " (map (compileTableCol customColType) (tableCols tbl))
   , case allFKs of
@@ -28,6 +28,7 @@ compileCreateTable customColType ifex tbl = mconcat
     ifNotExists Ignore = "IF NOT EXISTS "
     allFKs = [(colName ci, fk) | ci <- tableCols tbl, fk <- colFKs ci]
     compFKs = zipWith (uncurry compileFK) allFKs [0..]
+    ensureValid = validate (tableName tbl) (tableCols tbl)
 
 -- | Compile a foreign key constraint.
 compileFK :: ColName -> (Table (), ColName) -> Int -> Text

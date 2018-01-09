@@ -1,6 +1,6 @@
 {-# LANGUAGE TypeOperators, TypeFamilies, OverloadedStrings #-}
 {-# LANGUAGE UndecidableInstances, FlexibleInstances, ScopedTypeVariables #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE MultiParamTypeClasses, FlexibleContexts #-}
 -- | Selda table definition language.
 module Database.Selda.Table where
 import Database.Selda.Types
@@ -34,20 +34,20 @@ instance Exception ValidationError
 --   non-empty. Column names must be unique per table.
 data Table a = Table
   { -- | Name of the table. NOT guaranteed to be a valid SQL name.
-    tableName :: !TableName
+    tableName :: TableName
     -- | All table columns.
     --   Invariant: the 'colAttrs' list of each column is sorted and contains
     --   no duplicates.
-  , tableCols :: ![ColInfo]
+  , tableCols :: [ColInfo]
     -- | Does the given table have an auto-incrementing primary key?
-  , tableHasAutoPK :: !Bool
+  , tableHasAutoPK :: Bool
   }
 
 data ColInfo = ColInfo
-  { colName  :: !ColName
-  , colType  :: !SqlTypeRep
-  , colAttrs :: ![ColAttr]
-  , colFKs   :: ![(Table (), ColName)]
+  { colName  :: ColName
+  , colType  :: SqlTypeRep
+  , colAttrs :: [ColAttr]
+  , colFKs   :: [(Table (), ColName)]
   }
 
 newCol :: forall a. SqlType a => ColName -> ColSpec a
@@ -135,7 +135,7 @@ table name cs = Table
     , tableHasAutoPK = Prelude.any ((AutoIncrement `elem`) . colAttrs) tcs
     }
   where
-    tcs = validate name $ map tidy $ mergeSpecs (Proxy :: Proxy a) cs
+    tcs = map tidy $ mergeSpecs (Proxy :: Proxy a) cs
 
 -- | Remove duplicate attributes.
 tidy :: ColInfo -> ColInfo

@@ -58,6 +58,7 @@ mutableTests freshEnv = test
   , "insert >999 parameters"         ~: freshEnv manyParameters
   , "empty insertion"                ~: freshEnv emptyInsert
   , "correct boolean representation" ~: freshEnv boolTable
+  , "optional foreign keys"          ~: freshEnv optionalFK
   ]
 
 tryDropNeverFails = teardown
@@ -625,3 +626,18 @@ boolTable = do
   where
     tbl :: Table (RowID :*: Bool)
     tbl = table "booltable" $ autoPrimary "id" :*: required "thebool"
+
+optionalFK = do
+    tryDropTable tbl
+    createTable tbl
+    pk <- insertWithPK tbl [def :*: Nothing]
+    insert tbl [def :*: Just pk]
+    vs <- query $ second <$> select tbl
+    assEq "wrong value for nullable FK" [Nothing, Just pk] vs
+    dropTable tbl
+  where
+    tbl :: Table (RowID :*: Maybe RowID)
+    tbl = table "booltable"
+        $   autoPrimary "id"
+        :*: optional "parent" `optFk` (tbl, rid)
+    (rid :*: _) = selectors tbl
