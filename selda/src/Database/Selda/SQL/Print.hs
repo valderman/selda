@@ -210,6 +210,11 @@ ppType t = do
   c <- ppConfig <$> get
   pure $ Cfg.ppType c t
 
+ppTypeCast :: SqlTypeRep -> PP Text
+ppTypeCast t = do
+  c <- ppConfig <$> get
+  pure $ Cfg.ppTypeCast c t
+
 ppCol :: Exp SQL a -> PP Text
 ppCol (TblCol xs)    = error $ "compiler bug: ppCol saw TblCol: " ++ show xs
 ppCol (Col name)     = pure (fromColName name)
@@ -228,7 +233,7 @@ ppCol (If a b c)     = do
 ppCol (AggrEx f x)   = ppUnOp (Fun f) x
 ppCol (Cast t x)     = do
   x' <- ppCol x
-  t' <- ppType t
+  t' <- ppTypeCast t
   pure $ mconcat ["CAST(", x', " AS ", t', ")"]
 ppCol (InList x xs) = do
   x' <- ppCol x

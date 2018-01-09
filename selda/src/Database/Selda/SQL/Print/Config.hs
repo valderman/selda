@@ -10,6 +10,9 @@ data PPConfig = PPConfig
   { -- | The SQL type name of the given type.
     ppType :: SqlTypeRep -> Text
 
+    -- | The SQL type name of the given type (in CAST position).
+  , ppTypeCast :: SqlTypeRep -> Text
+
     -- | Parameter placeholder for the @n@th parameter.
   , ppPlaceholder :: Int -> Text
 
@@ -34,6 +37,7 @@ data PPConfig = PPConfig
 defPPConfig :: PPConfig
 defPPConfig = PPConfig
     { ppType = defType
+    , ppTypeCast = defType
     , ppPlaceholder = T.cons '$' . T.pack . show
     , ppColAttrs = T.unwords . map defColAttr
     , ppAutoIncInsert = "NULL"

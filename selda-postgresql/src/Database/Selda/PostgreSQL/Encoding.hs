@@ -14,7 +14,6 @@ readInt = undefined
 
 #else
 
-import Control.Exception (throw)
 import qualified Data.ByteString as BS
 import Data.ByteString.Builder
 import Data.ByteString.Char8 (unpack)
@@ -79,13 +78,13 @@ toSqlValue t val
       | otherwise =
         error $ "bad blob string from postgres: " ++ show s
       where
-        hex n s =
-          case BS.index s n of
+        hex n x =
+          case BS.index x n of
             c | c >= 97   -> c - 87 -- c >= 'a'
               | c >= 65   -> c - 55 -- c >= 'A'
               | otherwise -> c - 48 -- c is numeric
-        go s
-          | BS.length s >= 2 = (16*hex 0 s + (hex 1 s)) : go (BS.drop 2 s)
+        go x
+          | BS.length x >= 2 = (16*hex 0 x + (hex 1 x)) : go (BS.drop 2 x)
           | otherwise        = []
     textish = [textType, timestampType, timeType, dateType]
     readBool "f"     = False

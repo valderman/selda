@@ -110,7 +110,7 @@ pgOpen' connStr =
     case st of
       ConnectionOk -> do
         let backend = pgBackend conn
-        liftIO $ runStmt backend "SET client_min_messages TO WARNING;" []
+        _ <- liftIO $ runStmt backend "SET client_min_messages TO WARNING;" []
         newConnection backend (decodeUtf8 connStr)
       nope -> do
         connFailed nope
@@ -130,6 +130,7 @@ pgBackend c = SeldaBackend
   , backendId       = PostgreSQL
   , ppConfig        = defPPConfig
     { ppType = pgColType defPPConfig
+    , ppTypeCast = pgColTypeCast defPPConfig
     , ppAutoIncInsert = "DEFAULT"
     , ppColAttrs = ppColAttrs defPPConfig . filter (/= AutoIncrement)
     }
@@ -229,4 +230,9 @@ pgColType _ TFloat    = "FLOAT8"
 pgColType _ TDateTime = "TIMESTAMP"
 pgColType _ TBlob     = "BYTEA"
 pgColType cfg t       = ppType cfg t
+
+-- | Custom column types (CAST position) for postgres.
+pgColTypeCast :: PPConfig -> SqlTypeRep -> T.Text
+pgColTypeCast _ TRowID    = "BIGINT"
+pgColTypeCast cfg t       = pgColType cfg t
 #endif
