@@ -8,10 +8,15 @@ import Database.Selda.Table
 -- | Backend-specific configuration for the SQL pretty-printer.
 data PPConfig = PPConfig
   { -- | The SQL type name of the given type.
+    --
+    --   This function should be used everywhere a type is needed to be printed but in primary
+    --   keys position. This is due to the fact that some backends might have a special
+    --   representation of primary keys (using sequences are such). If you have such a need,
+    --   please use the 'ppTypePK' record instead.
     ppType :: SqlTypeRep -> Text
 
-    -- | The SQL type name of the given type (in CAST position).
-  , ppTypeCast :: SqlTypeRep -> Text
+    -- | The SQL type name of the given type for primary keys uses.
+  , ppTypePK :: SqlTypeRep -> Text
 
     -- | Parameter placeholder for the @n@th parameter.
   , ppPlaceholder :: Int -> Text
@@ -34,10 +39,13 @@ data PPConfig = PPConfig
 
 -- | Default settings for pretty-printing.
 --   Geared towards SQLite.
+--
+--   The default definition of 'ppTypePK' is 'defType, so that you don’t have to do anything
+--   special if you don’t use special types for primary keys.
 defPPConfig :: PPConfig
 defPPConfig = PPConfig
     { ppType = defType
-    , ppTypeCast = defType
+    , ppTypePK = defType
     , ppPlaceholder = T.cons '$' . T.pack . show
     , ppColAttrs = T.unwords . map defColAttr
     , ppAutoIncInsert = "NULL"

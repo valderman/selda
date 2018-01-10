@@ -130,7 +130,7 @@ pgBackend c = SeldaBackend
   , backendId       = PostgreSQL
   , ppConfig        = defPPConfig
     { ppType = pgColType defPPConfig
-    , ppTypeCast = pgColTypeCast defPPConfig
+    , ppTypePK = pgColTypePK defPPConfig
     , ppAutoIncInsert = "DEFAULT"
     , ppColAttrs = ppColAttrs defPPConfig . filter (/= AutoIncrement)
     }
@@ -224,15 +224,15 @@ doError c msg = do
 
 -- | Custom column types for postgres.
 pgColType :: PPConfig -> SqlTypeRep -> T.Text
-pgColType _ TRowID    = "BIGSERIAL"
+pgColType _ TRowID    = "BIGINT"
 pgColType _ TInt      = "INT8"
 pgColType _ TFloat    = "FLOAT8"
 pgColType _ TDateTime = "TIMESTAMP"
 pgColType _ TBlob     = "BYTEA"
 pgColType cfg t       = ppType cfg t
 
--- | Custom column types (CAST position) for postgres.
-pgColTypeCast :: PPConfig -> SqlTypeRep -> T.Text
-pgColTypeCast _ TRowID    = "BIGINT"
-pgColTypeCast cfg t       = pgColType cfg t
+-- | Custom column types (primary key position) for postgres.
+pgColTypePK :: PPConfig -> SqlTypeRep -> T.Text
+pgColTypePK _ TRowID    = "BIGSERIAL"
+pgColTypePK cfg t       = pgColType cfg t
 #endif
