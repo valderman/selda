@@ -12,6 +12,7 @@ changeLog =
     "Recursive foreign keys, plus bug fixes."
     [ "Allow recursive and optional foreign keys."
     , "Fix RowID issues for PostgreSQL."
+    , "Fix auto-incrementing primary keys for generic tables."
     ]
   , Version "0.1.11.2" "2017-12-14"
     "PostgreSQL bugfix release."
