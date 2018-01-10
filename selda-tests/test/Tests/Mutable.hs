@@ -59,6 +59,7 @@ mutableTests freshEnv = test
   , "empty insertion"                ~: freshEnv emptyInsert
   , "correct boolean representation" ~: freshEnv boolTable
   , "optional foreign keys"          ~: freshEnv optionalFK
+  , "auto-primary in generic table"  ~: freshEnv genericAutoPrimary
   ]
 
 tryDropNeverFails = teardown
@@ -641,3 +642,33 @@ optionalFK = do
         $   autoPrimary "id"
         :*: optional "parent" `optFk` (tbl, rid)
     (rid :*: _) = selectors tbl
+
+data AutoPrimaryUser = AutoPrimaryUser
+  { uid :: RowID
+  , admin :: Bool
+
+  , username :: Text
+  , password :: Text
+
+  , dateCreated :: UTCTime
+  , dateModified :: UTCTime
+  } deriving ( Eq, Show, Generic )
+
+genericAutoPrimary = do
+    tryDropTable (gen g_user)
+    createTable (gen g_user)
+    insertGen_ g_user [user]
+    dropTable (gen g_user)
+  where
+    user = AutoPrimaryUser
+      { uid = def
+      , admin = False
+      , username = "foo"
+      , password = "bar"
+      , dateCreated = def
+      , dateModified = def
+      }
+    g_user :: GenTable AutoPrimaryUser
+    g_user = genTable "AutoPrimaryUser"
+      [ uid :- autoPrimaryGen
+      ]
