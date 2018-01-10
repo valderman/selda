@@ -60,6 +60,7 @@ mutableTests freshEnv = test
   , "correct boolean representation" ~: freshEnv boolTable
   , "optional foreign keys"          ~: freshEnv optionalFK
   , "auto-primary in generic table"  ~: freshEnv genericAutoPrimary
+  , "custom enum type"               ~: freshEnv customEnum
   ]
 
 tryDropNeverFails = teardown
@@ -643,6 +644,7 @@ optionalFK = do
         :*: optional "parent" `optFk` (tbl, rid)
     (rid :*: _) = selectors tbl
 
+-- | For genericAutoPrimary.
 data AutoPrimaryUser = AutoPrimaryUser
   { uid :: RowID
   , admin :: Bool
@@ -672,3 +674,34 @@ genericAutoPrimary = do
     g_user = genTable "AutoPrimaryUser"
       [ uid :- autoPrimaryGen
       ]
+
+-- | For customEnum
+data Foo = A | B | C | D
+  deriving (Show, Read, Eq, Ord, Enum, Bounded)
+
+customEnum = do
+    tryDropTable tbl
+    createTable tbl
+
+    inserted <- insert tbl [def :*: A, def :*: C, def :*: C, def :*: B]
+    assEq "wrong # of rows inserted" 4 inserted
+
+    res <- query $ do
+      _ :*: foo <- select tbl
+      order foo descending
+      return foo
+    assEq "wrong pre-delete result list" [C, C, B, A] res
+
+    deleted <- deleteFrom tbl ((.== literal C) . second)
+    assEq "wrong # of rows deleted" 2 deleted
+
+    res2 <- query $ do
+      _ :*: foo <- select tbl
+      order foo ascending
+      return foo
+    assEq "wrong post-delteeresult list" [A, B] res2
+
+    dropTable tbl
+  where
+    tbl :: Table (RowID :*: Foo)
+    tbl = table "enums" $ autoPrimary "id" :*: required "foo"

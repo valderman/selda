@@ -1,10 +1,11 @@
 {-# LANGUAGE GADTs, OverloadedStrings, ScopedTypeVariables, FlexibleInstances #-}
+{-# LANGUAGE UndecidableInstances #-}
 -- | Types representable in Selda's subset of SQL.
 module Database.Selda.SqlType
-  ( Lit (..), RowID, SqlValue (..), SqlType, SqlTypeRep (..)
+  ( SqlType (..), SqlEnum (..)
+  , Lit (..), RowID, SqlValue (..), SqlTypeRep (..)
   , invalidRowId, isInvalidRowId, unsafeRowId, fromRowId
-  , mkLit, sqlType, litType, fromSql, defaultValue
-  , compLit
+  , compLit, litType
   , sqlDateTimeFormat, sqlDateFormat, sqlTimeFormat
   ) where
 import Data.ByteString (ByteString, empty)
@@ -56,6 +57,23 @@ class Typeable a => SqlType a where
 
   -- | Default value when using 'def' at this type.
   defaultValue :: Lit a
+
+-- | Any type that's bounded, enumerable and has a text representation, and
+--   thus representable as a Selda enumerable.
+--
+--   While it would be more efficient to store enumerables as integers, this
+--   makes hand-rolled SQL touching the values inscrutable, and will break if
+--   the user a) derives Enum and b) changes the order of their constructors.
+--   Long-term, this should be implemented in PostgreSQL as a proper enum
+--   anyway, which mostly renders the performance argument moot.
+class (Typeable a, Bounded a, Enum a) => SqlEnum a where
+  toText :: a -> Text
+  fromText :: Text -> a
+
+instance {-# OVERLAPPABLE #-}
+    (Typeable a, Bounded a, Enum a, Show a, Read a) => SqlEnum a where
+  toText = pack . show
+  fromText = read . unpack
 
 -- | An SQL literal.
 data Lit a where
@@ -267,3 +285,9 @@ instance SqlType a => SqlType (Maybe a) where
   fromSql (SqlNull) = Nothing
   fromSql x         = Just $ fromSql x
   defaultValue = LNull
+
+instance {-# OVERLAPPABLE #-} SqlEnum a => SqlType a where
+  mkLit = LCustom . LText . toText
+  sqlType _ = sqlType (Proxy :: Proxy Text)
+  fromSql = fromText . fromSql
+  defaultValue = LCustom $ mkLit (toText (minBound :: a))

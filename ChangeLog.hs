@@ -9,8 +9,9 @@ import System.Process
 changeLog :: ChangeLog
 changeLog =
   [ Version "0.1.12" "2018-??-??"
-    "Recursive foreign keys, plus bug fixes."
+    "Recursive foreign keys, arbitrary enums, and bug fixes."
     [ "Allow recursive and optional foreign keys."
+    , "Allow arbitrary enums in tables, represented as text."
     , "Fix RowID issues for PostgreSQL."
     , "Fix auto-incrementing primary keys for generic tables."
     ]
