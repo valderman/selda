@@ -286,7 +286,7 @@ instance SqlType a => SqlType (Maybe a) where
   fromSql x         = Just $ fromSql x
   defaultValue = LNull
 
-instance {-# OVERLAPPABLE #-} SqlEnum a => SqlType a where
+instance {-# OVERLAPPABLE #-} (Typeable a, SqlEnum a) => SqlType a where
   mkLit = LCustom . LText . toText
   sqlType _ = sqlType (Proxy :: Proxy Text)
   fromSql = fromText . fromSql
