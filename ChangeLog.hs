@@ -8,7 +8,12 @@ import System.Process
 
 changeLog :: ChangeLog
 changeLog =
-  [ Version "0.1.11.2" "2017-12-14"
+  [ Version "0.1.12" "2018-??-??"
+    "Recursive foreign keys, plus bug fixes."
+    [ "Allow recursive and optional foreign keys."
+    , "Fix RowID issues for PostgreSQL."
+    ]
+  , Version "0.1.11.2" "2017-12-14"
     "PostgreSQL bugfix release."
     [ "Fix treatment of booleans in PostgreSQL backend."
     ]

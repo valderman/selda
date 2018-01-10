@@ -1,5 +1,5 @@
 name:                selda-postgresql
-version:             0.1.7.0
+version:             0.1.7.1
 synopsis:            PostgreSQL backend for the Selda database EDSL.
 description:         PostgreSQL backend for the Selda database EDSL.
                      Requires the PostgreSQL @libpq@ development libraries to be
