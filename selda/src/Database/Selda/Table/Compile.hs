@@ -2,12 +2,13 @@
 -- | Generating SQL for creating and deleting tables.
 module Database.Selda.Table.Compile where
 import Database.Selda.Table
-import Data.List (foldl')
+import Data.List ((\\), foldl')
 import Data.Monoid
 import Data.Text (Text, intercalate, pack)
 import qualified Data.Text as Text
 import Database.Selda.SQL hiding (params, param)
 import Database.Selda.SQL.Print.Config
+import Database.Selda.SqlType (SqlTypeRep(..))
 import Database.Selda.Types
 
 data OnError = Fail | Ignore
@@ -42,9 +43,16 @@ compileFK col (Table ftbl _ _, fcol) n = mconcat
 -- | Compile a table column.
 compileTableCol :: PPConfig -> ColInfo -> Text
 compileTableCol cfg ci = Text.unwords
-  [ fromColName (colName ci)
-  , ppType cfg (colType ci) <> " " <> ppColAttrs cfg (colAttrs ci)
-  ]
+    [ fromColName (colName ci)
+    , ppType' cfg cty <> " " <> ppColAttrs cfg (colAttrs ci)
+    ]
+  where
+    cty = colType ci
+    attrs = colAttrs ci
+    ppType' 
+      | cty == TRowID && [Primary, AutoIncrement] `areIn` attrs = ppTypePK
+      | otherwise = ppType
+    areIn x y = null (x \\ y)
 
 -- | Compile a @DROP TABLE@ query.
 compileDropTable :: OnError -> Table a -> Text
