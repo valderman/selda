@@ -8,7 +8,7 @@ import System.Process
 
 changeLog :: ChangeLog
 changeLog =
-  [ Version "0.1.12" "2018-??-??"
+  [ Version "0.1.12" "2018-01-11"
     "Recursive foreign keys, arbitrary enums, and bug fixes."
     [ "Allow recursive and optional foreign keys."
     , "Allow arbitrary enums in tables, represented as text."
