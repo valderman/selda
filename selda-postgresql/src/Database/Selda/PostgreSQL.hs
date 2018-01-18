@@ -8,6 +8,7 @@ module Database.Selda.PostgreSQL
   ) where
 import qualified Data.ByteString.Char8 as BS
 import Data.Dynamic
+import Data.Foldable (for_)
 import Data.Monoid
 import qualified Data.Text as T
 import Data.Text.Encoding
@@ -28,6 +29,8 @@ data PGConnectInfo = PGConnectInfo
   , pgPort     :: Int
     -- | Name of database to use.
   , pgDatabase :: T.Text
+    -- | Schema to use upon connection.
+  , pgSchema   :: Maybe T.Text
     -- | Username for authentication, if necessary.
   , pgUsername :: Maybe T.Text
     -- | Password for authentication, if necessary.
@@ -44,6 +47,7 @@ on db host = PGConnectInfo
   { pgHost = host
   , pgPort = 5432
   , pgDatabase = db
+  , pgSchema   = Nothing
   , pgUsername = Nothing
   , pgPassword = Nothing
   }
@@ -101,16 +105,21 @@ pgOpen :: (MonadIO m, MonadMask m) => PGConnectInfo -> m SeldaConnection
 #ifdef __HASTE__
 pgOpen _ = return $ error "pgOpen called in JS context"
 #else
-pgOpen ci = pgOpen' $ pgConnString ci
+pgOpen ci = pgOpen' (pgSchema ci) (pgConnString ci)
 
-pgOpen' :: (MonadIO m, MonadMask m) => BS.ByteString -> m SeldaConnection
-pgOpen' connStr =
+pgOpen' :: (MonadIO m, MonadMask m) => Maybe T.Text -> BS.ByteString -> m SeldaConnection
+pgOpen' schema connStr =
   bracketOnError (liftIO $ connectdb connStr) (liftIO . finish) $ \conn -> do
     st <- liftIO $ status conn
     case st of
       ConnectionOk -> do
         let backend = pgBackend conn
+
         _ <- liftIO $ runStmt backend "SET client_min_messages TO WARNING;" []
+
+        for_ schema $ \schema' -> 
+          liftIO $ runStmt backend ("SET search_path TO " <> schema' <> ";") []
+
         newConnection backend (decodeUtf8 connStr)
       nope -> do
         connFailed nope
