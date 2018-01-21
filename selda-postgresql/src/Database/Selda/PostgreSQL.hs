@@ -117,8 +117,8 @@ pgOpen' schema connStr =
 
         _ <- liftIO $ runStmt backend "SET client_min_messages TO WARNING;" []
 
-        for_ schema $ \schema' -> 
-          liftIO $ runStmt backend ("SET search_path TO " <> schema' <> ";") []
+        for_ schema $ \schema' ->
+          liftIO $ runStmt backend ("SET search_path TO '" <> schema' <> "';") []
 
         newConnection backend (decodeUtf8 connStr)
       nope -> do
