@@ -10,6 +10,7 @@ import Database.Selda.SQL hiding (params, param)
 import Database.Selda.SQL.Print.Config
 import Database.Selda.SqlType (SqlTypeRep(..))
 import Database.Selda.Types
+import Debug.Trace (traceShowId)
 
 data OnError = Fail | Ignore
   deriving (Eq, Ord, Show)
@@ -44,9 +45,11 @@ compileFK col (Table ftbl _ _, fcol) n = mconcat
 compileTableCol :: PPConfig -> ColInfo -> Text
 compileTableCol cfg ci = Text.unwords
     [ fromColName (colName ci)
-    , ppType' cfg cty <> " " <> ppColAttrs cfg (colAttrs ci)
+    , typeHook <> " " <> colAttrsHook
     ]
   where
+    typeHook = ppTypeHook cfg cty attrs (ppType' cfg)
+    colAttrsHook = ppColAttrsHook cfg cty attrs (ppColAttrs cfg)
     cty = colType ci
     attrs = colAttrs ci
     ppType' 

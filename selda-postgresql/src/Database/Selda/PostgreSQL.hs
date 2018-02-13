@@ -4,7 +4,7 @@ module Database.Selda.PostgreSQL
   ( PGConnectInfo (..)
   , withPostgreSQL, on, auth
   , pgOpen, pgOpen', seldaClose
-  , pgConnString
+  , pgConnString, pgPPConfig
   ) where
 import qualified Data.ByteString.Char8 as BS
 import Data.Dynamic
@@ -119,6 +119,33 @@ pgOpen' connStr =
         [ "unable to connect to postgres server: " ++ show f
         ]
 
+pgPPConfig :: PPConfig
+pgPPConfig = defPPConfig
+  { ppType = pgColType defPPConfig
+  , ppTypeHook = pgTypeHook
+  , ppTypePK = pgColTypePK defPPConfig
+  , ppAutoIncInsert = "DEFAULT"
+  , ppColAttrs = T.unwords . map pgColAttr
+  , ppColAttrsHook = pgColAttrsHook
+  }
+  where
+    pgTypeHook :: SqlTypeRep -> [ColAttr] -> (SqlTypeRep -> T.Text) -> T.Text
+    pgTypeHook ty attrs fun
+      | isGenericIntPrimaryKey ty attrs = pgColTypePK pgPPConfig TRowID
+      | otherwise = fun ty
+    
+    pgColAttrsHook :: SqlTypeRep -> [ColAttr] -> ([ColAttr] -> T.Text) -> T.Text
+    pgColAttrsHook ty attrs fun
+      | isGenericIntPrimaryKey ty attrs = fun [Primary]
+      | otherwise = fun $ filter (/= AutoIncrement) attrs
+    
+    bigserialQue :: [ColAttr]
+    bigserialQue = [Primary,AutoIncrement,Required,Unique]
+    
+    -- For when we use 'autoPrimaryGen' on 'Int' field
+    isGenericIntPrimaryKey :: SqlTypeRep -> [ColAttr] -> Bool
+    isGenericIntPrimaryKey ty attrs = ty == TInt && and ((`elem` attrs) <$> bigserialQue)
+
 -- | Create a `SeldaBackend` for PostgreSQL `Connection`
 pgBackend :: Connection   -- ^ PostgreSQL connection object.
           -> SeldaBackend
@@ -128,12 +155,7 @@ pgBackend c = SeldaBackend
   , prepareStmt     = pgPrepare c
   , runPrepared     = pgRun c
   , backendId       = PostgreSQL
-  , ppConfig        = defPPConfig
-    { ppType = pgColType defPPConfig
-    , ppTypePK = pgColTypePK defPPConfig
-    , ppAutoIncInsert = "DEFAULT"
-    , ppColAttrs = ppColAttrs defPPConfig . filter (/= AutoIncrement)
-    }
+  , ppConfig        = pgPPConfig
   , closeConnection = \_ -> finish c
   }
   where
@@ -230,6 +252,14 @@ pgColType _ TFloat    = "FLOAT8"
 pgColType _ TDateTime = "TIMESTAMP"
 pgColType _ TBlob     = "BYTEA"
 pgColType cfg t       = ppType cfg t
+
+-- | Custom attribute types for postgres.
+pgColAttr :: ColAttr -> T.Text
+pgColAttr Primary       = "PRIMARY KEY"
+pgColAttr AutoIncrement = ""
+pgColAttr Required      = "NOT NULL"
+pgColAttr Optional      = "NULL"
+pgColAttr Unique        = "UNIQUE"
 
 -- | Custom column types (primary key position) for postgres.
 pgColTypePK :: PPConfig -> SqlTypeRep -> T.Text

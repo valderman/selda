@@ -15,6 +15,9 @@ data PPConfig = PPConfig
     --   please use the 'ppTypePK' record instead.
     ppType :: SqlTypeRep -> Text
 
+    -- | Hook that allows you to modify 'ppType' output.
+  , ppTypeHook :: SqlTypeRep -> [ColAttr] -> (SqlTypeRep -> Text) -> Text
+
     -- | The SQL type name of the given type for primary keys uses.
   , ppTypePK :: SqlTypeRep -> Text
 
@@ -23,6 +26,9 @@ data PPConfig = PPConfig
 
     -- | List of column attributes.
   , ppColAttrs :: [ColAttr] -> Text
+
+    -- | Hook that allows you to modify 'ppColAttrs' output.
+  , ppColAttrsHook :: SqlTypeRep -> [ColAttr] -> ([ColAttr] -> Text) -> Text
 
     -- | The value used for the next value for an auto-incrementing column.
     --   For instance, @DEFAULT@ for PostgreSQL, and @NULL@ for SQLite.
@@ -45,9 +51,11 @@ data PPConfig = PPConfig
 defPPConfig :: PPConfig
 defPPConfig = PPConfig
     { ppType = defType
+    , ppTypeHook = \ty _ _ -> defType ty
     , ppTypePK = defType
     , ppPlaceholder = T.cons '$' . T.pack . show
     , ppColAttrs = T.unwords . map defColAttr
+    , ppColAttrsHook = \_ ats _ -> T.unwords $ map defColAttr ats
     , ppAutoIncInsert = "NULL"
     , ppMaxInsertParams = Nothing
     }
