@@ -10,7 +10,6 @@ import Database.Selda.SQL hiding (params, param)
 import Database.Selda.SQL.Print.Config
 import Database.Selda.SqlType (SqlTypeRep(..))
 import Database.Selda.Types
-import Debug.Trace (traceShowId)
 
 data OnError = Fail | Ignore
   deriving (Eq, Ord, Show)
