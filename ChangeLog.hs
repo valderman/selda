@@ -8,7 +8,11 @@ import System.Process
 
 changeLog :: ChangeLog
 changeLog =
-  [ Version "0.1.12" "2018-01-11"
+  [ Version "0.1.12.1" "2018-02-27"
+    "Backend API fixes for PostgreSQL"
+    [ "New PPConfig hook for more flexibility when compiling types."
+    ]
+    Version "0.1.12" "2018-01-11"
     "Recursive foreign keys, arbitrary enums, and bug fixes."
     [ "Allow recursive and optional foreign keys."
     , "Allow arbitrary enums in tables, represented as text."
