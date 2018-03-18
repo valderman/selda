@@ -101,7 +101,7 @@ module Database.Selda
   , prepared
     -- * Defining schemas
   , TableSpec, ColSpecs, ColSpec, TableName, ColName
-  , NonNull, IsNullable, Nullable, NotNullable
+  , NonNull
   , Append (..), (:++:)
   , Selectors, HasSelectors
   , table, tableWithSelectors, selectors

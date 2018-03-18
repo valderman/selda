@@ -1,11 +1,14 @@
 {-# LANGUAGE TypeOperators, TypeFamilies, OverloadedStrings #-}
 {-# LANGUAGE UndecidableInstances, FlexibleInstances, ScopedTypeVariables #-}
 {-# LANGUAGE MultiParamTypeClasses, FlexibleContexts #-}
+{-# LANGUAGE CPP, DataKinds #-}
 -- | Selda table definition language.
 module Database.Selda.Table where
 import Database.Selda.Types
 import Database.Selda.SqlType
-import Control.Exception
+import Control.Exception hiding (TypeError)
+import GHC.Exts
+import GHC.TypeLits
 import Data.Dynamic
 import Data.List (sort, group)
 import Data.Monoid
@@ -61,20 +64,18 @@ newCol name = ColSpec [ColInfo
 -- | A table column specification.
 newtype ColSpec a = ColSpec {unCS :: [ColInfo]}
 
--- | Used by 'IsNullable' to indicate a nullable type.
-data Nullable
-
--- | Used by 'IsNullable' to indicate a nullable type.
-data NotNullable
-
--- | Is the given type nullable?
-type family IsNullable a where
-  IsNullable (Maybe a) = Nullable
-  IsNullable a         = NotNullable
-
 -- | Any SQL type which is NOT nullable.
-class SqlType a => NonNull a
-instance (SqlType a, IsNullable a ~ NotNullable) => NonNull a
+type family NonNull a :: Constraint where
+#if MIN_VERSION_base(4, 9, 0)
+  NonNull (Maybe a) = TypeError
+    ( Text "Optional columns must not be nested, and" :<>:
+      Text " required or primary key columns" :$$:
+      Text "must not have option types."
+    )
+#else
+  NonNull (Maybe a) = a ~ Maybe a
+#endif
+  NonNull a         = ()
 
 -- | Column attributes such as nullability, auto increment, etc.
 --   When adding elements, make sure that they are added in the order
@@ -84,17 +85,17 @@ data ColAttr = Primary | AutoIncrement | Required | Optional | Unique
   deriving (Show, Eq, Ord)
 
 -- | A non-nullable column with the given name.
-required :: NonNull a => ColName -> ColSpec a
+required :: (SqlType a, NonNull a) => ColName -> ColSpec a
 required = addAttr Required . newCol
 
 -- | A nullable column with the given name.
-optional :: NonNull a => ColName -> ColSpec (Maybe a)
+optional :: (SqlType a, NonNull a) => ColName -> ColSpec (Maybe a)
 optional = addAttr Optional . newCol
 
 -- | Marks the given column as the table's primary key.
 --   A table may only have one primary key; marking more than one key as
 --   primary will result in 'ValidationError' during validation.
-primary :: NonNull a => ColName -> ColSpec a
+primary :: (SqlType a, NonNull a) => ColName -> ColSpec a
 primary = addAttr Primary . unique . required
 
 -- | Automatically increment the given attribute if not specified during insert.
