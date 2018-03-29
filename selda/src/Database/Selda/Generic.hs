@@ -23,7 +23,7 @@
 module Database.Selda.Generic
   ( Relational, Generic
   , GenAttr (..), GenTable (..), Attribute, Relation
-  , genTable, toRel, toRels, fromRel, fromRels
+  , genTable, genTableFieldMod, toRel, toRels, fromRel, fromRels
   , insertGen, insertGen_, insertGenWithPK
   , primaryGen, autoPrimaryGen, uniqueGen, fkGen
   ) where
@@ -102,10 +102,35 @@ genTable :: forall a. Relational a
          => TableName
          -> [GenAttr a]
          -> GenTable a
-genTable tn attrs = GenTable $ Table tn (validate tn (map tidy cols)) apk
+genTable tn attrs = genTableFieldMod tn attrs id
+
+-- | Generate a table from the given table name,
+--   a list of column attributes and a function
+--   that maps from field names to column names.
+--   Ex.:
+--
+-- > data Person = Person
+-- >   { personId   :: Int
+-- >   , personName :: Text
+-- >   , personAge  :: Int
+-- >   , personPet  :: Maybe Text
+-- >   }
+-- >   deriving Generic
+-- >
+-- > people :: GenTable Person
+-- > people = genTableFieldMod "people" [(personName, autoPrimaryGen)] (stripPrefix "person")
+--
+--   This will create a table with the columns named
+--   "Id", "Name", "Age" and "Pet".
+genTableFieldMod :: forall a. Relational a
+                 => TableName
+                 -> [GenAttr a]
+                 -> (String -> String)
+                 -> GenTable a
+genTableFieldMod tn attrs fieldMod = GenTable $ Table tn (validate tn (map tidy cols)) apk
   where
     dummy = mkDummy
-    cols = zipWith addAttrs [0..] (tblCols (Proxy :: Proxy a))
+    cols = zipWith addAttrs [0..] (tblCols (Proxy :: Proxy a) fieldMod)
     apk = or [AutoIncrement `elem` as | _ :- Attribute as <- attrs]
     addAttrs n ci = ci
       { colAttrs = colAttrs ci ++ concat
@@ -219,8 +244,8 @@ newtype Dummy a = Dummy a
 -- | Extract all column names from the given type.
 --   If the type is not a record, the columns will be named @col_1@,
 --   @col_2@, etc.
-tblCols :: forall a. (GRelation (Rep a)) => Proxy a -> [ColInfo]
-tblCols _ = zipWith pack' [0 :: Int ..] $ gTblCols (Proxy :: Proxy (Rep a))
+tblCols :: forall a. (GRelation (Rep a)) => Proxy a -> (String -> String) -> [ColInfo]
+tblCols _ fieldMod = zipWith pack' [0 :: Int ..] $ gTblCols (Proxy :: Proxy (Rep a)) fieldMod
   where
     pack' n ci = ci
       { colName = if colName ci == ""
@@ -247,7 +272,7 @@ class GRelation f where
   gToRel   :: f a -> Rel f
 
   -- | Compute all columns needed to represent the given type.
-  gTblCols :: Proxy f -> [ColInfo]
+  gTblCols :: Proxy f -> (String -> String) -> [ColInfo]
 
   -- | Create a dummy value where all fields are replaced by @unsafeCoerce@'d
   --   ints. See 'mkDummy' and 'identify' for more information.
@@ -264,12 +289,12 @@ instance GRelation a => GRelation (M1 D c a) where
   gMkDummy = M1 <$> gMkDummy
 
 instance (G.Selector c, GRelation a) => GRelation (M1 S c a) where
-  gToRel (M1 x) = gToRel x
-  gTblCols _    = [ci']
+  gToRel (M1 x)     = gToRel x
+  gTblCols _ fieldMod = [ci']
     where
-      [ci] = gTblCols (Proxy :: Proxy a)
+      [ci] = gTblCols (Proxy :: Proxy a) fieldMod
       ci' = ColInfo
-        { colName = mkColName . pack $ selName ((M1 undefined) :: M1 S c a b)
+        { colName = mkColName . pack $ fieldMod (selName ((M1 undefined) :: M1 S c a b))
         , colType = colType ci
         , colAttrs = colAttrs ci
         , colFKs = colFKs ci
@@ -278,7 +303,7 @@ instance (G.Selector c, GRelation a) => GRelation (M1 S c a) where
 
 instance (Typeable a, SqlType a) => GRelation (K1 i a) where
   gToRel (K1 x) = x
-  gTblCols _    = [ColInfo "" (sqlType (Proxy :: Proxy a)) optReq []]
+  gTblCols _ _  = [ColInfo "" (sqlType (Proxy :: Proxy a)) optReq []]
     where
       -- workaround for GHC 8.2 not resolving overlapping instances properly
       maybeTyCon = typeRepTyCon (typeRep (Proxy :: Proxy (Maybe ())))
@@ -293,7 +318,7 @@ instance (Typeable a, SqlType a) => GRelation (K1 i a) where
 instance (Append (Rel a) (Rel b), GRelation a, GRelation b) =>
          GRelation (a G.:*: b) where
   gToRel (a G.:*: b)   = gToRel a `app` gToRel b
-  gTblCols _ = gTblCols a ++ gTblCols b
+  gTblCols _ f = gTblCols a f ++ gTblCols b f
     where
       a = Proxy :: Proxy a
       b = Proxy :: Proxy b
