@@ -22,8 +22,8 @@ build:
 	cabal install $(PACKAGES)
 
 deps:
-	cd ./selda ; cabal install --only-dependencies
-	cabal install $(PACKAGES)
+	cd ./selda ; cabal install
+	cabal install -f-haste $(PACKAGES)
 	cabal install ./selda-tests --only-dependencies --enable-tests
 
 travischeck:
@@ -85,5 +85,8 @@ sandbox: cabal.sandbox.config
 cabal.sandbox.config:
 	mkdir -p .cabal-sandbox
 	cd .cabal-sandbox ; cabal sandbox init --sandbox .
+	cd selda ; cabal sandbox init --sandbox ../.cabal-sandbox
+	cd selda-sqlite ; cabal sandbox init --sandbox ../.cabal-sandbox
+	cd selda-postgresql ; cabal sandbox init --sandbox ../.cabal-sandbox
 	cd selda-tests ; cabal sandbox init --sandbox ../.cabal-sandbox
 	cabal sandbox init --sandbox .cabal-sandbox
