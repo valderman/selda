@@ -14,6 +14,10 @@ data Person = Person
 genPeople :: GenTable Person
 genPeople = genTable "genpeople" [name :- primaryGen]
 
+genModPeople :: GenTable Person
+genModPeople = genTableFieldMod "genmodpeople" [name :- primaryGen] $ \name ->
+  "genmod_" ++ name
+
 people :: Table (Text :*: Int :*: Maybe Text :*: Double)
 people =
       table "people"
@@ -65,10 +69,12 @@ commentItems =
 setup :: SeldaT IO ()
 setup = do
   createTable (gen genPeople)
+  createTable (gen genModPeople)
   createTable people
   createTable addresses
   createTable comments
   insert_ (gen genPeople) peopleItems
+  insert_ (gen genModPeople) peopleItems
   insert_ people peopleItems
   insert_ addresses addressItems
   insert_ comments (map (def :*:) commentItems)

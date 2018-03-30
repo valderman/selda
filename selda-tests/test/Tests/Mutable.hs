@@ -30,10 +30,10 @@ mutableTests freshEnv = test
   , "transaction rolls back"         ~: freshEnv transactionRollsBack
   , "queries are consistent"         ~: freshEnv consistentQueries
   , "delete deletes"                 ~: freshEnv deleteDeletes
-  , "generic delete"                 ~: freshEnv genericDelete
-  , "generic update"                 ~: freshEnv genericUpdate
-  , "generic insert"                 ~: freshEnv genericInsert
-  , "ad hoc insert in generic table" ~: freshEnv adHocInsertInGenericTable
+  , "generic delete"                 ~: freshEnv (genericDelete genPeople)
+  , "generic update"                 ~: freshEnv (genericUpdate genPeople)
+  , "generic insert"                 ~: freshEnv (genericInsert genPeople)
+  , "ad hoc insert in generic table" ~: freshEnv (adHocInsertInGenericTable genPeople)
   , "delete everything"              ~: freshEnv deleteEverything
   , "override auto-increment"        ~: freshEnv overrideAutoIncrement
   , "insert all defaults"            ~: freshEnv insertAllDefaults
@@ -61,6 +61,13 @@ mutableTests freshEnv = test
   , "optional foreign keys"          ~: freshEnv optionalFK
   , "auto-primary in generic table"  ~: freshEnv genericAutoPrimary
   , "custom enum type"               ~: freshEnv customEnum
+    -- Generic tests with field modifier
+  , "generic field mod delete"       ~: freshEnv (genericDelete genModPeople)
+  , "generic field mod update"       ~: freshEnv (genericUpdate genModPeople)
+  , "generic field mod insert"       ~: freshEnv (genericInsert genModPeople)
+  , "ad hoc insert generic fieldmod" ~: freshEnv (adHocInsertInGenericTable genModPeople)
+  , "generic mod fk violation fails" ~: freshEnv genModFkViolationFails
+  , "generic mod fk insertion ok"    ~: freshEnv genModFkInsertSucceeds
   ]
 
 tryDropNeverFails = teardown
@@ -212,36 +219,40 @@ deleteEverything = do
       restrict (round_ cash .> age)
       return name
 
-genericDelete = do
+genericDelete :: GenTable Person -> SeldaM ()
+genericDelete t = do
   setup
-  deleteFrom_ (gen genPeople) (\p -> p ! pCash .> 0)
+  deleteFrom_ (gen t) (\p -> p ! pCash .> 0)
   monies <- query $ do
-    p <- select (gen genPeople)
+    p <- select (gen t)
     return (p ! pCash)
   ass "deleted wrong items" $ all (<= 0) monies
 
-genericUpdate = do
+genericUpdate :: GenTable Person -> SeldaM ()
+genericUpdate t = do
   setup
-  update_ (gen genPeople) (\p -> p ! pCash .> 0)
+  update_ (gen t) (\p -> p ! pCash .> 0)
                           (\p -> p `with` [pCash := 0])
   monies <- query $ do
-    p <- select (gen genPeople)
+    p <- select (gen t)
     return (p ! pCash)
   ass "update failed" $ all (<= 0) monies
 
-genericInsert = do
+genericInsert :: GenTable Person -> SeldaM ()
+genericInsert t = do
   setup
-  q1 <- query $ select (gen genPeople)
-  deleteFrom_ (gen genPeople) (const true)
-  insertGen_ genPeople genPeopleItems
-  q2 <- query $ select (gen genPeople)
+  q1 <- query $ select (gen t)
+  deleteFrom_ (gen t) (const true)
+  insertGen_ t genPeopleItems
+  q2 <- query $ select (gen t)
   assEq "insert failed" (sort q1) (sort q2)
 
-adHocInsertInGenericTable = do
+adHocInsertInGenericTable :: GenTable Person -> SeldaM ()
+adHocInsertInGenericTable t = do
   setup
-  insert_ (gen genPeople) [val]
+  insert_ (gen t) [val]
   [val'] <- query $ do
-    p <- select (gen genPeople)
+    p <- select (gen t)
     restrict (p ! pName .== "Saber")
     return p
   assEq "insert failed" val val'
@@ -437,6 +448,30 @@ genFkInsertSucceeds = do
   where
     addressesWithFK :: GenTable FKAddrs
     addressesWithFK = genTable "addressesWithFK" [fkaName :- fkGen people pName]
+
+genModFkViolationFails = do
+    setup
+    createTable (gen addressesWithFK)
+    assertFail $ insertGen_ addressesWithFK [FKAddrs "Nobody" "Nowhere"]
+    dropTable (gen addressesWithFK)
+  where
+    addressesWithFK :: GenTable FKAddrs
+    addressesWithFK = genTableFieldMod "addressesWithFK" [fkaName :- fkGen people pName] ("test_" ++)
+
+genModFkInsertSucceeds = do
+    setup
+    createTable (gen addressesWithFK)
+    insertGen_ addressesWithFK [FKAddrs "Link" "Nowhere"]
+    res <- query $ do
+      (aName :*: aCity) <- select (gen addressesWithFK)
+      person <- select people
+      restrict (aName .== "Link" .&& aName .== person ! pName)
+      return (person ! pName :*: aCity)
+    assEq "wrong state after insert" ["Link" :*: "Nowhere"] res
+    dropTable (gen addressesWithFK)
+  where
+    addressesWithFK :: GenTable FKAddrs
+    addressesWithFK = genTableFieldMod "addressesWithFK" [fkaName :- fkGen people pName] ("test_" ++)
 
 multipleFKs = do
     setup
