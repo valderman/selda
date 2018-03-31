@@ -82,6 +82,7 @@ setup = do
 teardown :: SeldaT IO ()
 teardown = do
   tryDropTable (gen genPeople)
+  tryDropTable (gen genModPeople)
   tryDropTable people
   tryDropTable addresses
   tryDropTable comments
