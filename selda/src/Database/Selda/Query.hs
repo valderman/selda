@@ -93,9 +93,9 @@ restrict (C p) = Query $ do
 -- >     return (count address :*: some address)
 -- >  restrict (num_tenants .> 1)
 -- >  return (num_tenants :*: address)
-aggregate :: (Columns (OuterCols a), Aggregates a)
+aggregate :: (Columns (AggrCols a), Aggregates a)
           => Query (Inner s) a
-          -> Query s (OuterCols a)
+          -> Query s (AggrCols a)
 aggregate q = Query $ do
   (gst, aggrs) <- isolate q
   cs <- mapM rename $ unAggrs aggrs
@@ -166,7 +166,7 @@ someJoin jointype check q = Query $ do
 -- > aggregate $ do
 -- >   (name :*: pet_name) <- select people
 -- >   name' <- groupBy name
--- >   return (name' :*: count(pet_name) > 0)
+-- >   return (name' :*: count(pet_name) .> 0)
 groupBy :: Col (Inner s) a -> Query (Inner s) (Aggr (Inner s) a)
 groupBy (C c) = Query $ do
   st <- get

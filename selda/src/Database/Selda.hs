@@ -87,7 +87,7 @@ module Database.Selda
     -- * Converting between column types
   , round_, just, fromBool, fromInt, toString
     -- * Inner queries
-  , Aggr, Aggregates, OuterCols, LeftCols, Inner, SqlOrd
+  , Aggr, Aggregates, OuterCols, AggrCols, LeftCols, Inner, SqlOrd
   , innerJoin, leftJoin
   , aggregate, groupBy
   , count, avg, sum_, max_, min_

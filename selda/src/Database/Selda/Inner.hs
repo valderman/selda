@@ -1,5 +1,6 @@
 {-# LANGUAGE TypeOperators, TypeFamilies, FlexibleInstances, FlexibleContexts #-}
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE CPP, DataKinds, UndecidableInstances #-}
 -- | Helpers for working with inner queries.
 module Database.Selda.Inner where
 import Database.Selda.Column
@@ -7,6 +8,8 @@ import Database.Selda.SQL (SQL)
 import Database.Selda.Types
 import Data.Text (Text)
 import Data.Typeable
+import GHC.Exts
+import GHC.TypeLits as TL
 
 -- | A single aggregate column.
 --   Aggregate columns may not be used to restrict queries.
@@ -38,8 +41,25 @@ aggr f = Aggr . AggrEx f . unC
 --   @OuterCols (Aggr (Inner s) a :*: Aggr (Inner s) b) = Col s a :*: Col s b@,
 --   for instance.
 type family OuterCols a where
-  OuterCols (t (Inner s) a :*: b) = Col s a :*: OuterCols b
-  OuterCols (t (Inner s) a)       = Col s a
+  OuterCols (Col (Inner s) a :*: b)  = Col s a :*: OuterCols b
+  OuterCols (Col (Inner s) a)        = Col s a
+#if MIN_VERSION_base(4, 9, 0)
+  OuterCols a = TypeError
+    ( TL.Text "Only (inductive tuples of) columns can be returned from" :$$:
+      TL.Text "an inner query."
+    )
+#endif
+
+type family AggrCols a where
+  AggrCols (Aggr (Inner s) a :*: b) = Col s a :*: AggrCols b
+  AggrCols (Aggr (Inner s) a)       = Col s a
+#if MIN_VERSION_base(4, 9, 0)
+  AggrCols a = TypeError
+    ( TL.Text "Only (inductive tuples of) aggregates can be returned from" :$$:
+      TL.Text "an aggregate query."
+    )
+#endif
+
 
 -- | The results of a left join are always nullable, as there is no guarantee
 --   that all joined columns will be non-null.
@@ -54,6 +74,12 @@ type family LeftCols a where
   LeftCols (Col (Inner s) a :*: b)         = Col s (Maybe a) :*: LeftCols b
   LeftCols (Col (Inner s) (Maybe a))       = Col s (Maybe a)
   LeftCols (Col (Inner s) a)               = Col s (Maybe a)
+#if MIN_VERSION_base(4, 9, 0)
+  LeftCols a = TypeError
+    ( TL.Text "Only (inductive tuples of) columns can be returned" :$$:
+      TL.Text "from a join."
+    )
+#endif
 
 -- | One or more aggregate columns.
 class Aggregates a where
