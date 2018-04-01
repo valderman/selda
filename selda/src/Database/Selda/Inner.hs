@@ -44,6 +44,11 @@ type family OuterCols a where
   OuterCols (Col (Inner s) a :*: b)  = Col s a :*: OuterCols b
   OuterCols (Col (Inner s) a)        = Col s a
 #if MIN_VERSION_base(4, 9, 0)
+  OuterCols (Col s a) = TypeError
+    ( TL.Text "An inner query can only return columns from its own scope."
+    )
+#endif
+#if MIN_VERSION_base(4, 9, 0)
   OuterCols a = TypeError
     ( TL.Text "Only (inductive tuples of) columns can be returned from" :$$:
       TL.Text "an inner query."
@@ -54,12 +59,17 @@ type family AggrCols a where
   AggrCols (Aggr (Inner s) a :*: b) = Col s a :*: AggrCols b
   AggrCols (Aggr (Inner s) a)       = Col s a
 #if MIN_VERSION_base(4, 9, 0)
+  AggrCols (Aggr s a) = TypeError
+    ( TL.Text "An aggregate query can only return columns from its own" :$$:
+      TL.Text "scope."
+    )
+#endif
+#if MIN_VERSION_base(4, 9, 0)
   AggrCols a = TypeError
     ( TL.Text "Only (inductive tuples of) aggregates can be returned from" :$$:
       TL.Text "an aggregate query."
     )
 #endif
-
 
 -- | The results of a left join are always nullable, as there is no guarantee
 --   that all joined columns will be non-null.
