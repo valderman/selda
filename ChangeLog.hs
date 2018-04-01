@@ -8,11 +8,17 @@ import System.Process
 
 changeLog :: ChangeLog
 changeLog =
-  [ Version "0.1.12.1" "2018-02-27"
-    "Backend API fixes for PostgreSQL"
+  [ Version "0.2.0.0" "2018-04-02"
+    "Fixes for inner queries and generic tables."
+    [ "Support custom column names for generic tables."
+    , "Scope safety fix for inner queries."
+    , "Better type errors on GHC 8+ for inner queries."
+    ]
+  , Version "0.1.12.1" "2018-02-27"
+    "Backend API fixes for PostgreSQL."
     [ "New PPConfig hook for more flexibility when compiling types."
     ]
-  , Version "0.1.12" "2018-01-11"
+  , Version "0.1.12.0" "2018-01-11"
     "Recursive foreign keys, arbitrary enums, and bug fixes."
     [ "Allow recursive and optional foreign keys."
     , "Allow arbitrary enums in tables, represented as text."
