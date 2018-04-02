@@ -107,4 +107,4 @@ library
   default-language:
     Haskell2010
   ghc-options:
-    -Wall
+    -Wall -fno-warn-redundant-constraints
