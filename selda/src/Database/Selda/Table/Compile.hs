@@ -1,9 +1,11 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, CPP #-}
 -- | Generating SQL for creating and deleting tables.
 module Database.Selda.Table.Compile where
 import Database.Selda.Table
 import Data.List ((\\), foldl')
+#if !MIN_VERSION_base(4, 11, 0)
 import Data.Monoid
+#endif
 import Data.Text (Text, intercalate, pack)
 import qualified Data.Text as Text
 import Database.Selda.SQL hiding (params, param)

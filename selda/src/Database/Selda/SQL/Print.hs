@@ -1,4 +1,4 @@
-{-# LANGUAGE GADTs, OverloadedStrings #-}
+{-# LANGUAGE GADTs, OverloadedStrings, CPP #-}
 -- | Pretty-printing for SQL queries. For some values of pretty.
 module Database.Selda.SQL.Print where
 import Database.Selda.Column
@@ -9,7 +9,9 @@ import Database.Selda.SqlType
 import Database.Selda.Types
 import Control.Monad.State
 import Data.List
+#if !MIN_VERSION_base(4, 11, 0)
 import Data.Monoid hiding (Product)
+#endif
 import Data.Text (Text)
 import qualified Data.Text as Text
 

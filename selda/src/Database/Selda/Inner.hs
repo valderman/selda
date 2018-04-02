@@ -8,8 +8,9 @@ import Database.Selda.SQL (SQL)
 import Database.Selda.Types
 import Data.Text (Text)
 import Data.Typeable
-import GHC.Exts
+#if MIN_VERSION_base(4, 9, 0)
 import GHC.TypeLits as TL
+#endif
 
 -- | A single aggregate column.
 --   Aggregate columns may not be used to restrict queries.
@@ -45,13 +46,11 @@ type family OuterCols a where
   OuterCols (Col (Inner s) a)        = Col s a
 #if MIN_VERSION_base(4, 9, 0)
   OuterCols (Col s a) = TypeError
-    ( TL.Text "An inner query can only return columns from its own scope."
+    ( 'TL.Text "An inner query can only return columns from its own scope."
     )
-#endif
-#if MIN_VERSION_base(4, 9, 0)
   OuterCols a = TypeError
-    ( TL.Text "Only (inductive tuples of) columns can be returned from" :$$:
-      TL.Text "an inner query."
+    ( 'TL.Text "Only (inductive tuples of) columns can be returned from" ':$$:
+      'TL.Text "an inner query."
     )
 #endif
 
@@ -60,14 +59,12 @@ type family AggrCols a where
   AggrCols (Aggr (Inner s) a)       = Col s a
 #if MIN_VERSION_base(4, 9, 0)
   AggrCols (Aggr s a) = TypeError
-    ( TL.Text "An aggregate query can only return columns from its own" :$$:
-      TL.Text "scope."
+    ( 'TL.Text "An aggregate query can only return columns from its own" ':$$:
+      'TL.Text "scope."
     )
-#endif
-#if MIN_VERSION_base(4, 9, 0)
   AggrCols a = TypeError
-    ( TL.Text "Only (inductive tuples of) aggregates can be returned from" :$$:
-      TL.Text "an aggregate query."
+    ( 'TL.Text "Only (inductive tuples of) aggregates can be returned from" ':$$:
+      'TL.Text "an aggregate query."
     )
 #endif
 
@@ -86,8 +83,8 @@ type family LeftCols a where
   LeftCols (Col (Inner s) a)               = Col s (Maybe a)
 #if MIN_VERSION_base(4, 9, 0)
   LeftCols a = TypeError
-    ( TL.Text "Only (inductive tuples of) columns can be returned" :$$:
-      TL.Text "from a join."
+    ( 'TL.Text "Only (inductive tuples of) columns can be returned" ':$$:
+      'TL.Text "from a join."
     )
 #endif
 

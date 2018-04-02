@@ -22,10 +22,6 @@ import Database.Selda.Types (TableName)
 
 type CacheKey = (Text, Text, [Param])
 
--- | Reduce all parts of a cache key to HNF.
-seqCK :: CacheKey -> a -> a
-seqCK (db, q, ps) x = db `seq` q `seq` ps `seq` x
-
 #ifdef NO_LOCALCACHE
 
 cache :: Typeable a => [TableName] -> CacheKey -> a -> IO ()
@@ -41,6 +37,10 @@ setMaxItems :: Int -> IO ()
 setMaxItems _ = return ()
 
 #else
+-- | Reduce all parts of a cache key to HNF.
+seqCK :: CacheKey -> a -> a
+seqCK (db, q, ps) x = db `seq` q `seq` ps `seq` x
+
 instance Hashable Param where
   hashWithSalt s (Param x) = hashWithSalt s x
 instance Hashable (Lit a) where

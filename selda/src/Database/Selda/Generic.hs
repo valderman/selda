@@ -2,7 +2,7 @@
 {-# LANGUAGE TypeFamilies, TypeOperators, FlexibleInstances #-}
 {-# LANGUAGE UndecidableInstances, MultiParamTypeClasses, OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts, ScopedTypeVariables, ConstraintKinds #-}
-{-# LANGUAGE GADTs #-}
+{-# LANGUAGE GADTs, CPP #-}
 -- | Build tables and database operations from (almost) any Haskell type.
 --
 --   While the types in this module may look somewhat intimidating, the rules
@@ -29,9 +29,10 @@ module Database.Selda.Generic
   ) where
 import Control.Monad.State
 import Data.Dynamic
-import Data.Proxy
 import Data.Text (pack)
+#if MIN_VERSION_base(4, 10, 0)
 import Data.Typeable
+#endif
 import GHC.Generics hiding (R, (:*:), Selector)
 import qualified GHC.Generics as G ((:*:)(..), Selector)
 import Unsafe.Coerce

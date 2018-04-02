@@ -1,13 +1,15 @@
 {-# LANGUAGE GADTs, OverloadedStrings, ScopedTypeVariables, RecordWildCards #-}
 {-# LANGUAGE TypeOperators, FlexibleInstances, UndecidableInstances #-}
-{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RankNTypes, CPP #-}
 -- | SQL AST and parameters for prepared statements.
 module Database.Selda.SQL where
 import Database.Selda.Exp
 import Database.Selda.SqlType
 import Database.Selda.Types
 import Control.Exception
+#if !MIN_VERSION_base(4, 11, 0)
 import Data.Monoid hiding (Product)
+#endif
 import System.IO.Unsafe
 
 -- | A source for an SQL query.

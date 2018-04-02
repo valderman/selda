@@ -1,13 +1,15 @@
 {-# LANGUAGE ScopedTypeVariables, TypeFamilies, MultiParamTypeClasses #-}
 {-# LANGUAGE TypeOperators, UndecidableInstances, FlexibleInstances #-}
-{-# LANGUAGE FlexibleContexts, RankNTypes, AllowAmbiguousTypes, GADTs #-}
+{-# LANGUAGE FlexibleContexts, RankNTypes, AllowAmbiguousTypes, GADTs, CPP #-}
 module Database.Selda.Selectors where
 import Database.Selda.Table
 import Database.Selda.Types
 import Database.Selda.Column
 import Data.Dynamic
 import Data.List (foldl')
+#if MIN_VERSION_base(4, 10, 0)
 import Data.Proxy
+#endif
 import Unsafe.Coerce
 
 -- | Get the value at the given index from the given inductive tuple.

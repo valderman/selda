@@ -1,7 +1,9 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving, OverloadedStrings #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, OverloadedStrings, CPP #-}
 module Database.Selda.Query.Type where
 import Control.Monad.State.Strict
+#if !MIN_VERSION_base(4, 11, 0)
 import Data.Monoid
+#endif
 import Data.Text (pack)
 import Database.Selda.SQL
 import Database.Selda.Column

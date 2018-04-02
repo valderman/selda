@@ -6,14 +6,20 @@
 module Database.Selda.Table where
 import Database.Selda.Types
 import Database.Selda.SqlType
-import Control.Exception hiding (TypeError)
-import GHC.Exts
-import GHC.TypeLits
+import Control.Exception
 import Data.Dynamic
 import Data.List (sort, group)
+#if !MIN_VERSION_base(4, 11, 0)
 import Data.Monoid
-import Data.Proxy
+#endif
 import Data.Text (unpack, intercalate, any)
+import GHC.Exts
+#if MIN_VERSION_base(4, 10, 0)
+import Data.Proxy
+#endif
+#if MIN_VERSION_base(4, 9, 0)
+import GHC.TypeLits as TL
+#endif
 
 -- | An error occurred when validating a database table.
 --   If this error is thrown, there is a bug in your database schema, and the
@@ -67,10 +73,10 @@ newtype ColSpec a = ColSpec {unCS :: [ColInfo]}
 -- | Any SQL type which is NOT nullable.
 type family NonNull a :: Constraint where
 #if MIN_VERSION_base(4, 9, 0)
-  NonNull (Maybe a) = TypeError
-    ( Text "Optional columns must not be nested, and" :<>:
-      Text " required or primary key columns" :$$:
-      Text "must not have option types."
+  NonNull (Maybe a) = TL.TypeError
+    ( 'Text "Optional columns must not be nested, and" ':<>:
+      'Text " required or primary key columns" ':$$:
+      'Text "must not have option types."
     )
 #else
   NonNull (Maybe a) = a ~ Maybe a
