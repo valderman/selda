@@ -9,4 +9,5 @@ cabal.sandbox.config
 /selda/README.md
 /selda/ChangeLog.md
 /selda/*.yaml
+/*/LICENSE
 result*

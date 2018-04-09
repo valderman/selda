@@ -16,12 +16,17 @@ help:
 	@echo "sandbox      - create shared sandbox"
 	@echo "deps         - install dependencies"
 
-build:
+build: license
 	cd ./selda ; cabal configure
 	cp -f README.md ./selda/README.md
 	cabal install $(PACKAGES)
 
-deps:
+license:
+	cp -f LICENSE ./selda/LICENSE
+	cp -f LICENSE ./selda-postgresql/LICENSE
+	cp -f LICENSE ./selda-sqlite/LICENSE
+
+deps: license
 	cd ./selda ; cabal install
 	cabal install -f-haste $(PACKAGES)
 	cabal install ./selda-tests --only-dependencies --enable-tests
