@@ -71,7 +71,7 @@ A table is parameterized over the types of its columns, with the column types
 also separated by the `:*:` operator. This, by the way, is why you need
 `TypeOperators`.
 
-```
+```haskell
 people :: Table (Text :*: Int :*: Maybe Text)
 people = table "people" $ primary "name" :*: required "age" :*: optional "pet"
 
@@ -93,7 +93,7 @@ monad `SeldaM`, which is just a synonym for `SeldaT IO`.
 `SeldaT` is entered using a backend-specific `withX` function. For instance,
 the SQLite backend uses the `withSQLite` function:
 
-```
+```haskell
 main :: IO ()
 main = withSQLite "my_database.sqlite" $ do
   people <- getAllPeople
@@ -118,7 +118,7 @@ respectively.
 
 You can pattern match on these values as you would on normal tuples:
 
-```
+```haskell
 firstOfThree :: (a :*: b :*: c) -> a
 firstOfThree (a :*: b :*: c) = a
 ```
@@ -126,7 +126,7 @@ firstOfThree (a :*: b :*: c) = a
 Since inductive tuples are inductively defined, you may also choose to pattern
 match on just the first few elements:
 
-```
+```haskell
 firstOfN :: (a :*: rest) -> a
 firstOfN (a :*: _) = a
 ```
@@ -141,7 +141,7 @@ Creating and deleting databases
 You can use a table definition to create the corresponding table in your
 database backend, as well as delete it.
 
-```
+```haskell
 setup :: SeldaM ()
 setup = do
   createTable people
@@ -165,7 +165,7 @@ Data insertion is done in batches. To insert a batch of rows, pass a list of
 rows where each row is an inductive tuple matching the type of the table.
 Optional values are encoded as `Maybe` values.
 
-```
+```haskell
 populate :: SeldaM ()
 populate = do
   insert_ people
@@ -188,7 +188,7 @@ Use the latter to explicitly indicate your intent to ignore the return value.
 The following example inserts a few rows into a table with an
 auto-incrementing primary key:
 
-```
+```haskell
 people' :: Table (RowID :*: Text :*: Int :*: Maybe Text)
 people' = table "people_with_ids"
   $   autoPrimary "id"
@@ -232,7 +232,7 @@ The first is a predicate over table columns. The second is a mapping over table
 columns, specifying how to update each row. Only rows satisfying the predicate 
 are updated.
 
-```
+```haskell
 age10Years :: SeldaM ()
 age10Years = do
   update_ people (\(name :*: _ :*: _) -> name ./= "Link")
@@ -254,7 +254,7 @@ the `deleteFrom` operation takes a table and a predicate, specifying which rows
 to delete.
 The following example deletes all minors from the `people` table:
 
-```
+```haskell
 byeMinors :: SeldaM ()
 byeMinors = deleteFrom_ people (\(_ :*: age :*: _) -> age .< 20)
 ```
@@ -272,7 +272,7 @@ The following example uses the `select` operation to draw each row from the
 those having an `age` column with a value greater than 20.
 
 
-```
+```haskell
 grownups :: Query s (Col s Text)
 grownups = do
   (name :*: age :*: _) <- select people
@@ -302,7 +302,7 @@ fields of standard Haskell record types.
 
 Rewriting the previous example using selector functions:
 
-```
+```haskell
 name :*: age :*: pet = selectors people
 
 grownups :: Query s (Col s Text)
@@ -320,7 +320,7 @@ printGrownups = do
 For added convenience, the `tableWithSelectors` function creates both a table
 and its selector functions at the same time:
 
-```
+```haskell
 posts :: Table (RowID :*: Maybe Text :*: Text)
 (posts, postId :*: author :*: content)
   =   tableWithSelectors "posts"
@@ -339,7 +339,7 @@ You can also use selectors with the `with` function to update columns in a tuple
 selector-value pair. For each assignment, the column indicated by the selector
 will be set to the corresponding value, on the given tuple.
 
-```
+```haskell
 grownupsIn10Years :: Query s (Col s Text)
 grownupsIn10Years = do
   p <- select people
@@ -372,7 +372,7 @@ reside in Tokyo. Note the use of the `text` function, to convert a Haskell
 to remove all elements from the result set where the name in the `people` table
 does not match the one in the `addresses` table.
 
-```
+```haskell
 grownupsIn :: Text -> Query s (Col s Text)
 grownupsIn city = do
   (name :*: age :*: _) <- select people
@@ -391,7 +391,7 @@ Also note that this is slightly different from an SQL join. If, for instance,
 you wanted to get a list of all people and their addresses, you might do
 something like this:
 
-```
+```haskell
 allPeople :: Query s (Col s Text :*: Col s Text)
 allPeople = do
   (people_name :*: _ :*: _) <- select people
@@ -418,7 +418,7 @@ to `"Velvet"`. To produce a table like the above but with a `NULL` column for
 Velvet's address (or for anyone else who does not have an entry in the
 `addresses` table), you would have to use a join:
 
-```
+```haskell
 allPeople' :: Query s (Col s Text :*: Col s (Maybe Text))
 allPeople' = do
   (name :*: _ :*: _) <- select people
@@ -472,7 +472,7 @@ The following example uses an aggregate query to calculate how many home each
 person has, and order the result set with the most affluent homeowners at the
 top.
 
-```
+```haskell
 countHomes :: Query s (Col s Text :*: Col s Int)
 countHomes = do
   (name :*: _ :*: _) <- select people
@@ -507,7 +507,7 @@ The solution to this problem is *transactions*: a mechanism by which
 *a list of queries* gain the same atomicity guarantees as a single query always
 enjoys. Using transactions in Selda is super easy:
 
-```
+```haskell
 transferMoney :: Text -> Text -> Double -> SeldaM ()
 transferMoney from to amount = do
   transaction $ do
@@ -542,7 +542,7 @@ Selda supports automatic caching of query results out of the box.
 However, it is turned off by default.
 To enable caching, use the `setLocalCache` function.
 
-```
+```haskell
 main = withPostgreSQL connection_info $ do
   setLocalCache 1000
   ...
@@ -579,7 +579,7 @@ data types, using the `Database.Selda.Generic` module.
 Re-implementing the ad hoc `people` and `addresses` tables from before in a
 more disciplined manner in this way is quite easy:
 
-```
+```haskell
 data Person = Person
   { personName :: Text
   , age        :: Int
@@ -602,7 +602,7 @@ addresses = genTable "addresses" [personName :- primaryGen]
 This will declare two tables with the same structure as their ad hoc
 predecessors. Creating the tables is similarly easy:
 
-```
+```haskell
 create :: SeldaM ()
 create = do
   createTable (gen people)
@@ -615,7 +615,7 @@ columns from the generic table.
 However, queries over generic tables aren't magic; they still consist of the
 same collections of columns as queries over non-generic tables.
 
-```
+```haskell
 genericGrownups2 :: Query s (Col s Text)
 genericGrownups2 = do
   (name :*: age :*: _) <- select (gen people)
@@ -626,7 +626,7 @@ genericGrownups2 = do
 Finally, with generics it's also quite easy to re-assemble Haskell objects
 from the results of a query using the `fromRel` function.
 
-```
+```haskell
 getPeopleOfAge :: Int -> SeldaM [Person]
 getPeopleOfAge yrs = do
   ps <- query $ do
@@ -661,7 +661,7 @@ called from another connection.
 As an example, we modify the `grownupsIn` function we saw earlier to use prepared
 statements.
 
-```
+```haskell
 preparedGrownupsIn :: Text -> SeldaM [Text]
 preparedGrownupsIn = prepared $ \city -> do
   (name :*: age :*: _) <- select people
@@ -694,7 +694,7 @@ post identifier, and the identifier of the user who wrote the post.
 The column storing a post's author has a foreign key constraint on the `userid`
 column of the `users` table, to ensure that each post has a valid author.
 
-```
+```haskell
 users :: Table (RowID :*: Text)
 users = table "users"
   $   primary "userid"
@@ -780,7 +780,7 @@ machine. To set up a VM for the PostgreSQL backend tests:
     server running on your machine while the VM is running.
 * Boot your VM and note the password displayed on the login screen.
 * Create the file `selda-tests/PGConnectInfo.hs` with the following content:
-    ```
+    ```haskell
     {-# LANGUAGE OverloadedStrings #-}
     module PGConnectInfo where
     import Database.Selda.PostgreSQL
