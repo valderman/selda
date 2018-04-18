@@ -87,9 +87,10 @@ instance {-# OVERLAPPABLE #-} (Selectors t a ~ Selector t a) =>
 -- > q = tblBaz <$> select tbl
 tableWithSelectors :: forall a. (TableSpec a, HasSelectors a a)
                    => TableName
+                   -> [TableIndex]
                    -> ColSpecs a
                    -> (Table a, Selectors a a)
-tableWithSelectors name cs = (t, s)
+tableWithSelectors name indexes cs = (t, s)
   where
-    t = table name cs
+    t = table name indexes cs
     s = selectors t

@@ -7,7 +7,7 @@
 module Database.Selda.Types
   ( (:*:)(..), Head, Append (..), (:++:), ToDyn (..), Tup (..)
   , first, second, third, fourth, fifth, sixth, seventh, eighth, ninth, tenth
-  , ColName, TableName
+  , ColName, IndexName, IndexMethod, TableName
   , mkColName, mkTableName, addColSuffix, addColPrefix
   , fromColName, fromTableName
   ) where
@@ -27,6 +27,12 @@ instance Hashable TableName where
 -- | Name of a database column.
 newtype ColName = ColName Text
   deriving (Ord, Eq, Show, IsString)
+
+-- | Name of a database index.
+newtype IndexName = IndexName Text
+  deriving (Ord, Eq, Show, IsString)
+
+data IndexMethod = IndexBTree | IndexHash | IndexGist | IndexGin
 
 -- | Name of a database table.
 newtype TableName = TableName Text

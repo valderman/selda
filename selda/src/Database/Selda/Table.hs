@@ -48,8 +48,15 @@ data Table a = Table
     --   Invariant: the 'colAttrs' list of each column is sorted and contains
     --   no duplicates.
   , tableCols :: [ColInfo]
+  , tableIndexes :: [TableIndex]
     -- | Does the given table have an auto-incrementing primary key?
   , tableHasAutoPK :: Bool
+  }
+
+data TableIndex = TableIndex
+  { indexName :: IndexName
+  , indexColumns :: [ColName]
+  , method :: IndexMethod
   }
 
 data ColInfo = ColInfo
@@ -135,10 +142,11 @@ instance {-# OVERLAPPABLE #-} ColSpecs a ~ ColSpec a => TableSpec a where
   mergeSpecs _ (ColSpec a) = a
 
 -- | A table with the given name and columns.
-table :: forall a. TableSpec a => TableName -> ColSpecs a -> Table a
-table name cs = Table
+table :: forall a. TableSpec a => TableName -> [TableIndex] -> ColSpecs a -> Table a
+table name indexes cs = Table
     { tableName = name
     , tableCols = tcs
+    , tableIndexes = indexes
     , tableHasAutoPK = Prelude.any ((AutoIncrement `elem`) . colAttrs) tcs
     }
   where
@@ -198,7 +206,7 @@ validate name cis
       [ "column is used as a foreign key, but is not primary or unique: "
           <> fromTableName ftn <> "." <> fromColName fcn
       | ci <- cis
-      , (Table ftn fcs _, fcn) <- colFKs ci
+      , (Table ftn fcs _ _, fcn) <- colFKs ci
       , fc <- fcs
       , colName fc == fcn
       , not (Unique `elem` colAttrs fc)

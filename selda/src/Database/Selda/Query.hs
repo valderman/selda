@@ -18,7 +18,7 @@ import Unsafe.Coerce
 -- | Query the given table. Result is returned as an inductive tuple, i.e.
 --   @first :*: second :*: third <- query tableOfThree@.
 select :: Columns (Cols s a) => Table a -> Query s (Cols s a)
-select (Table name cs _) = Query $ do
+select (Table name cs _ _) = Query $ do
     rns <- mapM (rename . Some . Col) cs'
     st <- get
     put $ st {sources = sqlFrom rns (TableName name) : sources st}

@@ -101,9 +101,10 @@ data GenAttr a where
 --   an auto-incrementing primary key.
 genTable :: forall a. Relational a
          => TableName
+         -> [TableIndex]
          -> [GenAttr a]
          -> GenTable a
-genTable tn attrs = genTableFieldMod tn attrs id
+genTable tn indexes attrs = genTableFieldMod tn indexes attrs id
 
 -- | Generate a table from the given table name,
 --   a list of column attributes and a function
@@ -125,10 +126,11 @@ genTable tn attrs = genTableFieldMod tn attrs id
 --   "Id", "Name", "Age" and "Pet".
 genTableFieldMod :: forall a. Relational a
                  => TableName
+                 -> [TableIndex]
                  -> [GenAttr a]
                  -> (String -> String)
                  -> GenTable a
-genTableFieldMod tn attrs fieldMod = GenTable $ Table tn (validate tn (map tidy cols)) apk
+genTableFieldMod tn indexes attrs fieldMod = GenTable $ Table tn (validate tn (map tidy cols)) indexes apk
   where
     dummy = mkDummy
     cols = zipWith addAttrs [0..] (tblCols (Proxy :: Proxy a) fieldMod)
@@ -235,8 +237,8 @@ uniqueGen = Attribute [Unique]
 
 -- | A foreign key constraint referencing the given table and column.
 fkGen :: Table t -> Selector t a -> Attribute
-fkGen (Table tn tcs tapk) (Selector i) =
-  ForeignKey (Table tn tcs tapk, colName (tcs !! i))
+fkGen (Table tn tcs indexes tapk) (Selector i) =
+  ForeignKey (Table tn tcs indexes tapk, colName (tcs !! i))
 
 -- | A dummy of some type. Encapsulated to avoid improper use, since all of
 --   its fields are 'unsafeCoerce'd ints.

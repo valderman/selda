@@ -14,7 +14,7 @@ fk :: ColSpec a -> (Table t, Selector t a) -> ColSpec a
 fk (ColSpec [c]) (tbl, Selector i) =
     ColSpec [c {colFKs = thefk : colFKs c}]
   where
-    Table _ tcs _ = tbl
+    Table _ tcs _ _ = tbl
     thefk = (unsafeCoerce tbl, colName (tcs !! i))
 fk _ _ =
   error "impossible: ColSpec with several columns"
@@ -24,7 +24,7 @@ optFk :: ColSpec (Maybe a) -> (Table t, Selector t a) -> ColSpec (Maybe a)
 optFk (ColSpec [c]) (tbl, Selector i) =
     ColSpec [c {colFKs = thefk : colFKs c}]
   where
-    Table _ tcs _ = tbl
+    Table _ tcs _ _ = tbl
     thefk = (unsafeCoerce tbl, colName (tcs !! i))
 optFk _ _ =
   error "impossible: ColSpec with several columns"
