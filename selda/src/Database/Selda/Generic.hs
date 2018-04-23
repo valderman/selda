@@ -264,10 +264,12 @@ identify (Dummy d) f = unsafeCoerce $ f d
 
 -- | The relation corresponding to the given type.
 type family Rel (rep :: * -> *) where
-  Rel (M1 t c a)     = Rel a
-  Rel (K1 G.R (f a)) = Relation (f a)
-  Rel (K1 i a)       = a
-  Rel (a G.:*: b)    = Rel a :++: Rel b
+  Rel (M1 t c a)         = Rel a
+  Rel (K1 G.R (Maybe a)) = Maybe a
+  Rel (K1 G.R [a])       = [a]
+  Rel (K1 G.R (f a))     = Relation (f a)
+  Rel (K1 i a)           = a
+  Rel (a G.:*: b)        = Rel a :++: Rel b
 
 class GRelation f where
   -- | Convert a value from its Haskell type into the corresponding relation.
@@ -349,9 +351,17 @@ instance {-# OVERLAPS #-} Typeable a => GFromRel (K1 i a) where
   gFromRel (x:xs) = (K1 (fromDyn x (error "impossible")), xs)
   gFromRel _      = error "impossible: too few elements to gFromRel"
 
+instance {-# OVERLAPS #-} Typeable a => GFromRel (K1 i (Maybe a)) where
+  gFromRel (x:xs) = (K1 (fromDyn x (error "impossible")), xs)
+  gFromRel _      = error "impossible: too few elements to gFromRel"
+
+instance {-# OVERLAPS #-} Typeable a => GFromRel (K1 i [a]) where
+  gFromRel (x:xs) = (K1 (fromDyn x (error "impossible")), xs)
+  gFromRel _      = error "impossible: too few elements to gFromRel"
+
 instance GFromRel a => GFromRel (M1 t c a) where
   gFromRel xs = (M1 x, xs')
     where (x, xs') = gFromRel xs
 
-test :: ((Int, Float, Double), (Text, (Text, Float)))
-test = fromRel (5 :*: 5 :*: 5 :*: "text" :*: "text2" :*: 2.0)
+test :: ((Int, [String], Maybe Double), (Text, (Text, Float)))
+test = fromRel (5 :*: ["string1", "string2"] :*: Nothing :*: "text" :*: "text2" :*: 2.0)
