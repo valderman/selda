@@ -319,8 +319,8 @@ min_  :: SqlOrd a => Col s a -> Aggr s a
 min_ = aggr "MIN"
 
 -- | Sum all values in the given column.
-sum_ :: (SqlType a, Num a) => Col s a -> Aggr s a
-sum_ = aggr "SUM"
+sum_ :: forall a b s. (SqlType a, SqlType b, Num a, Num b) => Col s a -> Aggr s b
+sum_ = castAggr . aggr "SUM"
 
 -- | Round a value to the nearest integer. Equivalent to @roundTo 0@.
 round_ :: forall s a. (SqlType a, Num a) => Col s Double -> Col s a

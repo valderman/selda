@@ -5,10 +5,11 @@ module Database.Selda.Unsafe
   ( fun, fun2
   , aggr
   , cast
+  , castAggr
   , unsafeRowId
   ) where
 import Database.Selda.Column
-import Database.Selda.Inner (aggr)
+import Database.Selda.Inner (Aggr, aggr, liftAggr)
 import Database.Selda.SqlType
 import Data.Text (Text)
 import Data.Proxy
@@ -17,6 +18,11 @@ import Data.Proxy
 --   by the underlying SQL implementation.
 cast :: forall s a b. SqlType b => Col s a -> Col s b
 cast = liftC $ Cast (sqlType (Proxy :: Proxy b))
+
+-- | Cast an aggregate to another type, using whichever coercion semantics
+--   are used by the underlying SQL implementation.
+castAggr :: forall s a b. SqlType b => Aggr s a -> Aggr s b
+castAggr = liftAggr $ Cast (sqlType (Proxy :: Proxy b))
 
 -- | A unary operation. Note that the provided function name is spliced
 --   directly into the resulting SQL query. Thus, this function should ONLY
