@@ -122,7 +122,7 @@ genTable tn attrs = genTableFieldMod tn attrs id
 -- > people = genTableFieldMod "people" [(personName, autoPrimaryGen)] (stripPrefix "person")
 --
 --   This will create a table with the columns named
---   "Id", "Name", "Age" and "Pet".
+--   @Id@, @Name@, @Age@ and @Pet@.
 genTableFieldMod :: forall a. Relational a
                  => TableName
                  -> [GenAttr a]
