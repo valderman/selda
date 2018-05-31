@@ -5,11 +5,12 @@
 {-# LANGUAGE CPP #-}
 -- | Basic Selda types.
 module Database.Selda.Types
-  ( (:*:)(..), Head, Append (..), (:++:), ToDyn (..), Tup (..)
+  ( (:*:)(..), Head, Append (..), (:++:), ToDyn, Tup (..)
   , first, second, third, fourth, fifth, sixth, seventh, eighth, ninth, tenth
   , ColName, TableName
   , mkColName, mkTableName, addColSuffix, addColPrefix
   , fromColName, fromTableName
+  , toDyns, fromDyns, unsafeToList, unsafeFromList
   ) where
 import Data.Dynamic
 import Data.String
@@ -147,7 +148,11 @@ instance ((a :*: b) ~ (a :++: b)) => Append a b where
 
 data Unsafe = Unsafe Int
 
-class Typeable a => ToDyn a where
+-- Prevent users from creating unsafe instances of ToDyn.
+class ToDynInternal a => ToDyn a
+instance ToDynInternal a => ToDyn a
+
+class Typeable a => ToDynInternal a where
   toDyns :: a -> [Dynamic]
   fromDyns :: [Dynamic] -> Maybe a
   -- | TODO: replace with safe coercions when that hits platform-1.
@@ -155,7 +160,7 @@ class Typeable a => ToDyn a where
   -- | TODO: replace with safe coercions when that hits platform-1.
   unsafeFromList :: [Unsafe] -> a
 
-instance (Typeable a, ToDyn b) => ToDyn (a :*: b) where
+instance (Typeable a, ToDynInternal b) => ToDynInternal (a :*: b) where
   toDyns (a :*: b) = toDyn a : toDyns b
   fromDyns (x:xs) = do
     x' <- fromDynamic x
@@ -167,7 +172,7 @@ instance (Typeable a, ToDyn b) => ToDyn (a :*: b) where
   unsafeFromList (x : xs) = unsafeCoerce x :*: unsafeFromList xs
   unsafeFromList _        = error "too short list to unsafeFromList"
 
-instance {-# OVERLAPPABLE #-} Typeable a => ToDyn a where
+instance {-# OVERLAPPABLE #-} Typeable a => ToDynInternal a where
   toDyns a = [toDyn a]
   fromDyns [x] = fromDynamic x
   fromDyns _   = Nothing
