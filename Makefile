@@ -1,4 +1,5 @@
 PACKAGES=./selda ./selda-sqlite ./selda-postgresql
+.PHONY: help build license deps travischeck haddock check test pgtest sqlite postgres repl upload-selda upload sandbox
 
 help:
 	@echo "Available targets:"
