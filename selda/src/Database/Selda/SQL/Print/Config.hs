@@ -65,6 +65,7 @@ defType :: SqlTypeRep -> Text
 defType TText     = "TEXT"
 defType TRowID    = "INTEGER"
 defType TInt      = "INT"
+defType TInteger  = "NUMERIC"
 defType TFloat    = "DOUBLE"
 defType TBool     = "BOOLEAN"
 defType TDateTime = "DATETIME"

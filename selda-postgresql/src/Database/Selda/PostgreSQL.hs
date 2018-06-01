@@ -257,6 +257,7 @@ doError c msg = do
 pgColType :: PPConfig -> SqlTypeRep -> T.Text
 pgColType _ TRowID    = "BIGINT"
 pgColType _ TInt      = "INT8"
+pgColType _ TInteger  = "NUMERIC"
 pgColType _ TFloat    = "FLOAT8"
 pgColType _ TDateTime = "TIMESTAMP"
 pgColType _ TBlob     = "BYTEA"
