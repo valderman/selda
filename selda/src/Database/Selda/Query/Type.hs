@@ -31,7 +31,7 @@ runQueryM scope = flip runState (initState scope) . unQ
 isolate :: Query s a -> State GenState (GenState, a)
 isolate (Query q) = do
   st <- get
-  put $ (initState (nameScope st)) {nameSupply = nameSupply st}
+  put $ (initState (succ $ nameScope st)) {nameSupply = nameSupply st}
   x <- q
   st' <- get
   put $ st {nameSupply = nameSupply st'}
