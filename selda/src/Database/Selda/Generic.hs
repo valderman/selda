@@ -266,7 +266,7 @@ identify (Dummy d) f = unsafeCoerce $ f d
 type family Rel (rep :: * -> *) where
   Rel (M1 t c a)         = Rel a
   Rel (K1 G.R (Maybe a)) = Maybe a
-  Rel (K1 G.R [a])       = [a]
+  Rel (K1 G.R [Char])    = [Char]
   Rel (K1 G.R (f a))     = Relation (f a)
   Rel (K1 i a)           = a
   Rel (a G.:*: b)        = Rel a :++: Rel b
@@ -362,6 +362,3 @@ instance {-# OVERLAPS #-} Typeable a => GFromRel (K1 i [a]) where
 instance GFromRel a => GFromRel (M1 t c a) where
   gFromRel xs = (M1 x, xs')
     where (x, xs') = gFromRel xs
-
-test :: ((Int, [String], Maybe Double), (Text, (Text, Float)))
-test = fromRel (5 :*: ["string1", "string2"] :*: Nothing :*: "text" :*: "text2" :*: 2.0)
