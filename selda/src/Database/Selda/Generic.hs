@@ -34,7 +34,7 @@ import Data.Text (pack)
 import Data.Typeable
 #endif
 import GHC.Generics hiding (R, (:*:), Selector)
-import qualified GHC.Generics as G ((:*:)(..), Selector)
+import qualified GHC.Generics as G ((:*:)(..), Selector, R)
 import Unsafe.Coerce
 import Database.Selda hiding (from)
 import Database.Selda.Table
@@ -196,7 +196,7 @@ toRels = map toRel
 --
 --   Applying @toRel@ to an inductive tuple which isn't the corresponding
 --   relation of the return type is a type error.
-fromRel :: Relational a => Relation a -> a
+fromRel :: (GFromRel (Rep a), Generic a, ToDyn (Relation a)) => Relation a -> a
 fromRel = to . fst . gFromRel . toDyns
 
 -- | Convenient synonym for @map fromRel@.
@@ -264,9 +264,12 @@ identify (Dummy d) f = unsafeCoerce $ f d
 
 -- | The relation corresponding to the given type.
 type family Rel (rep :: * -> *) where
-  Rel (M1 t c a)  = Rel a
-  Rel (K1 i a)    = a
-  Rel (a G.:*: b) = Rel a :++: Rel b
+  Rel (M1 t c a)         = Rel a
+  Rel (K1 G.R (Maybe a)) = Maybe a
+  Rel (K1 G.R [a])       = [a]
+  Rel (K1 G.R (f a))     = Relation (f a)
+  Rel (K1 i a)           = a
+  Rel (a G.:*: b)        = Rel a :++: Rel b
 
 class GRelation f where
   -- | Convert a value from its Haskell type into the corresponding relation.
@@ -302,7 +305,7 @@ instance (G.Selector c, GRelation a) => GRelation (M1 S c a) where
         }
   gMkDummy = M1 <$> gMkDummy
 
-instance (Typeable a, SqlType a) => GRelation (K1 i a) where
+instance (Rel (K1 i a) ~ a, Typeable a, SqlType a) => GRelation (K1 i a) where
   gToRel (K1 x) = x
   gTblCols _ _  = [ColInfo "" (sqlType (Proxy :: Proxy a)) optReq []]
     where
@@ -339,10 +342,26 @@ instance (GFromRel a, GFromRel b) => GFromRel (a G.:*: b) where
       (x, xs') = gFromRel xs
       (y, xs'') = gFromRel xs'
 
-instance Typeable a => GFromRel (K1 i a) where
+instance {-# OVERLAPPABLE #-} (Generic (f a), GFromRel (Rep (f a))) => (GFromRel (K1 i (f a))) where
+  gFromRel xs = (K1 $ to x, xs')
+    where (x, xs') = gFromRel xs
+  gFromRel _  = error "impossible: too few elements to gFromRel"
+
+instance {-# OVERLAPS #-} Typeable a => GFromRel (K1 i a) where
+  gFromRel (x:xs) = (K1 (fromDyn x (error "impossible")), xs)
+  gFromRel _      = error "impossible: too few elements to gFromRel"
+
+instance {-# OVERLAPS #-} Typeable a => GFromRel (K1 i (Maybe a)) where
+  gFromRel (x:xs) = (K1 (fromDyn x (error "impossible")), xs)
+  gFromRel _      = error "impossible: too few elements to gFromRel"
+
+instance {-# OVERLAPS #-} Typeable a => GFromRel (K1 i [a]) where
   gFromRel (x:xs) = (K1 (fromDyn x (error "impossible")), xs)
   gFromRel _      = error "impossible: too few elements to gFromRel"
 
 instance GFromRel a => GFromRel (M1 t c a) where
   gFromRel xs = (M1 x, xs')
     where (x, xs') = gFromRel xs
+
+test :: ((Int, [String], Maybe Double), (Text, (Text, Float)))
+test = fromRel (5 :*: ["string1", "string2"] :*: Nothing :*: "text" :*: "text2" :*: 2.0)
