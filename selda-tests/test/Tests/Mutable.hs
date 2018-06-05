@@ -61,6 +61,7 @@ mutableTests freshEnv = test
   , "optional foreign keys"          ~: freshEnv optionalFK
   , "auto-primary in generic table"  ~: freshEnv genericAutoPrimary
   , "custom enum type"               ~: freshEnv customEnum
+  , "generic table from tuple"       ~: freshEnv genericTupleTable
     -- Generic tests with field modifier
   , "generic field mod delete"       ~: freshEnv (genericDelete genModPeople)
   , "generic field mod update"       ~: freshEnv (genericUpdate genModPeople)
@@ -734,9 +735,23 @@ customEnum = do
       _ :*: foo <- select tbl
       order foo ascending
       return foo
-    assEq "wrong post-delteeresult list" [A, B] res2
+    assEq "wrong post-delete result list" [A, B] res2
 
     dropTable tbl
   where
     tbl :: Table (RowID :*: Foo)
     tbl = table "enums" $ autoPrimary "id" :*: required "foo"
+
+genericTupleTable = do
+    tryDropTable (gen tbl)
+    tryCreateTable (gen tbl)
+    insertGen tbl [(def,2), (def,1), (def,0)]
+    res <- query $ do
+      a :*: b <- select (gen tbl)
+      order a descending
+      return b
+    assEq "Wrong result query against tuple table." [0,1,2::Int] res
+    dropTable (gen tbl)
+  where
+    tbl :: GenTable (RowID, Int)
+    tbl = genTable "someRandomTuple" [fst :- autoPrimaryGen]
