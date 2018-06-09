@@ -623,8 +623,15 @@ genericGrownups2 = do
   return name
 ```
 
-Finally, with generics it's also quite easy to re-assemble Haskell objects
-from the results of a query using the `fromRel` function.
+Of course, we can also use selectors together with generics:
+
+```
+sel_name :*: sel_age :*: sel_pet = selectors (gen people)
+```
+
+With generics it's also quite easy to re-assemble Haskell objects
+from the results of a query using the `fromRel` function, or its handy relative
+`fromRels`.
 
 ```haskell
 getPeopleOfAge :: Int -> SeldaM [Person]
@@ -633,7 +640,27 @@ getPeopleOfAge yrs = do
     (name :*: age :*: _) <- select (gen people)
     restrict (age .== yrs)
     return p
-  return (map fromRel ps)
+  return (fromRels ps) -- equivalent to return (map fromRel ps)
+```
+
+Sometimes, we want to relate two entire relations to each other rather than
+just two columns.
+In Selda, we can do this by concatenating two (or more) relations and returning
+the result. When working with generics, we can also automatically convert the
+returned relations into inductive tuples of their corresponding data types.
+
+The following query joins the `people` table with itself to produce the list of
+pairs of people where the first person is older than the second.
+
+```haskell
+getOlderThanPairs :: SeldaM [Person :*: Person]
+getOlderThanPairs = do
+  ps <- query $ do
+    person1 <- select (gen people)
+    person2 <- select (gen people)
+    restrict (person1!sel_name .> person2!sel_name)
+    return (person1 .++ person2)
+  return (fromRels ps)
 ```
 
 
