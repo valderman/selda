@@ -458,10 +458,12 @@ validateTableValidates = do
     bad = table "bad" $ primary "a" :*: primary "b"
 
 genericTuples = do
-  res <- fmap fromRels $ query $ do
+  res <- query $ do
     p1 <- select people
     p2 <- select people
     restrict $ (p1 ! pAge) .> (p2 ! pAge)
-    return $ (p1!pAge) :*: (p2!pAge)
-  ass "Wrong number of Person pairs returned" (length res == 6)
-  ass "Incorrect Person pairs returned" $ all (\(a, b) -> a > (b::Int)) res
+    return $ p1 `app` p2
+  let res' = fromRels res :: [(Nested Person, Nested Person)]
+  ass "Wrong number of Person pairs returned" (length res' == 6)
+  ass "Incorrect Person pairs returned"
+      (all (\(Nested a, Nested b) -> age a > age b) res')

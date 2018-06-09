@@ -2,7 +2,7 @@
 {-# LANGUAGE TypeFamilies, TypeOperators, FlexibleInstances #-}
 {-# LANGUAGE UndecidableInstances, MultiParamTypeClasses, OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts, ScopedTypeVariables, ConstraintKinds #-}
-{-# LANGUAGE GADTs, CPP #-}
+{-# LANGUAGE GADTs, CPP, DeriveGeneric, DataKinds #-}
 -- | Build tables and database operations from (almost) any Haskell type.
 --
 --   While the types in this module may look somewhat intimidating, the rules
@@ -11,6 +11,8 @@
 --     * Any record type with a single data constructor, where all fields are
 --       instances of 'SqlType', can be used for generic tables and queries
 --       if it derives 'Generic'.
+--     * Record types fulfilling the above criteria may also be included within
+--       other relations by wrapping it in the 'Nested' type.
 --     * To use the standard functions from "Database.Selda" on a generic table,
 --       it needs to be unwrapped using 'gen'.
 --     * Performing a 'select' on a generic table returns all the table's fields
@@ -22,7 +24,7 @@
 --       corresponding data type using 'fromRel'.
 module Database.Selda.Generic
   ( Relational, Generic
-  , GenAttr (..), GenTable (..), Attribute, Relation
+  , GenAttr (..), GenTable (..), Attribute, Relation, Flat (..)
   , genTable, genTableFieldMod, toRel, toRels, fromRel, fromRels
   , insertGen, insertGen_, insertGenWithPK
   , primaryGen, autoPrimaryGen, uniqueGen, fkGen
@@ -55,6 +57,31 @@ type Relational a =
   , ToDyn (Relation a)
   , Insert (Relation a)
   )
+
+-- | Convert a generic type into the corresponding database relation.
+--   A type's corresponding relation is simply the inductive tuple consisting
+--   of all of the type's fields.
+--
+-- > data Person = Person
+-- >   { id   :: Int
+-- >   , name :: Text
+-- >   , age  :: Int
+-- >   , pet  :: Maybe Text
+-- >   }
+-- >   deriving Generic
+-- >
+-- > somePerson = Person 0 "Velvet" 19 Nothing
+-- > (theId :*: theName :*: theAge :*: thePet) = toRel somePerson
+--
+--   This is mainly useful when inserting values into a table using 'insert'
+--   and the other functions from "Database.Selda".
+toRel :: Relational a => a -> Relation a
+toRel = gToRel . from
+
+-- | Convenient synonym for @map toRel@.
+toRels :: Relational a => [a] -> [Relation a]
+toRels = map toRel
+
 
 -- | A generic table. Needs to be unpacked using @gen@ before use with
 --   'select', 'insert', etc.
@@ -146,30 +173,6 @@ genTableFieldMod tn attrs fieldMod = GenTable $ Table tn (validate tn (map tidy 
           ]
       }
 
--- | Convert a generic type into the corresponding database relation.
---   A type's corresponding relation is simply the inductive tuple consisting
---   of all of the type's fields.
---
--- > data Person = Person
--- >   { id   :: Int
--- >   , name :: Text
--- >   , age  :: Int
--- >   , pet  :: Maybe Text
--- >   }
--- >   deriving Generic
--- >
--- > somePerson = Person 0 "Velvet" 19 Nothing
--- > (theId :*: theName :*: theAge :*: thePet) = toRel somePerson
---
---   This is mainly useful when inserting values into a table using 'insert'
---   and the other functions from "Database.Selda".
-toRel :: Relational a => a -> Relation a
-toRel = gToRel . from
-
--- | Convenient synonym for @map toRel@.
-toRels :: Relational a => [a] -> [Relation a]
-toRels = map toRel
-
 -- | Re-assemble a generic type from its corresponding relation. This can be
 --   done either for ad hoc queries or for queries over generic tables:
 --
@@ -200,7 +203,7 @@ fromRel :: (GFromRel (Rep a), Generic a, ToDyn (Relation a)) => Relation a -> a
 fromRel = to . fst . gFromRel . toDyns
 
 -- | Convenient synonym for @map fromRel@.
-fromRels :: Relational a => [Relation a] -> [a]
+fromRels :: (GFromRel (Rep a), Generic a, ToDyn (Relation a)) => [Relation a] -> [a]
 fromRels = map fromRel
 
 -- | Like 'insertWithPK', but accepts a generic table and
@@ -262,14 +265,36 @@ mkDummy = Dummy $ to $ evalState gMkDummy 0
 identify :: Dummy a -> (a -> b) -> Int
 identify (Dummy d) f = unsafeCoerce $ f d
 
+-- | Allows nesting the given type within another type used as a relation.
+--   For instance, the following code will produce a type error since relational
+--   product types must normally contain only @SqlType@ types:
+--
+-- > data Foo = Foo Int Bool
+-- > data Bar = Bar Text Foo
+-- >
+-- > tbl :: GenTable Bar
+-- > tbl = genTable "some_table" []
+--
+--   However, by wrapping the @Foo@ in @Flat@, we tell Selda to flatten @Foo@
+--   into @Bar@, resulting in a relation equivalent to
+--   @Text :*: Int :*: Bool@:
+--
+-- > data Bar = Bar Text (Flat Foo)
+--
+--   Note that when generating selectors for a relation with flattened
+--   components, the selector list is also flattened.
+--   To generate selectors for the @Bar@ type:
+--
+-- > bar_text :*: bar_foo_int :*: bar_foo_bool = selectors (gen tbl)
+newtype Flat a = Flat {unNest :: a}
+  deriving (Show, Eq, Ord, Generic)
+
 -- | The relation corresponding to the given type.
-type family Rel (rep :: * -> *) where
-  Rel (M1 t c a)         = Rel a
-  Rel (K1 G.R (Maybe a)) = Maybe a
-  Rel (K1 G.R [Char])    = [Char]
-  Rel (K1 G.R (f a))     = Relation (f a)
-  Rel (K1 i a)           = a
-  Rel (a G.:*: b)        = Rel a :++: Rel b
+type family Rel (rep :: * -> *) :: * where
+  Rel (M1 t c a)                     = Rel a
+  Rel (K1 G.R (Flat a))            = Relation a
+  Rel (K1 G.R a)                     = a
+  Rel (a G.:*: b)                    = Rel a :++: Rel b
 
 class GRelation f where
   -- | Convert a value from its Haskell type into the corresponding relation.
@@ -342,14 +367,14 @@ instance (GFromRel a, GFromRel b) => GFromRel (a G.:*: b) where
       (x, xs') = gFromRel xs
       (y, xs'') = gFromRel xs'
 
-instance {-# OVERLAPPABLE #-} (Generic (f a), GFromRel (Rep (f a))) => (GFromRel (K1 i (f a))) where
-  gFromRel xs = (K1 $ to x, xs')
-    where (x, xs') = gFromRel xs
-  gFromRel _  = error "impossible: too few elements to gFromRel"
-
-instance {-# OVERLAPS #-} Typeable a => GFromRel (K1 i a) where
+instance Typeable a => GFromRel (K1 i a) where
   gFromRel (x:xs) = (K1 (fromDyn x (error "impossible")), xs)
   gFromRel _      = error "impossible: too few elements to gFromRel"
+
+instance {-# OVERLAPS #-} (Typeable a, Generic a, GFromRel (Rep a)) => GFromRel (K1 i (Flat a)) where
+  gFromRel xs = (K1 $ Flat (to x), xs')
+    where (x, xs') = gFromRel xs
+  gFromRel _  = error "impossible: too few elements to gFromRel"
 
 instance {-# OVERLAPS #-} Typeable a => GFromRel (K1 i (Maybe a)) where
   gFromRel (x:xs) = (K1 (fromDyn x (error "impossible")), xs)
