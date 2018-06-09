@@ -461,7 +461,7 @@ genericTuples = do
   res <- query $ do
     p1 <- select people
     p2 <- select people
-    restrict $ (p1 ! pAge) .> (p2 ! pAge)
+    restrict $ p1!pAge .> p2!pAge
     return $ p1 .++ p2
   ass "Wrong number of Person pairs returned" (length res == 6)
   let res1 = fromRels res :: [Person :*: Person]

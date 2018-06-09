@@ -16,6 +16,7 @@ import Unsafe.Coerce
 (!)  :: forall s t a. ToDyn (Cols () t) => Cols s t -> Selector t a -> Col s a
 tup ! (Selector n) = unsafeCoerce (unsafeToList (toU tup) !! n)
   where toU = unsafeCoerce :: Cols s t -> Cols () t
+infixl 9 !
 
 upd :: forall s t. (ToDyn (Cols () t))
      => Cols s t -> Assignment s t -> Cols s t
