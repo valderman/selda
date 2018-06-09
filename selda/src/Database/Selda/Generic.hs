@@ -24,7 +24,7 @@
 --       corresponding data type using 'fromRel'.
 module Database.Selda.Generic
   ( Relational, Generic
-  , GenAttr (..), GenTable (..), Attribute, Relation, Flat (..)
+  , GenAttr (..), GenTable (..), Attribute, Relation, Nested (..)
   , genTable, genTableFieldMod, toRel, toRels, fromRel, fromRels
   , insertGen, insertGen_, insertGenWithPK
   , primaryGen, autoPrimaryGen, uniqueGen, fkGen
@@ -275,24 +275,24 @@ identify (Dummy d) f = unsafeCoerce $ f d
 -- > tbl :: GenTable Bar
 -- > tbl = genTable "some_table" []
 --
---   However, by wrapping the @Foo@ in @Flat@, we tell Selda to flatten @Foo@
+--   However, by wrapping the @Foo@ in @Nested@, we tell Selda to flatten @Foo@
 --   into @Bar@, resulting in a relation equivalent to
 --   @Text :*: Int :*: Bool@:
 --
--- > data Bar = Bar Text (Flat Foo)
+-- > data Bar = Bar Text (Nested Foo)
 --
 --   Note that when generating selectors for a relation with flattened
 --   components, the selector list is also flattened.
 --   To generate selectors for the @Bar@ type:
 --
 -- > bar_text :*: bar_foo_int :*: bar_foo_bool = selectors (gen tbl)
-newtype Flat a = Flat {unNest :: a}
+newtype Nested a = Nested {unNest :: a}
   deriving (Show, Eq, Ord, Generic)
 
 -- | The relation corresponding to the given type.
 type family Rel (rep :: * -> *) :: * where
   Rel (M1 t c a)                     = Rel a
-  Rel (K1 G.R (Flat a))            = Relation a
+  Rel (K1 G.R (Nested a))            = Relation a
   Rel (K1 G.R a)                     = a
   Rel (a G.:*: b)                    = Rel a :++: Rel b
 
@@ -308,26 +308,29 @@ class GRelation f where
   gMkDummy :: State Int (f a)
 
 instance GRelation a => GRelation (M1 C c a) where
-  gToRel (M1 x)   = gToRel x
+  gToRel (M1 x) = gToRel x
   gTblCols _ = gTblCols (Proxy :: Proxy a)
   gMkDummy = M1 <$> gMkDummy
 
 instance GRelation a => GRelation (M1 D c a) where
-  gToRel (M1 x)   = gToRel x
+  gToRel (M1 x) = gToRel x
   gTblCols _ = gTblCols (Proxy :: Proxy a)
   gMkDummy = M1 <$> gMkDummy
 
 instance (G.Selector c, GRelation a) => GRelation (M1 S c a) where
-  gToRel (M1 x)     = gToRel x
-  gTblCols _ fieldMod = [ci']
+  gToRel (M1 x) = gToRel x
+  gTblCols _ fieldMod = colinfos'
     where
-      [ci] = gTblCols (Proxy :: Proxy a) fieldMod
-      ci' = ColInfo
-        { colName = mkColName . pack $ fieldMod (selName ((M1 undefined) :: M1 S c a b))
-        , colType = colType ci
-        , colAttrs = colAttrs ci
-        , colFKs = colFKs ci
-        }
+      colinfos = gTblCols (Proxy :: Proxy a) fieldMod
+      colinfos' =
+        case colinfos of
+          [ci] -> [ColInfo
+            { colName = mkColName . pack $ fieldMod (selName ((M1 undefined) :: M1 S c a b))
+            , colType = colType ci
+            , colAttrs = colAttrs ci
+            , colFKs = colFKs ci
+            }]
+          _ -> colinfos
   gMkDummy = M1 <$> gMkDummy
 
 instance (Rel (K1 i a) ~ a, Typeable a, SqlType a) => GRelation (K1 i a) where
@@ -343,6 +346,16 @@ instance (Rel (K1 i a) ~ a, Typeable a, SqlType a) => GRelation (K1 i a) where
     n <- get
     put (n+1)
     return $ unsafeCoerce n
+
+instance {-# OVERLAPS #-}
+  ( Typeable a
+  , GRelation (Rep a)
+  , Rel (K1 i (Nested a)) ~ Rel (Rep a)
+  , Generic a
+  ) => GRelation (K1 i (Nested a)) where
+  gToRel (K1 (Nested x)) = gToRel (from x)
+  gTblCols _ = gTblCols (Proxy :: Proxy (Rep a))
+  gMkDummy = fmap (K1 . Nested . to) gMkDummy
 
 instance (Append (Rel a) (Rel b), GRelation a, GRelation b) =>
          GRelation (a G.:*: b) where
@@ -371,8 +384,8 @@ instance Typeable a => GFromRel (K1 i a) where
   gFromRel (x:xs) = (K1 (fromDyn x (error "impossible")), xs)
   gFromRel _      = error "impossible: too few elements to gFromRel"
 
-instance {-# OVERLAPS #-} (Typeable a, Generic a, GFromRel (Rep a)) => GFromRel (K1 i (Flat a)) where
-  gFromRel xs = (K1 $ Flat (to x), xs')
+instance {-# OVERLAPS #-} (Typeable a, Generic a, GFromRel (Rep a)) => GFromRel (K1 i (Nested a)) where
+  gFromRel xs = (K1 $ Nested (to x), xs')
     where (x, xs') = gFromRel xs
   gFromRel _  = error "impossible: too few elements to gFromRel"
 
