@@ -462,8 +462,10 @@ genericTuples = do
     p1 <- select people
     p2 <- select people
     restrict $ (p1 ! pAge) .> (p2 ! pAge)
-    return $ p1 `app` p2
-  let res' = fromRels res :: [(Nested Person, Nested Person)]
-  ass "Wrong number of Person pairs returned" (length res' == 6)
-  ass "Incorrect Person pairs returned"
-      (all (\(Nested a, Nested b) -> age a > age b) res')
+    return $ p1 .++ p2
+  ass "Wrong number of Person pairs returned" (length res == 6)
+  let res1 = fromRels res :: [Person :*: Person]
+  ass "Incorrect Person pairs returned" (all (\(a :*: b) -> age a > age b) res1)
+  let res2 = fromRels res :: [(Nested Person, Nested Person)]
+  ass "Incorrect nested Person pairs returned"
+      (all (\(Nested a, Nested b) -> age a > age b) res2)

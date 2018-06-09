@@ -13,6 +13,12 @@
 --       if it derives 'Generic'.
 --     * Record types fulfilling the above criteria may also be included within
 --       other relations by wrapping it in the 'Nested' type.
+--     * Columns from several tables can be concatenated and returned
+--       from queries.
+--       If these concatenated columns match up with a sequence of
+--       record types, the columns can be marshalled into the appropriate
+--       sequence of record types using inductive tuples, by calling i.e.
+--       @let foo = fromRels result :: [Person :*: Person]@.
 --     * To use the standard functions from "Database.Selda" on a generic table,
 --       it needs to be unwrapped using 'gen'.
 --     * Performing a 'select' on a generic table returns all the table's fields
@@ -23,7 +29,7 @@
 --     * Relations obtained from a query can be re-assembled into their
 --       corresponding data type using 'fromRel'.
 module Database.Selda.Generic
-  ( Relational, Generic
+  ( Relational, Generic, FromRel, ToDyn
   , GenAttr (..), GenTable (..), Attribute, Relation, Nested (..)
   , genTable, genTableFieldMod, toRel, toRels, fromRel, fromRels
   , insertGen, insertGen_, insertGenWithPK
@@ -54,8 +60,8 @@ type Relational a =
   ( Generic a
   , GRelation (Rep a)
   , GFromRel (Rep a)
-  , ToDyn (Relation a)
-  , Insert (Relation a)
+  , ToDyn (Rel (Rep a))
+  , Insert (Rel (Rep a))
   )
 
 -- | Convert a generic type into the corresponding database relation.
@@ -75,17 +81,17 @@ type Relational a =
 --
 --   This is mainly useful when inserting values into a table using 'insert'
 --   and the other functions from "Database.Selda".
-toRel :: Relational a => a -> Relation a
+toRel :: Relational a => a -> Rel (Rep a)
 toRel = gToRel . from
 
 -- | Convenient synonym for @map toRel@.
-toRels :: Relational a => [a] -> [Relation a]
+toRels :: Relational a => [a] -> [Rel (Rep a)]
 toRels = map toRel
 
 
 -- | A generic table. Needs to be unpacked using @gen@ before use with
 --   'select', 'insert', etc.
-newtype GenTable a = GenTable {gen :: Table (Relation a)}
+newtype GenTable a = GenTable {gen :: Table (Rel (Rep a))}
 
 -- | The relation corresponding to the given Haskell type.
 --   This relation simply corresponds to the fields in the data type, from
@@ -98,7 +104,9 @@ newtype GenTable a = GenTable {gen :: Table (Relation a)}
 --
 --   In this example, @Relation Foo@ is @(Int :*: Text)@, as the first field
 --   of @Foo@ has type @Int@, and the second has type @Text@.
-type Relation a = Rel (Rep a)
+type family Relation a where
+  Relation (a :*: b) = Relation a :++: Relation b
+  Relation a         = Rel (Rep a)
 
 -- | A generic column attribute.
 --   Essentially a pair or a record selector over the type @a@ and a column
@@ -199,21 +207,36 @@ genTableFieldMod tn attrs fieldMod = GenTable $ Table tn (validate tn (map tidy 
 --
 --   Applying @toRel@ to an inductive tuple which isn't the corresponding
 --   relation of the return type is a type error.
-fromRel :: (GFromRel (Rep a), Generic a, ToDyn (Relation a)) => Relation a -> a
-fromRel = to . fst . gFromRel . toDyns
+fromRel :: (ToDyn (Relation a), FromRel a) => Relation a -> a
+fromRel = fromRelInternal . toDyns
 
 -- | Convenient synonym for @map fromRel@.
-fromRels :: (GFromRel (Rep a), Generic a, ToDyn (Relation a)) => [Relation a] -> [a]
+fromRels :: (ToDyn (Relation a), FromRel a) => [Relation a] -> [a]
 fromRels = map fromRel
+
+class Generic a => FromRel a where
+  fromRelInternal :: [Dynamic] -> a
+
+instance {-# OVERLAPPABLE #-}
+  ( GFromRel (Rep a)
+  , Generic a
+  , ToDyn (Relation a)
+  ) => FromRel a where
+  fromRelInternal = to . fst . gFromRel
+
+instance (GFromRel (Rep a), Generic a, FromRel a, FromRel b) =>
+         FromRel (a :*: b) where
+  fromRelInternal xs = to a' :*: fromRelInternal xs'
+    where (a', xs') = gFromRel xs
 
 -- | Like 'insertWithPK', but accepts a generic table and
 --   its corresponding data type.
 insertGenWithPK :: (Relational a, MonadSelda m) => GenTable a -> [a] -> m RowID
-insertGenWithPK t = insertWithPK (gen t) . map toRel
+insertGenWithPK t = insertWithPK (gen t) . toRels
 
 -- | Like 'insert', but accepts a generic table and its corresponding data type.
 insertGen :: (Relational a, MonadSelda m) => GenTable a -> [a] -> m Int
-insertGen t = insert (gen t) . map toRel
+insertGen t = insert (gen t) . toRels
 
 -- | Like 'insert_', but accepts a generic table and its corresponding data type.
 insertGen_ :: (Relational a, MonadSelda m) => GenTable a -> [a] -> m ()
