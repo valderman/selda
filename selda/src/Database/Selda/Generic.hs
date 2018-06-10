@@ -30,7 +30,8 @@
 --       corresponding data type using 'fromRel'.
 module Database.Selda.Generic
   ( Relational, Generic, FromRel, ToDyn
-  , GenAttr (..), GenTable (..), Attribute, Relation, Relations, Nested (..)
+  , ID, untyped, unsafeId, GenAttr (..), GenTable (..), Attribute
+  , Relation, Relations, Nested (..)
   , genTable, genTableFieldMod, toRel, toRels, fromRel, fromRels
   , insertGen, insertGen_, insertGenWithPK
   , primaryGen, autoPrimaryGen, uniqueGen, fkGen
@@ -48,6 +49,7 @@ import Database.Selda hiding (from)
 import Database.Selda.Table
 import Database.Selda.Types
 import Database.Selda.Selectors
+import Database.Selda.SqlType
 
 -- | Any type which has a corresponding relation.
 --   To make a @Relational@ instance for some type, simply derive 'Generic'.
@@ -88,6 +90,26 @@ toRel = gToRel . from
 toRels :: Relational a => [a] -> [Relation a]
 toRels = map toRel
 
+-- | A typed row identifier.
+--   Generic tables should use this instead of 'RowID'.
+--   Use 'untyped' to erase the type of a row identifier, and @cast@ from the
+--   "Database.Selda.Unsafe" module if you for some reason need to add a type
+--   to a row identifier.
+newtype ID a = ID {untyped :: RowID}
+  deriving (Eq, Ord, Typeable)
+instance Show (ID a) where
+  show = show . untyped
+
+-- | Create a typed row identifier from an integer.
+--   Use with caution, preferably only when reading user input.
+unsafeId :: Int -> ID a
+unsafeId = ID . unsafeRowId
+
+instance Typeable a => SqlType (ID a) where
+  mkLit (ID n) = LCustom $ mkLit n
+  sqlType _ = TRowID
+  fromSql = ID . fromSql
+  defaultValue = mkLit (ID invalidRowId)
 
 -- | A generic table. Needs to be unpacked using @gen@ before use with
 --   'select', 'insert', etc.
@@ -117,7 +139,7 @@ type family Relations a where
 --   Essentially a pair or a record selector over the type @a@ and a column
 --   attribute.
 data GenAttr a where
-  (:-) :: (a -> b) -> Attribute -> GenAttr a
+  (:-) :: (a -> b) -> Attribute a b -> GenAttr a
 
 -- | Generate a table from the given table name and list of column attributes.
 --   All @Maybe@ fields in the table's type will be represented by nullable
@@ -236,8 +258,8 @@ instance (GFromRel (Rep a), Generic a, FromRel a, FromRel b) =>
 
 -- | Like 'insertWithPK', but accepts a generic table and
 --   its corresponding data type.
-insertGenWithPK :: (Relational a, MonadSelda m) => GenTable a -> [a] -> m RowID
-insertGenWithPK t = insertWithPK (gen t) . toRels
+insertGenWithPK :: (Relational a, MonadSelda m) => GenTable a -> [a] -> m (ID a)
+insertGenWithPK t = fmap ID . insertWithPK (gen t) . toRels
 
 -- | Like 'insert', but accepts a generic table and its corresponding data type.
 insertGen :: (Relational a, MonadSelda m) => GenTable a -> [a] -> m Int
@@ -247,25 +269,26 @@ insertGen t = insert (gen t) . toRels
 insertGen_ :: (Relational a, MonadSelda m) => GenTable a -> [a] -> m ()
 insertGen_ t = void . insertGen t
 
--- | Some attribute that may be set on a table column.
-data Attribute
+-- | Some attribute that may be set on a column of type @c@, in a table of
+--   type @t@.
+data Attribute t c
   = Attribute [ColAttr]
   | ForeignKey (Table (), ColName)
 
 -- | A primary key which does not auto-increment.
-primaryGen :: Attribute
+primaryGen :: Attribute t c
 primaryGen = Attribute [Primary, Required, Unique]
 
 -- | An auto-incrementing primary key.
-autoPrimaryGen :: Attribute
+autoPrimaryGen :: Attribute t (ID t)
 autoPrimaryGen = Attribute [Primary, AutoIncrement, Required, Unique]
 
 -- | A table-unique value.
-uniqueGen :: Attribute
+uniqueGen :: Attribute t c
 uniqueGen = Attribute [Unique]
 
 -- | A foreign key constraint referencing the given table and column.
-fkGen :: Table t -> Selector t a -> Attribute
+fkGen :: Table t -> Selector t c -> Attribute self c
 fkGen (Table tn tcs tapk) (Selector i) =
   ForeignKey (Table tn tcs tapk, colName (tcs !! i))
 

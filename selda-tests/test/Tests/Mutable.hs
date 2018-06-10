@@ -683,7 +683,7 @@ optionalFK = do
 
 -- | For genericAutoPrimary.
 data AutoPrimaryUser = AutoPrimaryUser
-  { uid :: RowID
+  { uid :: ID AutoPrimaryUser
   , admin :: Bool
 
   , username :: Text
@@ -746,13 +746,13 @@ customEnum = do
 genericTupleTable = do
     tryDropTable (gen tbl)
     tryCreateTable (gen tbl)
-    insertGen tbl [ (def, Nested $ Person "A" 1 Nothing 2)
-                  , (def, Nested $ Person "B" 3 (Just "C") 3)]
+    insertGen tbl [ (0, Nested $ Person "A" 1 Nothing 2)
+                  , (1, Nested $ Person "B" 3 (Just "C") 3)]
     res <- query $ do
       a <- select (gen tbl)
       order (a ! s_age) descending
       return a
-    let res' = fromRels res :: [(RowID, Nested Person)]
+    let res' = fromRels res :: [(Int, Nested Person)]
     assEq "Wrong result query against tuple table." desc_persons (map snd res')
     dropTable (gen tbl)
   where
@@ -760,8 +760,8 @@ genericTupleTable = do
       [ Nested $ Person "B" 3 (Just "C") 3
       , Nested $ Person "A" 1 Nothing 2
       ]
-    tbl :: GenTable (RowID, Nested Person)
-    tbl = genTable "someRandomTuple" [fst :- autoPrimaryGen]
+    tbl :: GenTable (Int, Nested Person)
+    tbl = genTable "someRandomTuple" [fst :- primaryGen]
     s_id :*: s_name :*: s_age :*: s_pet :*: s_cash = selectors (gen tbl)
 
 disableForeignKeys = do
