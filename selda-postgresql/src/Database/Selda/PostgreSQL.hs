@@ -142,15 +142,15 @@ pgPPConfig = defPPConfig
     pgTypeHook ty attrs fun
       | isGenericIntPrimaryKey ty attrs = pgColTypePK pgPPConfig TRowID
       | otherwise = fun ty
-    
+
     pgColAttrsHook :: SqlTypeRep -> [ColAttr] -> ([ColAttr] -> T.Text) -> T.Text
     pgColAttrsHook ty attrs fun
       | isGenericIntPrimaryKey ty attrs = fun [Primary]
       | otherwise = fun $ filter (/= AutoIncrement) attrs
-    
+
     bigserialQue :: [ColAttr]
     bigserialQue = [Primary,AutoIncrement,Required,Unique]
-    
+
     -- For when we use 'autoPrimaryGen' on 'Int' field
     isGenericIntPrimaryKey :: SqlTypeRep -> [ColAttr] -> Bool
     isGenericIntPrimaryKey ty attrs = ty == TInt && and ((`elem` attrs) <$> bigserialQue)

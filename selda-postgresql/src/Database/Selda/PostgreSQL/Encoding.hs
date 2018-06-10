@@ -25,9 +25,12 @@ import Database.Selda.Backend
 import Unsafe.Coerce
 
 -- | OIDs for all types used by Selda.
-blobType, boolType, intType, textType, doubleType, dateType, timeType, timestampType :: Oid
+blobType, boolType, intType, int32Type, int16Type, textType, doubleType,
+  dateType, timeType, timestampType :: Oid
 boolType      = Oid 16
 intType       = Oid 20
+int32Type     = Oid 23
+int16Type     = Oid 21
 textType      = Oid 25
 doubleType    = Oid 701
 dateType      = Oid 1082
@@ -66,6 +69,8 @@ toSqlValue :: Oid -> BS.ByteString -> SqlValue
 toSqlValue t val
   | t == boolType    = SqlBool $ readBool val
   | t == intType     = SqlInt $ readInt val
+  | t == int32Type   = SqlInt $ readInt val
+  | t == int16Type   = SqlInt $ readInt val
   | t == doubleType  = SqlFloat $ read (unpack val)
   | t == blobType    = SqlBlob $ pgDecode val
   | t `elem` textish = SqlString (decodeUtf8 val)

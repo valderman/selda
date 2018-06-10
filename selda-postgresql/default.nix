@@ -3,7 +3,7 @@
 }:
 mkDerivation {
   pname = "selda-postgresql";
-  version = "0.1.7.2";
+  version = "0.1.7.3";
   src = ./.;
   libraryHaskellDepends = [
     base bytestring exceptions postgresql-libpq selda text
