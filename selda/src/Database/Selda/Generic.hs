@@ -30,8 +30,9 @@
 --       corresponding data type using 'fromRel'.
 module Database.Selda.Generic
   ( Relational, Generic, FromRel, ToDyn
-  , ID, untyped, unsafeId, GenAttr (..), GenTable (..), Attribute
+  , GenAttr (..), GenTable (..), Attribute
   , Relation, Relations, Nested (..)
+  , ID, untyped, toId
   , genTable, genTableFieldMod, toRel, toRels, fromRel, fromRels
   , insertGen, insertGen_, insertGenWithPK
   , primaryGen, autoPrimaryGen, uniqueGen, fkGen
@@ -102,8 +103,8 @@ instance Show (ID a) where
 
 -- | Create a typed row identifier from an integer.
 --   Use with caution, preferably only when reading user input.
-unsafeId :: Int -> ID a
-unsafeId = ID . unsafeRowId
+toId :: Int -> ID a
+toId = ID . toRowId
 
 instance Typeable a => SqlType (ID a) where
   mkLit (ID n) = LCustom $ mkLit n

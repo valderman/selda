@@ -4,7 +4,7 @@
 module Database.Selda.SqlType
   ( SqlType (..), SqlEnum (..)
   , Lit (..), RowID, SqlValue (..), SqlTypeRep (..)
-  , invalidRowId, isInvalidRowId, unsafeRowId, fromRowId
+  , invalidRowId, isInvalidRowId, toRowId, fromRowId
   , compLit, litType
   , sqlDateTimeFormat, sqlDateFormat, sqlTimeFormat
   ) where
@@ -187,11 +187,9 @@ isInvalidRowId :: RowID -> Bool
 isInvalidRowId (RowID n) = n < 0
 
 -- | Create a row identifier from an integer.
---   A row identifier created using this function is not guaranteed to be a
---   valid row identifier.
---   Do not use unless you are absolutely sure what you're doing.
-unsafeRowId :: Int -> RowID
-unsafeRowId = RowID
+--   Use with caution, preferably only when reading user input.
+toRowId :: Int -> RowID
+toRowId = RowID
 
 -- | Inspect a row identifier.
 fromRowId :: RowID -> Int

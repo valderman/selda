@@ -6,7 +6,6 @@ module Database.Selda.Unsafe
   , aggr
   , cast
   , castAggr
-  , unsafeRowId
   ) where
 import Database.Selda.Column
 import Database.Selda.Inner (Aggr, aggr, liftAggr)

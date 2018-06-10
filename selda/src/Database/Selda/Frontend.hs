@@ -16,7 +16,7 @@ import Database.Selda.Column
 import Database.Selda.Compile
 import Database.Selda.Query.Type
 import Database.Selda.SQL
-import Database.Selda.SqlType (RowID, invalidRowId, unsafeRowId)
+import Database.Selda.SqlType (RowID, invalidRowId, toRowId)
 import Database.Selda.Table
 import Database.Selda.Table.Compile
 import Data.Proxy
@@ -161,7 +161,7 @@ insertWithPK t cs = do
       res <- liftIO $ do
         mapM (uncurry (runStmtWithPK b)) $ compileInsert (ppConfig b) t cs
       invalidateTable t
-      return $ unsafeRowId (last res)
+      return $ toRowId (last res)
     else do
       insert_ t cs
       return invalidRowId
