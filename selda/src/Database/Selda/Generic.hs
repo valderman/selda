@@ -32,7 +32,7 @@ module Database.Selda.Generic
   ( Relational, Generic, FromRel, ToDyn
   , GenAttr (..), GenTable (..), Attribute
   , Relation, Relations, Nested (..)
-  , ID, untyped, toId
+  , ID, untyped, toId, invalidId, isInvalidId
   , genTable, genTableFieldMod, toRel, toRels, fromRel, fromRels
   , insertGen, insertGen_, insertGenWithPK
   , primaryGen, autoPrimaryGen, uniqueGen, fkGen
@@ -105,6 +105,16 @@ instance Show (ID a) where
 --   Use with caution, preferably only when reading user input.
 toId :: Int -> ID a
 toId = ID . toRowId
+
+-- | A typed row identifier which is guaranteed to not match any row in any
+--   table.
+invalidId :: ID a
+invalidId = ID invalidRowId
+
+-- | Is the given typed row identifier invalid? I.e. is it guaranteed to not
+--   match any row in any table?
+isInvalidId :: ID a -> Bool
+isInvalidId = isInvalidRowId . untyped
 
 instance Typeable a => SqlType (ID a) where
   mkLit (ID n) = LCustom $ mkLit n
