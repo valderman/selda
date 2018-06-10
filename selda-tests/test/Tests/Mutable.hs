@@ -11,7 +11,6 @@ import Data.Time
 import Database.Selda
 import Database.Selda.Backend hiding (disableForeignKeys)
 import Database.Selda.Generic
-import Database.Selda.Unsafe (unsafeRowId)
 import Test.HUnit
 import Utils
 import Tables
@@ -263,10 +262,10 @@ adHocInsertInGenericTable t = do
 
 overrideAutoIncrement = do
   setup
-  insert_ comments [unsafeRowId 123 :*: Nothing :*: "hello"]
+  insert_ comments [toRowId 123 :*: Nothing :*: "hello"]
   num <- query $ aggregate $ do
     id :*: _ <- select comments
-    restrict (id .== literal (unsafeRowId 123))
+    restrict (id .== literal (toRowId 123))
     return (count id)
   assEq "failed to override auto-incrementing column" [1] num
 
@@ -696,7 +695,12 @@ data AutoPrimaryUser = AutoPrimaryUser
 genericAutoPrimary = do
     tryDropTable (gen g_user)
     createTable (gen g_user)
-    insertGen_ g_user [user]
+    insertGen_ g_user [user, user]
+    res <- query $ do
+      uid :*: _ <- select (gen g_user)
+      order uid ascending
+      return uid
+    assEq "wrong list of row IDs returned" [toId 1, toId 2] res
     dropTable (gen g_user)
   where
     user = AutoPrimaryUser
