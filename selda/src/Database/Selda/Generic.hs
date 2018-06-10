@@ -30,7 +30,7 @@
 --       corresponding data type using 'fromRel'.
 module Database.Selda.Generic
   ( Relational, Generic, FromRel, ToDyn
-  , GenAttr (..), GenTable (..), Attribute, Relation, Nested (..)
+  , GenAttr (..), GenTable (..), Attribute, Relation, Relations, Nested (..)
   , genTable, genTableFieldMod, toRel, toRels, fromRel, fromRels
   , insertGen, insertGen_, insertGenWithPK
   , primaryGen, autoPrimaryGen, uniqueGen, fkGen
@@ -60,8 +60,8 @@ type Relational a =
   ( Generic a
   , GRelation (Rep a)
   , GFromRel (Rep a)
-  , ToDyn (Rel (Rep a))
-  , Insert (Rel (Rep a))
+  , ToDyn (Relation a)
+  , Insert (Relation a)
   )
 
 -- | Convert a generic type into the corresponding database relation.
@@ -81,11 +81,11 @@ type Relational a =
 --
 --   This is mainly useful when inserting values into a table using 'insert'
 --   and the other functions from "Database.Selda".
-toRel :: Relational a => a -> Rel (Rep a)
+toRel :: Relational a => a -> Relation a
 toRel = gToRel . from
 
 -- | Convenient synonym for @map toRel@.
-toRels :: Relational a => [a] -> [Rel (Rep a)]
+toRels :: Relational a => [a] -> [Relation a]
 toRels = map toRel
 
 
@@ -104,9 +104,14 @@ newtype GenTable a = GenTable {gen :: Table (Rel (Rep a))}
 --
 --   In this example, @Relation Foo@ is @(Int :*: Text)@, as the first field
 --   of @Foo@ has type @Int@, and the second has type @Text@.
-type family Relation a where
-  Relation (a :*: b) = Relation a :++: Relation b
-  Relation a         = Rel (Rep a)
+type Relation a = Rel (Rep a)
+
+-- | One or more 'Relation's concatenated.
+--   Useful to return several relations from a query, and turn them back into
+--   their Haskell equivalents using 'fromRel'.
+type family Relations a where
+  Relations (a :*: b) = Relations a :++: Relations b
+  Relations a         = Relation
 
 -- | A generic column attribute.
 --   Essentially a pair or a record selector over the type @a@ and a column
@@ -207,11 +212,11 @@ genTableFieldMod tn attrs fieldMod = GenTable $ Table tn (validate tn (map tidy 
 --
 --   Applying @toRel@ to an inductive tuple which isn't the corresponding
 --   relation of the return type is a type error.
-fromRel :: (ToDyn (Relation a), FromRel a) => Relation a -> a
+fromRel :: (ToDyn (Relations a), FromRel a) => Relations a -> a
 fromRel = fromRelInternal . toDyns
 
 -- | Convenient synonym for @map fromRel@.
-fromRels :: (ToDyn (Relation a), FromRel a) => [Relation a] -> [a]
+fromRels :: (ToDyn (Relations a), FromRel a) => [Relations a] -> [a]
 fromRels = map fromRel
 
 class Generic a => FromRel a where
@@ -220,7 +225,7 @@ class Generic a => FromRel a where
 instance {-# OVERLAPPABLE #-}
   ( GFromRel (Rep a)
   , Generic a
-  , ToDyn (Relation a)
+  , ToDyn (Relations a)
   ) => FromRel a where
   fromRelInternal = to . fst . gFromRel
 
@@ -373,7 +378,7 @@ instance (Rel (K1 i a) ~ a, Typeable a, SqlType a) => GRelation (K1 i a) where
 instance {-# OVERLAPS #-}
   ( Typeable a
   , GRelation (Rep a)
-  , Rel (K1 i (Nested a)) ~ Rel (Rep a)
+  , Rel (K1 i (Nested a)) ~ Relation a
   , Generic a
   ) => GRelation (K1 i (Nested a)) where
   gToRel (K1 (Nested x)) = gToRel (from x)
