@@ -8,7 +8,7 @@ module Database.Selda.Frontend
   , deleteFrom, deleteFrom_
   , createTable, tryCreateTable
   , dropTable, tryDropTable
-  , transaction, setLocalCache
+  , transaction, setLocalCache, withoutForeignKeyEnforcement
   ) where
 import Database.Selda.Backend.Internal
 import Database.Selda.Caching
@@ -224,11 +224,27 @@ tryDropTable = withInval $ void . flip exec [] . compileDropTable Ignore
 
 -- | Perform the given computation atomically.
 --   If an exception is raised during its execution, the enture transaction
---   will be rolled back, and the exception re-thrown.
-transaction :: (MonadSelda m, MonadCatch m) => m a -> m a
+--   will be rolled back and the exception re-thrown, even if the exception
+--   is caught and handled within the transaction.
+transaction :: MonadSelda m => m a -> m a
 transaction m =
   wrapTransaction (void $ exec "COMMIT" []) (void $ exec "ROLLBACK" []) $ do
     exec "BEGIN TRANSACTION" [] *> m
+
+-- | Run the given computation as a transaction without enforcing foreign key
+--   constraints.
+--
+--   If the computation finishes with the database in an inconsistent state
+--   with regards to foreign keys, the resulting behavior is undefined.
+--   Use with extreme caution, preferably only for migrations.
+--
+--   On the PostgreSQL backend, at least PostgreSQL 9.6 is required.
+withoutForeignKeyEnforcement :: MonadSelda m => m a -> m a
+withoutForeignKeyEnforcement m = do
+  b <- seldaBackend
+  bracket_ (liftIO $ disableForeignKeys b True)
+           (liftIO $ disableForeignKeys b False)
+           m
 
 -- | Set the maximum local cache size to @n@. A cache size of zero disables
 --   local cache altogether. Changing the cache size will also flush all

@@ -9,7 +9,7 @@ import Data.List hiding (groupBy, insert)
 import Data.Proxy
 import Data.Time
 import Database.Selda
-import Database.Selda.Backend
+import Database.Selda.Backend hiding (disableForeignKeys)
 import Database.Selda.Generic
 import Database.Selda.Unsafe (unsafeRowId)
 import Test.HUnit
@@ -62,6 +62,7 @@ mutableTests freshEnv = test
   , "auto-primary in generic table"  ~: freshEnv genericAutoPrimary
   , "custom enum type"               ~: freshEnv customEnum
   , "generic table from tuple"       ~: freshEnv genericTupleTable
+  , "disable foreign key checks"     ~: freshEnv disableForeignKeys
     -- Generic tests with field modifier
   , "generic field mod delete"       ~: freshEnv (genericDelete genModPeople)
   , "generic field mod update"       ~: freshEnv (genericUpdate genModPeople)
@@ -762,3 +763,29 @@ genericTupleTable = do
     tbl :: GenTable (RowID, Nested Person)
     tbl = genTable "someRandomTuple" [fst :- autoPrimaryGen]
     s_id :*: s_name :*: s_age :*: s_pet :*: s_cash = selectors (gen tbl)
+
+disableForeignKeys = do
+    -- Run the test twice, to check that FK checking gets turned back on again
+    -- properly.
+    go ; go
+  where
+    go = do
+      tryDropTable tbl2
+      tryDropTable tbl1
+      createTable tbl1
+      createTable tbl2
+      pk <- insertWithPK tbl1 [def]
+      insert tbl2 [def :*: pk]
+      assertFail $ dropTable tbl1
+      withoutForeignKeyEnforcement $ dropTable tbl1 >> dropTable tbl2
+      tryDropTable tbl2
+      tryDropTable tbl1
+
+    tbl1 :: Table RowID
+    tbl1 = table "table1" $ autoPrimary "id"
+    id1 = selectors tbl1
+
+    tbl2 :: Table (RowID :*: RowID)
+    tbl2 = table "table2"
+        $   autoPrimary "id"
+        :*: required "foreign" `fk` (tbl1, id1)

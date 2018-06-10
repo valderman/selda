@@ -3,13 +3,13 @@
 }:
 mkDerivation {
   pname = "selda";
-  version = "0.1.12";
+  version = "0.3.0.0";
   src = ./.;
   libraryHaskellDepends = [
     base exceptions hashable mtl psqueues text time
     unordered-containers
   ];
-  homepage = "https://github.com/valderman/selda";
+  homepage = "https://selda.link";
   description = "Type-safe, high-level EDSL for interacting with relational databases";
   license = stdenv.lib.licenses.mit;
 }

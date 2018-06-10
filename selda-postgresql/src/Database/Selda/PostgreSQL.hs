@@ -13,6 +13,7 @@ import Data.Monoid
 import qualified Data.Text as T
 import Data.Text.Encoding
 import Database.Selda.Backend
+import Control.Monad (forM_, void)
 import Control.Monad.Catch
 import Control.Monad.IO.Class
 
@@ -166,12 +167,58 @@ pgBackend c = SeldaBackend
   , backendId       = PostgreSQL
   , ppConfig        = pgPPConfig
   , closeConnection = \_ -> finish c
+  , disableForeignKeys = disableFKs c
   }
   where
     left (Left x) = x
     left _        = error "impossible"
     right (Right x) = x
     right _         = error "impossible"
+
+-- Solution to disable FKs from
+-- <https://dba.stackexchange.com/questions/96961/how-to-temporarily-disable-foreign-keys-in-amazon-rds-postgresql>
+disableFKs :: Connection -> Bool -> IO ()
+disableFKs c True = do
+    void $ pgQueryRunner c False "BEGIN TRANSACTION;" []
+    void $ pgQueryRunner c False create []
+    void $ pgQueryRunner c False drop []
+  where
+    create = mconcat
+      [ "create table if not exists __selda_dropped_fks ("
+      , "        seq bigserial primary key,"
+      , "        sql text"
+      , ");"
+      ]
+    drop = mconcat
+      [ "do $$ declare t record;"
+      , "begin"
+      , "    for t in select conrelid::regclass::varchar table_name, conname constraint_name,"
+      , "            pg_catalog.pg_get_constraintdef(r.oid, true) constraint_definition"
+      , "            from pg_catalog.pg_constraint r"
+      , "            where r.contype = 'f'"
+      , "            and r.connamespace = (select n.oid from pg_namespace n where n.nspname = current_schema())"
+      , "        loop"
+      , "        insert into __selda_dropped_fks (sql) values ("
+      , "            format('alter table if exists %s add constraint %s %s',"
+      , "                quote_ident(t.table_name), quote_ident(t.constraint_name), t.constraint_definition));"
+      , "        execute format('alter table %s drop constraint %s', quote_ident(t.table_name), quote_ident(t.constraint_name));"
+      , "    end loop;"
+      , "end $$;"
+      ]
+disableFKs c False = do
+    void $ pgQueryRunner c False restore []
+    void $ pgQueryRunner c False "DROP TABLE __selda_dropped_fks;" []
+    void $ pgQueryRunner c False "COMMIT;" []
+  where
+    restore = mconcat
+      [ "do $$ declare t record;"
+      , "begin"
+      , "    for t in select * from __selda_dropped_fks order by seq loop"
+      , "        execute t.sql;"
+      , "        delete from __selda_dropped_fks where seq = t.seq;"
+      , "    end loop;"
+      , "end $$;"
+      ]
 
 pgQueryRunner :: Connection -> Bool -> T.Text -> [Param] -> IO (Either Int (Int, [[SqlValue]]))
 pgQueryRunner c return_lastid q ps = do
@@ -239,10 +286,10 @@ unlessError c msg mres m = do
     Just res -> do
       st <- resultStatus res
       case st of
-        BadResponse       -> doError c msg
-        FatalError        -> doError c msg
-        NonfatalError     -> doError c msg
-        _                 -> m res
+        BadResponse   -> doError c msg
+        FatalError    -> doError c msg
+        NonfatalError -> doError c msg
+        _             -> m res
     Nothing -> throwM $ DbError "unable to submit query to server"
 
 doError :: Connection -> String -> IO a

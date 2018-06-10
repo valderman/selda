@@ -8,7 +8,7 @@ mkDerivation {
   libraryHaskellDepends = [
     base bytestring exceptions postgresql-libpq selda text
   ];
-  homepage = "https://github.com/valderman/selda";
+  homepage = "https://selda.link";
   description = "PostgreSQL backend for the Selda database EDSL";
   license = stdenv.lib.licenses.mit;
 }

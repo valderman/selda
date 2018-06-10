@@ -80,7 +80,7 @@ data SeldaStmt = SeldaStmt
    --   starting at 0.
    --   Backends implementing @runPrepared@ should probably ignore this field.
  , stmtParams :: ![Either Int Param]
-   
+
    -- | All tables touched by the statement.
  , stmtTables :: ![TableName]
  }
@@ -143,6 +143,15 @@ data SeldaBackend = SeldaBackend
 
     -- | Unique identifier for this backend.
   , backendId :: BackendID
+
+    -- | Turn on or off foreign key checking, and initiate/commit
+    --   a transaction.
+    --
+    --   When implementing this function, it is safe to assume that
+    --   @disableForeignKeys True@
+    --   will always be called exactly once before each
+    --   @disableForeignKeys False@.
+  , disableForeignKeys :: Bool -> IO ()
   }
 
 data SeldaState = SeldaState
@@ -156,7 +165,7 @@ data SeldaState = SeldaState
   }
 
 -- | Some monad with Selda SQL capabilitites.
-class MonadIO m => MonadSelda m where
+class (MonadIO m, MonadMask m) => MonadSelda m where
   -- | Get the connection in use by the computation.
   seldaConnection :: m SeldaConnection
 

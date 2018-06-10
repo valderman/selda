@@ -5,6 +5,7 @@ import Database.Selda
 import Database.Selda.Backend
 import Data.Dynamic
 import Data.Text (pack)
+import Control.Monad (void, when, unless)
 import Control.Monad.Catch
 #ifndef __HASTE__
 import Database.SQLite3
@@ -52,7 +53,17 @@ sqliteBackend db = SeldaBackend
       flip mapM_ stmts $ \(_, stm) -> do
         finalize $ fromDyn stm (error "BUG: non-statement SQLite statement")
       close db
+  , disableForeignKeys = disableFKs db
   }
+
+disableFKs :: Database -> Bool -> IO ()
+disableFKs db disable = do
+    unless disable $ void $ sqliteQueryRunner db "COMMIT;" []
+    void $ sqliteQueryRunner db q []
+    when disable $ void $ sqliteQueryRunner db "BEGIN TRANSACTION;" []
+  where
+    q | disable   = "PRAGMA foreign_keys = OFF;"
+      | otherwise = "PRAGMA foreign_keys = ON;"
 
 sqlitePrepare :: Database -> Text -> IO Dynamic
 sqlitePrepare db qry = do
