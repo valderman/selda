@@ -111,7 +111,7 @@ type Relation a = Rel (Rep a)
 --   their Haskell equivalents using 'fromRel'.
 type family Relations a where
   Relations (a :*: b) = Relations a :++: Relations b
-  Relations a         = Relation
+  Relations a         = Relation a
 
 -- | A generic column attribute.
 --   Essentially a pair or a record selector over the type @a@ and a column
