@@ -148,6 +148,7 @@ import Unsafe.Coerce
 -- | Any column type that can be used with the 'min_' and 'max_' functions.
 class SqlType a => SqlOrd a
 instance {-# OVERLAPPABLE #-} (SqlType a, Num a) => SqlOrd a
+instance SqlOrd RowID
 instance SqlOrd Text
 instance SqlOrd Day
 instance SqlOrd UTCTime
