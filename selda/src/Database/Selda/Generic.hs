@@ -122,6 +122,8 @@ instance Typeable a => SqlType (ID a) where
   fromSql = ID . fromSql
   defaultValue = mkLit (ID invalidRowId)
 
+instance Typeable a => SqlOrd (ID a)
+
 -- | A generic table. Needs to be unpacked using @gen@ before use with
 --   'select', 'insert', etc.
 newtype GenTable a = GenTable {gen :: Table (Rel (Rep a))}
