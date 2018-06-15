@@ -4,7 +4,7 @@ module Database.Selda.SQLite (withSQLite, sqliteOpen, seldaClose) where
 import Database.Selda
 import Database.Selda.Backend
 import Data.Dynamic
-import Data.Text (pack)
+import Data.Text as Text (pack, toLower, take, isSuffixOf)
 import Control.Monad (void, when, unless)
 import Control.Monad.Catch
 #ifndef __HASTE__
@@ -46,6 +46,7 @@ sqliteBackend db = SeldaBackend
   , runStmtWithPK   = \q ps -> fst <$> sqliteQueryRunner db q ps
   , prepareStmt     = \_ _ -> sqlitePrepare db
   , runPrepared     = sqliteRunPrepared db
+  , getTableInfo    = sqliteGetTableInfo db
   , ppConfig        = defPPConfig {ppMaxInsertParams = Just 999}
   , backendId       = SQLite
   , closeConnection = \conn -> do
@@ -55,6 +56,51 @@ sqliteBackend db = SeldaBackend
       close db
   , disableForeignKeys = disableFKs db
   }
+
+sqliteGetTableInfo :: Database -> Text -> IO [ColumnInfo]
+sqliteGetTableInfo db table = do
+    cols <- (snd . snd) <$> sqliteQueryRunner db tblinfo []
+    indexes <- (snd . snd) <$> sqliteQueryRunner db indexes []
+    fks <- (snd . snd) <$> sqliteQueryRunner db fklist []
+    indexes' <- mapM indexInfo indexes
+    mapM (describe fks indexes') cols
+  where
+    tblinfo = mconcat ["PRAGMA table_info(", table, ");"]
+    indexes = mconcat ["PRAGMA index_list(", table, ");"]
+    fklist = mconcat ["PRAGMA foreign_key_list(", table, ");"]
+    ixinfo name = mconcat ["PRAGMA index_info(", name, ");"]
+
+    toTypeRep _ "text"                         = TText
+    toTypeRep _ "double"                       = TFloat
+    toTypeRep _ "boolean"                      = TBool
+    toTypeRep _ "datetime"                     = TDateTime
+    toTypeRep _ "date"                         = TDate
+    toTypeRep _ "time"                         = TTime
+    toTypeRep _ "blob"                         = TBlob
+    toTypeRep True "integer"                   = TRowID
+    toTypeRep False s | Text.take 3 s == "int" = TInt
+
+    indexInfo [_, SqlString ixname, _, SqlString itype, _] = do
+      let q = (ixinfo ixname)
+      [[_, _, SqlString name]] <- (snd . snd) <$> sqliteQueryRunner db q []
+      return (name, itype)
+
+    describe fks ixs [_, SqlString name, SqlString ty, SqlInt nonnull, _, SqlInt pk] = do
+      return $ ColumnInfo
+        { colName = mkColName name
+        , colType = toTypeRep (pk == 1) (toLower ty)
+        , colIsPK = pk == 1
+        , colIsAutoIncrement = "auto_increment" `isSuffixOf` ty
+        , colIsUnique = any (== (name, "u")) ixs || pk == 1
+        , colIsNullable = nonnull == 0
+        , colFKs =
+            [ (mkTableName reftbl, mkColName refkey)
+            | (_:_:SqlString reftbl:SqlString key:SqlString refkey:_) <- fks
+            , key == name
+            ]
+        }
+    describe fks ixs result = do
+      throwM $ SqlError $ "bad result from PRAGMA table_info: " ++ show result
 
 disableFKs :: Database -> Bool -> IO ()
 disableFKs db disable = do

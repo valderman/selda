@@ -203,7 +203,8 @@ genTableFieldMod :: forall a. Relational a
                  -> [GenAttr a]
                  -> (String -> String)
                  -> GenTable a
-genTableFieldMod tn attrs fieldMod = GenTable $ Table tn (validate tn (map tidy cols)) apk
+genTableFieldMod tn attrs fieldMod =
+    GenTable $ Table tn (validateOrThrow tn (map tidy cols)) apk
   where
     dummy = mkDummy
     cols = zipWith addAttrs [0..] (tblCols (Proxy :: Proxy a) fieldMod)

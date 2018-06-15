@@ -6,6 +6,7 @@ import Control.Monad.Catch
 import Data.List hiding (groupBy, insert)
 import Data.Time
 import Database.Selda
+import Database.Selda.Validation
 import Database.Selda.Backend
 import Database.Selda.Generic
 import Test.HUnit
@@ -20,6 +21,7 @@ validationTests freshEnv =
   , "non-unique FK fails"            ~: freshEnv nonUniqueFKFails
   , "non-primary unique FK passes"   ~: freshEnv nonPrimaryUniqueFK
   , "nullable unique field passes"   ~: freshEnv nullableUnique
+  , "validating wrong table fails"   ~: freshEnv validateWrongTable
   ]
 
 nulIdentifiersFail = do
@@ -112,3 +114,45 @@ nullableUnique = do
           table "addressesWithFK"
       $   required "name" `fk` (uniquePeople, upName)
       :*: required "city"
+
+validateWrongTable = do
+    assertFail $ validateTable (gen badGenPeople)
+    assertFail $ validateTable badPeople1
+    assertFail $ validateTable badPeople2
+    assertFail $ validateTable badPeople3
+    assertFail $ validateTable badPeople4
+  where
+    badGenPeople :: GenTable Person
+    badGenPeople = genTable "genpeople" [name :- uniqueGen]
+
+    badPeople1 :: Table (Text :*: Int :*: Text :*: Double)
+    badPeople1 =
+          table "people"
+      $   primary "name"
+      :*: required "age"
+      :*: required "pet"
+      :*: required "cash"
+
+    badPeople2 :: Table (Text :*: Bool :*: Maybe Text :*: Double)
+    badPeople2 =
+          table "people"
+      $   primary "name"
+      :*: required "age"
+      :*: optional "pet"
+      :*: required "cash"
+
+    badPeople3 :: Table (Text :*: Bool :*: Maybe Text)
+    badPeople3 =
+          table "people"
+      $   primary "name"
+      :*: required "age"
+      :*: optional "pet"
+
+    badPeople4 :: Table (Text :*: Bool :*: Maybe Text :*: Double :*: Int)
+    badPeople4 =
+          table "people"
+      $   primary "name"
+      :*: required "age"
+      :*: optional "pet"
+      :*: required "cash"
+      :*: required "extra"

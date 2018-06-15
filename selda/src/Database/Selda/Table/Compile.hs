@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings, CPP #-}
 -- | Generating SQL for creating and deleting tables.
 module Database.Selda.Table.Compile where
+import Control.Exception (throw)
 import Database.Selda.Table
 import Data.List ((\\), foldl')
 #if !MIN_VERSION_base(4, 11, 0)
@@ -31,7 +32,7 @@ compileCreateTable customColType ifex tbl = ensureValid `seq` mconcat
     ifNotExists Ignore = "IF NOT EXISTS "
     allFKs = [(colName ci, fk) | ci <- tableCols tbl, fk <- colFKs ci]
     compFKs = zipWith (uncurry compileFK) allFKs [0..]
-    ensureValid = validate (tableName tbl) (tableCols tbl)
+    ensureValid = validateOrThrow (tableName tbl) (tableCols tbl)
 
 -- | Compile a foreign key constraint.
 compileFK :: ColName -> (Table (), ColName) -> Int -> Text
@@ -53,7 +54,7 @@ compileTableCol cfg ci = Text.unwords
     colAttrsHook = ppColAttrsHook cfg cty attrs (ppColAttrs cfg)
     cty = colType ci
     attrs = colAttrs ci
-    ppType' 
+    ppType'
       | cty == TRowID && [Primary, AutoIncrement] `areIn` attrs = ppTypePK
       | otherwise = ppType
     areIn x y = null (x \\ y)

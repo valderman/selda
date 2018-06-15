@@ -12,13 +12,13 @@ import Data.List (sort, group)
 #if !MIN_VERSION_base(4, 11, 0)
 import Data.Monoid
 #endif
-import Data.Text (unpack, intercalate, any)
+import Data.Text (Text, unpack, intercalate, any)
 import GHC.Exts
 #if MIN_VERSION_base(4, 10, 0)
 import Data.Proxy
 #endif
 #if MIN_VERSION_base(4, 9, 0)
-import GHC.TypeLits as TL
+import qualified GHC.TypeLits as TL
 #endif
 
 -- | An error occurred when validating a database table.
@@ -74,9 +74,9 @@ newtype ColSpec a = ColSpec {unCS :: [ColInfo]}
 type family NonNull a :: Constraint where
 #if MIN_VERSION_base(4, 9, 0)
   NonNull (Maybe a) = TL.TypeError
-    ( 'Text "Optional columns must not be nested, and" ':<>:
-      'Text " required or primary key columns" ':$$:
-      'Text "must not have option types."
+    ( 'TL.Text "Optional columns must not be nested, and" 'TL.:<>:
+      'TL.Text " required or primary key columns" 'TL.:$$:
+      'TL.Text "must not have option types."
     )
 #else
   NonNull (Maybe a) = a ~ Maybe a
@@ -157,14 +157,9 @@ soup :: Ord a => [a] -> [[a]]
 soup = group . sort
 
 -- | Ensure that there are no duplicate column names or primary keys.
-validate :: TableName -> [ColInfo] -> [ColInfo]
-validate name cis
-  | null errs = cis
-  | otherwise = throw $ ValidationError $ concat
-      [ "validation of table ", unpack $ fromTableName name, " failed:"
-      , "\n  "
-      , unpack $ intercalate "\n  " errs
-      ]
+--   Returns a list of validation errors encountered.
+validate :: TableName -> [ColInfo] -> [Text]
+validate name cis = errs
   where
     colIdents = map (fromColName . colName) cis
     allIdents = fromTableName name : colIdents
@@ -210,4 +205,16 @@ validate name cis
                        <> " is both optional and required"
       | ci <- cis
       , Optional `elem` colAttrs ci && Required `elem` colAttrs ci
+      ]
+
+-- | Return all columns of the given table if the table schema is valid,
+--   otherwise throw a 'ValidationError'.
+validateOrThrow :: TableName -> [ColInfo] -> [ColInfo]
+validateOrThrow name cols =
+  case validate name cols of
+    []     -> cols
+    errors -> throw $ ValidationError $ concat
+      [ "validation of table `", unpack $ fromTableName name
+      , "' failed:\n  "
+      , unpack $ intercalate "\n  " errors
       ]

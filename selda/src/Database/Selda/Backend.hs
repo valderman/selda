@@ -6,15 +6,18 @@ module Database.Selda.Backend
   , SqlType (..), SqlValue (..), SqlTypeRep (..)
   , Param (..), Lit (..), ColAttr (..)
   , PPConfig (..), defPPConfig
+  , TableName, ColName, ColumnInfo (..)
+  , columnInfo, fromColInfo, mkTableName, mkColName
   , newConnection, allStmts, seldaBackend
   , runSeldaT, seldaClose
   , sqlDateTimeFormat, sqlDateFormat, sqlTimeFormat
   ) where
-import Database.Selda.Backend.Internal
 import Control.Monad
 import Control.Monad.Catch
 import Control.Monad.IO.Class
 import Data.IORef
+import Database.Selda.Backend.Internal
+import Database.Selda.Types
 
 -- | Close a reusable Selda connection.
 --   Closing a connection while in use is undefined.

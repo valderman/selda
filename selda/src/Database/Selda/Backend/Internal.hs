@@ -8,6 +8,7 @@ module Database.Selda.Backend.Internal
   , Param (..), Lit (..), ColAttr (..)
   , SqlType (..), SqlValue (..), SqlTypeRep (..)
   , PPConfig (..), defPPConfig
+  , ColumnInfo (..), columnInfo, fromColInfo
   , sqlDateTimeFormat, sqlDateFormat, sqlTimeFormat
   , freshStmtId
   , invalidate
@@ -17,9 +18,10 @@ module Database.Selda.Backend.Internal
 import Database.Selda.Caching (invalidate)
 import Database.Selda.SQL (Param (..))
 import Database.Selda.SqlType
-import Database.Selda.Table (Table, ColAttr (..), tableName)
+import Database.Selda.Table (Table (..), ColAttr (..), tableName)
+import qualified Database.Selda.Table as Table (ColInfo (..))
 import Database.Selda.SQL.Print.Config
-import Database.Selda.Types (TableName)
+import Database.Selda.Types (TableName, ColName, fromTableName, fromColName)
 import Control.Concurrent
 import Control.Exception (throw)
 import Control.Monad.Catch
@@ -119,6 +121,43 @@ allStmts :: SeldaConnection -> IO [(StmtID, Dynamic)]
 allStmts =
   fmap (map (\(k, v) -> (k, stmtHandle v)) . M.toList) . readIORef . connStmts
 
+-- | Comprehensive information about a column.
+data ColumnInfo = ColumnInfo
+  { -- | Name of the column.
+    colName :: ColName
+    -- | Selda type of the column.
+  , colType :: SqlTypeRep
+    -- | Is the given column the primary key of its table?
+  , colIsPK :: Bool
+    -- | Is the given column auto-incrementing?
+  , colIsAutoIncrement :: Bool
+    -- | Is the column unique, either through a UNIQUE constraint or by virtue
+    --   of being a primary key?
+  , colIsUnique :: Bool
+    -- | Can the column be NULL?
+  , colIsNullable :: Bool
+    -- | Any foreign key (table, column) pairs referenced by this column.
+  , colFKs :: [(TableName, ColName)]
+  } deriving (Show, Eq)
+
+-- | Convert a 'Table.ColInfo' into a 'ColumnInfo'.
+fromColInfo :: Table.ColInfo -> ColumnInfo
+fromColInfo ci = ColumnInfo
+    { colName = Table.colName ci
+    , colType = Table.colType ci
+    , colIsPK = Primary `elem` Table.colAttrs ci
+    , colIsAutoIncrement = AutoIncrement `elem` Table.colAttrs ci
+    , colIsUnique = Unique `elem` Table.colAttrs ci
+    , colIsNullable = Optional `elem` Table.colAttrs ci
+    , colFKs = map fk (Table.colFKs ci)
+    }
+  where
+    fk (Table tbl _ _, col) = (tbl, col)
+
+-- | Get the column information for each column in the given table.
+columnInfo :: Table a -> [ColumnInfo]
+columnInfo = map fromColInfo . tableCols
+
 -- | A collection of functions making up a Selda backend.
 data SeldaBackend = SeldaBackend
   { -- | Execute an SQL statement.
@@ -134,6 +173,11 @@ data SeldaBackend = SeldaBackend
 
     -- | Execute a prepared statement.
   , runPrepared :: Dynamic -> [Param] -> IO (Int, [[SqlValue]])
+
+    -- | Get a list of all columns in the given table, with the type and any
+    --   modifiers for each column. Return an empty list if the given table
+    --   does not exist.
+  , getTableInfo :: Text -> IO [ColumnInfo]
 
     -- | SQL pretty-printer configuration.
   , ppConfig :: PPConfig

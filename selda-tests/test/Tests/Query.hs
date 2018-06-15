@@ -5,6 +5,7 @@ import Data.List hiding (groupBy, insert)
 import Database.Selda
 import Database.Selda.Generic
 import Database.Selda.Unsafe
+import Database.Selda.Validation
 import Test.HUnit
 import Utils
 import Tables
