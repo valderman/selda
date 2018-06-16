@@ -47,6 +47,7 @@ library
     Database.Selda
     Database.Selda.Backend
     Database.Selda.Generic
+    Database.Selda.Migrations
     Database.Selda.Unsafe
     Database.Selda.Validation
   other-modules:

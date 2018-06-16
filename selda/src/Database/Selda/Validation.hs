@@ -4,7 +4,8 @@ module Database.Selda.Validation
   ( TableDiff (..), ColumnDiff (..)
   , TableName, ColName, ColumnInfo, SqlTypeRep, columnInfo
   , showTableDiff, showColumnDiff
-  , describeTable, diffTable, validateTable, validateSchema
+  , describeTable, diffTable, diffTables
+  , validateTable, validateSchema
   ) where
 import Control.Monad.Catch
 import Data.List ((\\))
@@ -18,6 +19,12 @@ import Database.Selda.Table
   , validateOrThrow
   )
 import Database.Selda.Types (fromTableName, fromColName)
+
+-- | Are the given types compatible?
+isCompatibleWith :: SqlTypeRep -> SqlTypeRep -> Bool
+isCompatibleWith TRowID TInt = True
+isCompatibleWith TInt TRowID = True
+isCompatibleWith a b         = a == b
 
 -- | Validate a table schema, and check it for consistency against the current
 --   database.
@@ -45,7 +52,7 @@ data TableDiff
   = TableOK
   | TableMissing
   | InconsistentColumns [(ColName, [ColumnDiff])]
-
+    deriving Eq
 instance Show TableDiff where
   show = unpack . showTableDiff
 
@@ -63,6 +70,7 @@ data ColumnDiff
   | UniqueMismatch Bool
   | ForeignKeyMissing TableName ColName
   | ForeignKeyPresent TableName ColName
+    deriving Eq
 
 instance Show ColumnDiff where
   show = unpack . showColumnDiff
@@ -135,29 +143,39 @@ describeTable tbl = do
 --   The table schema itself is not validated beforehand.
 diffTable :: MonadSelda m => Table a -> m TableDiff
 diffTable tbl = do
-    dbInfos <- describeTable (tableName tbl)
+  dbInfos <- describeTable (tableName tbl)
+  return $ diffColumns (columnInfo tbl) dbInfos
+
+-- | Compute the difference between the two given tables.
+--   The first table is considered to be the schema, and the second the database.
+diffTables :: Table a -> Table b -> TableDiff
+diffTables schema db = diffColumns (columnInfo schema) (columnInfo db)
+
+-- | Compute the difference between the columns of two tables.
+--   The first table is considered to be the schema, and the second the database.
+diffColumns :: [ColumnInfo] -> [ColumnInfo] -> TableDiff
+diffColumns infos dbInfos =
     case ( zipWith diffColumn infos dbInfos
          , map colName infos \\ map colName dbInfos
          , map colName dbInfos \\ map colName infos) of
       ([], _, _) ->
-        pure TableMissing
+        TableMissing
       (diffs, [], []) | all consistent diffs ->
-        pure TableOK
+        TableOK
       (diffs, missing, extras) ->
-        pure $ InconsistentColumns $ concat
+        InconsistentColumns $ concat
           [ filter (not . consistent) diffs
           , map (, [ColumnMissing]) missing
           , map (, [ColumnPresent]) extras
           ]
   where
-    infos = columnInfo tbl
     consistent (_, diffs) = null diffs
     diffColumn schema db = (colName schema, catMaybes
       ([ check colName NameMismatch
        , case colType db of
            Left typ ->
              Just (UnknownType typ)
-           Right t | t /= schemaColType ->
+           Right t | not (t `isCompatibleWith` schemaColType) ->
              Just (TypeMismatch schemaColType t)
            _ ->
              Nothing

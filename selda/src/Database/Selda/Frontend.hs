@@ -2,7 +2,7 @@
 -- | API for running Selda operations over databases.
 module Database.Selda.Frontend
   ( Result, Res, MonadIO (..), MonadSelda (..), SeldaT
-  , query
+  , query, queryInto
   , insert, insert_, insertWithPK, tryInsert, insertWhen, insertUnless
   , update, update_, upsert
   , deleteFrom, deleteFrom_
@@ -19,6 +19,7 @@ import Database.Selda.SQL
 import Database.Selda.SqlType (RowID, invalidRowId, toRowId)
 import Database.Selda.Table
 import Database.Selda.Table.Compile
+import Database.Selda.Types (fromTableName)
 import Data.Proxy
 import Data.Text (Text)
 import Control.Monad
@@ -33,6 +34,17 @@ query :: (MonadSelda m, Result a) => Query s a -> m [Res a]
 query q = do
   backend <- seldaBackend
   queryWith (runStmt backend) q
+
+-- | Perform the given query, and insert the result into the given table.
+--   Returns the number of inserted rows.
+queryInto :: (MonadSelda m, Result (Cols s a)) => Table a -> Query s (Cols s a) -> m Int
+queryInto tbl q = do
+    backend <- seldaBackend
+    let (qry, ps) = compileWith (ppConfig backend) q
+        qry' = mconcat ["INSERT INTO ", tblName, " ", qry]
+    fmap fst . liftIO $ runStmt backend qry' ps
+  where
+    tblName = fromTableName (tableName tbl)
 
 -- | Insert the given values into the given table. All columns of the table
 --   must be present. If your table has an auto-incrementing primary key,

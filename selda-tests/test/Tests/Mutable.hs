@@ -1,4 +1,5 @@
-{-# LANGUAGE TypeOperators, OverloadedStrings, DeriveGeneric, ScopedTypeVariables #-}
+{-# LANGUAGE TypeOperators, OverloadedStrings, DeriveGeneric #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 -- | Tests that modify the database.
 module Tests.Mutable (mutableTests, invalidateCacheAfterTransaction) where
 import Control.Concurrent
@@ -11,6 +12,7 @@ import Data.Time
 import Database.Selda
 import Database.Selda.Backend hiding (disableForeignKeys)
 import Database.Selda.Generic
+import Database.Selda.Migrations
 import Test.HUnit
 import Utils
 import Tables
@@ -69,6 +71,12 @@ mutableTests freshEnv = test
   , "ad hoc insert generic fieldmod" ~: freshEnv (adHocInsertInGenericTable genModPeople)
   , "generic mod fk violation fails" ~: freshEnv genModFkViolationFails
   , "generic mod fk insertion ok"    ~: freshEnv genModFkInsertSucceeds
+  , "migrate into self"              ~: freshEnv (migrationTest migrateIntoSelf)
+  , "drop column migration"          ~: freshEnv (migrationTest dropColumn)
+  , "auto-migrate one step"          ~: freshEnv (migrationTest autoMigrateOneStep)
+  , "auto-migrate no-op"             ~: freshEnv (migrationTest autoMigrateNoOp)
+  , "migrate aggregate"              ~: freshEnv (migrationTest migrateAggregate)
+  , "auto-migrate multi-step"        ~: freshEnv (migrationTest autoMigrateOneStep)
   ]
 
 tryDropNeverFails = teardown
@@ -793,3 +801,94 @@ disableForeignKeys = do
     tbl2 = table "table2"
         $   autoPrimary "id"
         :*: required "foreign" `fk` (tbl1, id1)
+
+migrationTest test = do
+    tryDropTable migrationTable1
+    createTable migrationTable1
+    insert_ migrationTable1 [1,2,3]
+    test
+    tryDropTable migrationTable1
+    tryDropTable migrationTable2
+    tryDropTable migrationTable3
+
+migrationTable1 :: Table Int
+migrationTable1 = table "table1" $ primary "foo"
+
+migrationTable2 :: Table (Text :*: Int)
+migrationTable2 = table "table1"
+    $   primary "foo2"
+    :*: required "originalFoo"
+
+migrationTable3 :: Table Int
+migrationTable3 = table "table3" $ primary "foo"
+
+steps =
+  [ [Migration migrationTable1 migrationTable1 pure]
+  , [Migration migrationTable1 migrationTable2 (\foo -> pure (toString foo :*: foo))]
+  , [Migration migrationTable2 migrationTable3 (\(txt :*: i) -> pure i)]
+  , [Migration migrationTable3 migrationTable1 pure]
+  ]
+
+migrateIntoSelf = do
+  migrate migrationTable1 migrationTable1 id
+  res <- query $ do
+    x <- select migrationTable1
+    order x ascending
+    return x
+  assEq "migrating into self went wrong" [1,2,3] res
+
+addColumn = do
+  migrate migrationTable1 migrationTable2 $ \foo -> toString foo :*: foo
+  res <- query $ do
+    x :*: y <- select migrationTable2
+    order x ascending
+    return (x :*: y)
+  assEq "adding column went wrong" ["1":*:1,"2":*:2,"3":*:3] res
+
+dropColumn = do
+  migrate migrationTable1 migrationTable2 $ \foo -> toString foo :*: foo
+  migrate migrationTable2 migrationTable3 $ \(txt :*: i) -> i
+  assertFail $ query $ select migrationTable2
+  res <- query $ do
+    x <- select migrationTable3
+    order x ascending
+    return x
+  assEq "migrating back went wrong" [1,2,3] res
+
+autoMigrateOneStep = do
+  migrate migrationTable1 migrationTable3 id
+  autoMigrate False steps
+  res <- query $ do
+    x <- select migrationTable1
+    order x ascending
+    return x
+  assEq "automigration failed" [1,2,3] res
+
+autoMigrateNoOp = do
+  autoMigrate True steps
+  res <- query $ do
+    x <- select migrationTable1
+    order x ascending
+    return x
+  assEq "no-op automigration failed" [1,2,3] res
+
+migrateAggregate = do
+  setup
+  migrateM migrationTable1 migrationTable2 $ \foo -> do
+    age <- aggregate $ do
+      person <- select people
+      return $ min_ (person ! pAge)
+    return $ toString foo :*: age
+  res <- query $ do
+    x :*: y <- select migrationTable2
+    order y ascending
+    return (x :*: y)
+  assEq "query migration failed" ["1":*:10,"2":*:10,"3":*:10] res
+
+autoMigrateMultiStep = do
+  autoMigrate True steps
+  res <- query $ do
+    x <- select migrationTable1
+    order x ascending
+    return x
+  assEq "multi-step automigration failed" [1,2,3] res

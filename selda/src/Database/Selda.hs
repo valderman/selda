@@ -66,7 +66,8 @@ module Database.Selda
     MonadSelda
   , SeldaError (..), ValidationError
   , SeldaT, SeldaM, Table, Query, Col, Res, Result
-  , query, transaction, setLocalCache, withoutForeignKeyEnforcement
+  , query, queryInto
+  , transaction, setLocalCache, withoutForeignKeyEnforcement
     -- * Constructing queries
   , Selector, (!), Assignment(..), with
   , ToDyn, SqlType (..), SqlEnum (..)

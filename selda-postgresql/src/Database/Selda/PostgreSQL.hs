@@ -224,10 +224,14 @@ disableFKs c False = do
 pgGetTableInfo :: Connection -> T.Text -> IO [ColumnInfo]
 pgGetTableInfo c tbl = do
     Right (_, vals) <- pgQueryRunner c False tableinfo []
-    Right (_, [[SqlString pk]]) <- pgQueryRunner c False pkquery []
-    Right (_, uniques) <- pgQueryRunner c False uniquequery []
-    Right (_, fks) <- pgQueryRunner c False fkquery []
-    mapM (describe pk fks (map toText uniques)) vals
+    if null vals
+      then do
+        pure []
+      else do
+        Right (_, [[SqlString pk]]) <- pgQueryRunner c False pkquery []
+        Right (_, uniques) <- pgQueryRunner c False uniquequery []
+        Right (_, fks) <- pgQueryRunner c False fkquery []
+        mapM (describe pk fks (map toText uniques)) vals
   where
     toText [SqlString s] = s
     tableinfo = mconcat

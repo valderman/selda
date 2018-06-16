@@ -14,14 +14,15 @@ import Utils
 import Tables
 
 validationTests freshEnv =
-  [ "nul identifiers fail"           ~: freshEnv nulIdentifiersFail
-  , "empty identifiers are caught"   ~: freshEnv emptyIdentifiersFail
-  , "duplicate columns are caught"   ~: freshEnv duplicateColsFail
-  , "duplicate PKs are caught"       ~: freshEnv duplicatePKsFail
-  , "non-unique FK fails"            ~: freshEnv nonUniqueFKFails
-  , "non-primary unique FK passes"   ~: freshEnv nonPrimaryUniqueFK
-  , "nullable unique field passes"   ~: freshEnv nullableUnique
-  , "validating wrong table fails"   ~: freshEnv validateWrongTable
+  [ "nul identifiers fail"               ~: freshEnv nulIdentifiersFail
+  , "empty identifiers are caught"       ~: freshEnv emptyIdentifiersFail
+  , "duplicate columns are caught"       ~: freshEnv duplicateColsFail
+  , "duplicate PKs are caught"           ~: freshEnv duplicatePKsFail
+  , "non-unique FK fails"                ~: freshEnv nonUniqueFKFails
+  , "non-primary unique FK passes"       ~: freshEnv nonPrimaryUniqueFK
+  , "nullable unique field passes"       ~: freshEnv nullableUnique
+  , "validating wrong table fails"       ~: freshEnv validateWrongTable
+  , "validating nonexistent table fails" ~: freshEnv validateNonexistentTable
   ]
 
 nulIdentifiersFail = do
@@ -156,3 +157,9 @@ validateWrongTable = do
       :*: optional "pet"
       :*: required "cash"
       :*: required "extra"
+
+validateNonexistentTable = do
+    assertFail $ validateTable nonsense
+  where
+    nonsense :: Table Text
+    nonsense = table "I don't exist" $ primary "blah"
