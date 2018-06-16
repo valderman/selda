@@ -4,7 +4,7 @@ module Database.Selda.Validation
   ( TableDiff (..), ColumnDiff (..)
   , TableName, ColName, ColumnInfo, SqlTypeRep, columnInfo
   , showTableDiff, showColumnDiff
-  , describeTable, diffTable, validateTable
+  , describeTable, diffTable, validateTable, validateSchema
   ) where
 import Control.Monad.Catch
 import Data.List ((\\))
@@ -25,13 +25,19 @@ import Database.Selda.Types (fromTableName, fromColName)
 --   inconsistencies were found.
 validateTable :: MonadSelda m => Table a -> m ()
 validateTable t = do
-    diffs <- validateOrThrow (tableName t) (tableCols t) `seq` diffTable t
-    case diffs of
-      TableOK -> return ()
-      errors  -> throwM $ ValidationError $ concat
-        [ "error validating table ", unpack (fromTableName (tableName t)), ":\n"
-        , show errors
-        ]
+  validateSchema t
+  diffs <- diffTable t
+  case diffs of
+    TableOK -> return ()
+    errors  -> throwM $ ValidationError $ concat
+      [ "error validating table ", unpack (fromTableName (tableName t)), ":\n"
+      , show errors
+      ]
+
+-- | Ensure that the schema of the given table is valid.
+--   Does not ensure consistency with the current database.
+validateSchema :: MonadThrow m => Table a -> m ()
+validateSchema t = validateOrThrow (tableName t) (tableCols t) `seq` return ()
 
 -- | A description of the difference between a schema and its corresponding
 --   database table.
