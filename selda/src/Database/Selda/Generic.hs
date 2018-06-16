@@ -452,7 +452,6 @@ instance Typeable a => GFromRel (K1 i a) where
 instance {-# OVERLAPS #-} (Typeable a, Generic a, GFromRel (Rep a)) => GFromRel (K1 i (Nested a)) where
   gFromRel xs = (K1 $ Nested (to x), xs')
     where (x, xs') = gFromRel xs
-  gFromRel _  = error "impossible: too few elements to gFromRel"
 
 instance {-# OVERLAPS #-} Typeable a => GFromRel (K1 i (Maybe a)) where
   gFromRel (x:xs) = (K1 (fromDyn x (error "impossible")), xs)

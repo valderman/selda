@@ -1,7 +1,6 @@
 {-# LANGUAGE OverloadedStrings, CPP #-}
 -- | Generating SQL for creating and deleting tables.
 module Database.Selda.Table.Compile where
-import Control.Exception (throw)
 import Database.Selda.Table
 import Data.List ((\\), foldl')
 #if !MIN_VERSION_base(4, 11, 0)

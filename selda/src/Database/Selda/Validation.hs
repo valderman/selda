@@ -17,7 +17,7 @@ import Database.Selda.Table
   , tableName, tableCols
   , validateOrThrow
   )
-import Database.Selda.Types (fromTableName, fromColName, mkTableName, mkColName)
+import Database.Selda.Types (fromTableName, fromColName)
 
 -- | Validate a table schema, and check it for consistency against the current
 --   database.
@@ -32,9 +32,6 @@ validateTable t = do
         [ "error validating table ", unpack (fromTableName (tableName t)), ":\n"
         , show errors
         ]
-  where
-    infos = columnInfo t
-
 
 -- | A description of the difference between a schema and its corresponding
 --   database table.
@@ -132,7 +129,6 @@ describeTable tbl = do
 --   The table schema itself is not validated beforehand.
 diffTable :: MonadSelda m => Table a -> m TableDiff
 diffTable tbl = do
-    b <- seldaBackend
     dbInfos <- describeTable (tableName tbl)
     case ( zipWith diffColumn infos dbInfos
          , map colName infos \\ map colName dbInfos

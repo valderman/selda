@@ -21,7 +21,7 @@ import Database.Selda.SqlType
 import Database.Selda.Table (Table (..), ColAttr (..), tableName)
 import qualified Database.Selda.Table as Table (ColInfo (..))
 import Database.Selda.SQL.Print.Config
-import Database.Selda.Types (TableName, ColName, fromTableName, fromColName)
+import Database.Selda.Types (TableName, ColName)
 import Control.Concurrent
 import Control.Exception (throw)
 import Control.Monad.Catch
