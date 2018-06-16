@@ -11,3 +11,4 @@ cabal.sandbox.config
 /selda/*.yaml
 /*/LICENSE
 result*
+*.sqlite
