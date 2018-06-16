@@ -44,7 +44,10 @@ import Data.Text (pack)
 import Data.Typeable
 #endif
 import GHC.Generics hiding (R, (:*:), Selector)
-import qualified GHC.Generics as G ((:*:)(..), Selector, R)
+import qualified GHC.Generics as G ((:*:)(..), (:+:)(..), Selector, R)
+#if MIN_VERSION_base(4, 9, 0)
+import qualified GHC.TypeLits as TL
+#endif
 import Unsafe.Coerce
 import Database.Selda hiding (from)
 import Database.Selda.Table
@@ -433,6 +436,18 @@ instance (Append (Rel a) (Rel b), GRelation a, GRelation b) =>
     a <- gMkDummy :: State Int (a x)
     b <- gMkDummy :: State Int (b x)
     return (a G.:*: b)
+
+#if MIN_VERSION_base(4, 9, 0)
+instance
+  (TL.TypeError
+    ( 'TL.Text "Selda currently does not support creating tables from sum types."
+      'TL.:$$:
+      'TL.Text "Restrict your table type to a single data constructor."
+    )) => GRelation (a G.:+: b) where
+  gToRel = error "unreachable"
+  gTblCols = error "unreachable"
+  gMkDummy = error "unreachable"
+#endif
 
 class GFromRel f where
   -- | Convert a value to a Haskell type from the type's corresponding relation.
