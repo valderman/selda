@@ -125,8 +125,9 @@ allStmts =
 data ColumnInfo = ColumnInfo
   { -- | Name of the column.
     colName :: ColName
-    -- | Selda type of the column.
-  , colType :: SqlTypeRep
+    -- | Selda type of the column, or the type name given by the database
+    --   if Selda couldn't make sense of the type.
+  , colType :: Either Text SqlTypeRep
     -- | Is the given column the primary key of its table?
   , colIsPK :: Bool
     -- | Is the given column auto-incrementing?
@@ -144,7 +145,7 @@ data ColumnInfo = ColumnInfo
 fromColInfo :: Table.ColInfo -> ColumnInfo
 fromColInfo ci = ColumnInfo
     { colName = Table.colName ci
-    , colType = Table.colType ci
+    , colType = Right $ Table.colType ci
     , colIsPK = Primary `elem` Table.colAttrs ci
     , colIsAutoIncrement = AutoIncrement `elem` Table.colAttrs ci
     , colIsUnique = Unique `elem` Table.colAttrs ci
@@ -175,9 +176,9 @@ data SeldaBackend = SeldaBackend
   , runPrepared :: Dynamic -> [Param] -> IO (Int, [[SqlValue]])
 
     -- | Get a list of all columns in the given table, with the type and any
-    --   modifiers for each column. Return an empty list if the given table
-    --   does not exist.
-  , getTableInfo :: Text -> IO [ColumnInfo]
+    --   modifiers for each column.
+    --   Return an empty list if the given table does not exist.
+  , getTableInfo :: TableName -> IO [ColumnInfo]
 
     -- | SQL pretty-printer configuration.
   , ppConfig :: PPConfig

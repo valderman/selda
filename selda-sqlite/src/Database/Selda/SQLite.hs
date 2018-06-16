@@ -46,7 +46,7 @@ sqliteBackend db = SeldaBackend
   , runStmtWithPK   = \q ps -> fst <$> sqliteQueryRunner db q ps
   , prepareStmt     = \_ _ -> sqlitePrepare db
   , runPrepared     = sqliteRunPrepared db
-  , getTableInfo    = sqliteGetTableInfo db
+  , getTableInfo    = sqliteGetTableInfo db . fromTableName
   , ppConfig        = defPPConfig {ppMaxInsertParams = Just 999}
   , backendId       = SQLite
   , closeConnection = \conn -> do
@@ -70,15 +70,16 @@ sqliteGetTableInfo db table = do
     fklist = mconcat ["PRAGMA foreign_key_list(", table, ");"]
     ixinfo name = mconcat ["PRAGMA index_info(", name, ");"]
 
-    toTypeRep _ "text"                         = TText
-    toTypeRep _ "double"                       = TFloat
-    toTypeRep _ "boolean"                      = TBool
-    toTypeRep _ "datetime"                     = TDateTime
-    toTypeRep _ "date"                         = TDate
-    toTypeRep _ "time"                         = TTime
-    toTypeRep _ "blob"                         = TBlob
-    toTypeRep True "integer"                   = TRowID
-    toTypeRep False s | Text.take 3 s == "int" = TInt
+    toTypeRep _ "text"                         = Right TText
+    toTypeRep _ "double"                       = Right TFloat
+    toTypeRep _ "boolean"                      = Right TBool
+    toTypeRep _ "datetime"                     = Right TDateTime
+    toTypeRep _ "date"                         = Right TDate
+    toTypeRep _ "time"                         = Right TTime
+    toTypeRep _ "blob"                         = Right TBlob
+    toTypeRep True "integer"                   = Right TRowID
+    toTypeRep False s | Text.take 3 s == "int" = Right TInt
+    toTypeRep _ typ                            = Left typ
 
     indexInfo [_, SqlString ixname, _, SqlString itype, _] = do
       let q = (ixinfo ixname)

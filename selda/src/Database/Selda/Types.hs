@@ -9,7 +9,7 @@ module Database.Selda.Types
   , first, second, third, fourth, fifth, sixth, seventh, eighth, ninth, tenth
   , ColName, TableName
   , mkColName, mkTableName, addColSuffix, addColPrefix
-  , fromColName, fromTableName
+  , fromColName, fromTableName, rawTableName
   , toDyns, fromDyns, unsafeToList, unsafeFromList
   ) where
 import Data.Dynamic
@@ -48,6 +48,10 @@ fromColName (ColName cn) = mconcat ["\"", escapeQuotes cn, "\""]
 -- | Convert a table name into a string, with quotes.
 fromTableName :: TableName -> Text
 fromTableName (TableName tn) = mconcat ["\"", escapeQuotes tn, "\""]
+
+-- | Convert a table name into a string, without quotes.
+rawTableName :: TableName -> Text
+rawTableName (TableName tn) = escapeQuotes tn
 
 -- | Create a column name.
 mkColName :: Text -> ColName

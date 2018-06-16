@@ -28,7 +28,10 @@ validateTable t = do
     diffs <- validateOrThrow (tableName t) (tableCols t) `seq` diffTable t
     case diffs of
       TableOK -> return ()
-      errors  -> throwM $ ValidationError $ show errors
+      errors  -> throwM $ ValidationError $ concat
+        [ "error validating table ", unpack (fromTableName (tableName t)), ":\n"
+        , show errors
+        ]
   where
     infos = columnInfo t
 
@@ -49,6 +52,7 @@ data ColumnDiff
   = ColumnMissing
   | ColumnPresent
   | NameMismatch ColName
+  | UnknownType Text
   | TypeMismatch SqlTypeRep SqlTypeRep
   | PrimaryKeyMismatch Bool
   | AutoIncrementMismatch Bool
@@ -85,6 +89,8 @@ showColumnDiff ColumnPresent =
   "column exists in database even though it shouldn't"
 showColumnDiff (NameMismatch n) =
   mconcat ["column is called ", fromColName n, " in database"]
+showColumnDiff (UnknownType t) =
+  mconcat ["column has incompatible type \"", t, "\" in database"]
 showColumnDiff (TypeMismatch t1 t2) =
   mconcat [ "column should have type `", pack (show t1)
           , "', but actually has type `", pack (show t2)
@@ -119,7 +125,7 @@ showBoolDiff False what =
 describeTable :: MonadSelda m => TableName -> m [ColumnInfo]
 describeTable tbl = do
   b <- seldaBackend
-  liftIO $ getTableInfo b (fromTableName tbl)
+  liftIO $ getTableInfo b tbl
 
 -- | Check the given table for consistency with the current database, returning
 --   a description of all inconsistencies found.
@@ -146,9 +152,13 @@ diffTable tbl = do
     consistent (_, diffs) = null diffs
     diffColumn schema db = (colName schema, catMaybes
       ([ check colName NameMismatch
-       , if colType schema /= colType db
-           then Just (TypeMismatch (colType schema) (colType db))
-           else Nothing
+       , case colType db of
+           Left typ ->
+             Just (UnknownType typ)
+           Right t | t /= schemaColType ->
+             Just (TypeMismatch schemaColType t)
+           _ ->
+             Nothing
        , check colIsPK PrimaryKeyMismatch
        , check colIsAutoIncrement AutoIncrementMismatch
        , check colIsNullable NullableMismatch
@@ -160,6 +170,7 @@ diffTable tbl = do
              (colFKs db \\ colFKs schema)
        ]))
       where
+        Right schemaColType = colType schema
         check :: Eq a
               => (ColumnInfo -> a)
               -> (a -> ColumnDiff)

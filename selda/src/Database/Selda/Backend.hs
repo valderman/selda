@@ -7,7 +7,8 @@ module Database.Selda.Backend
   , Param (..), Lit (..), ColAttr (..)
   , PPConfig (..), defPPConfig
   , TableName, ColName, ColumnInfo (..)
-  , columnInfo, fromColInfo, mkTableName, mkColName
+  , columnInfo, fromColInfo
+  , mkTableName, mkColName, fromTableName, fromColName, rawTableName
   , newConnection, allStmts, seldaBackend
   , runSeldaT, seldaClose
   , sqlDateTimeFormat, sqlDateFormat, sqlTimeFormat

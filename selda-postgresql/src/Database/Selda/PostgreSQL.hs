@@ -164,6 +164,7 @@ pgBackend c = SeldaBackend
   , runStmtWithPK   = \q ps -> left <$> pgQueryRunner c True q ps
   , prepareStmt     = pgPrepare c
   , runPrepared     = pgRun c
+  , getTableInfo    = pgGetTableInfo c . rawTableName
   , backendId       = PostgreSQL
   , ppConfig        = pgPPConfig
   , closeConnection = \_ -> finish c
@@ -219,6 +220,63 @@ disableFKs c False = do
       , "    end loop;"
       , "end $$;"
       ]
+
+pgGetTableInfo :: Connection -> T.Text -> IO [ColumnInfo]
+pgGetTableInfo c tbl = do
+    Right (_, vals) <- pgQueryRunner c False tableinfo []
+    Right (_, [[SqlString pk]]) <- pgQueryRunner c False pkquery []
+    Right (_, uniques) <- pgQueryRunner c False uniquequery []
+    Right (_, fks) <- pgQueryRunner c False fkquery []
+    mapM (describe pk fks (map toText uniques)) vals
+  where
+    toText [SqlString s] = s
+    tableinfo = mconcat
+      [ "SELECT column_name, data_type, is_nullable "
+      , "FROM information_schema.columns "
+      , "WHERE table_name = '", tbl, "';"
+      ]
+    pkquery = mconcat
+      [ "SELECT a.attname "
+      , "FROM pg_index i "
+      , "JOIN pg_attribute a ON a.attrelid = i.indrelid "
+      , "  AND a.attnum = ANY(i.indkey) "
+      , "WHERE i.indrelid = '", tbl, "'::regclass "
+      , "  AND i.indisprimary;"
+      ]
+    uniquequery = mconcat
+      [ "SELECT a.attname "
+      , "FROM pg_index i "
+      , "JOIN pg_attribute a ON a.attrelid = i.indrelid "
+      , "  AND a.attnum = ANY(i.indkey) "
+      , "WHERE i.indrelid = '", tbl, "'::regclass "
+      , "  AND i.indisunique;"
+      ]
+    fkquery = mconcat
+      [ "SELECT kcu.column_name, ccu.table_name, ccu.column_name "
+      , "FROM information_schema.table_constraints AS tc "
+      , "JOIN information_schema.key_column_usage AS kcu "
+      , "  ON tc.constraint_name = kcu.constraint_name "
+      , "JOIN information_schema.constraint_column_usage AS ccu "
+      , "  ON ccu.constraint_name = tc.constraint_name "
+      , "WHERE constraint_type = 'FOREIGN KEY' AND tc.table_name='", tbl, "';"
+      ]
+    describe pk fks us [SqlString name, SqlString ty, SqlString nullable] =
+      return $ ColumnInfo
+        { colName = mkColName name
+        , colType = mkTypeRep (pk == name) ty'
+        , colIsPK = pk == name
+        , colIsAutoIncrement = ty' == "bigserial"
+        , colIsUnique = name `elem` us
+        , colIsNullable = readBool (encodeUtf8 (T.toLower nullable))
+        , colFKs =
+            [ (mkTableName tbl, mkColName col)
+            | [SqlString cname, SqlString tbl, SqlString col] <- fks
+            , name == cname
+            ]
+        }
+      where ty' = T.toLower ty
+    describe _ _ _ results =
+      throwM $ SqlError $ "bad result from table info query: " ++ show results
 
 pgQueryRunner :: Connection -> Bool -> T.Text -> [Param] -> IO (Either Int (Int, [[SqlValue]]))
 pgQueryRunner c return_lastid q ps = do
@@ -299,6 +357,22 @@ doError c msg = do
     [ msg
     , maybe "" ((": " ++) . BS.unpack) me
     ]
+
+mkTypeRep :: Bool -> T.Text ->  Either T.Text SqlTypeRep
+mkTypeRep True  "bigint"           = Right TRowID
+mkTypeRep True  "bigserial"        = Right TRowID
+mkTypeRep True  "int8"             = Right TRowID
+mkTypeRep _ispk "int8"             = Right TInt
+mkTypeRep _ispk "bigint"           = Right TInt
+mkTypeRep _ispk "float8"           = Right TFloat
+mkTypeRep _ispk "double precision" = Right TFloat
+mkTypeRep _ispk "timestamp"        = Right TDateTime
+mkTypeRep _ispk "bytea"            = Right TBlob
+mkTypeRep _ispk "text"             = Right TText
+mkTypeRep _ispk "boolean"          = Right TBool
+mkTypeRep _ispk "date"             = Right TDate
+mkTypeRep _ispk "time"             = Right TTime
+mkTypeRep _ispk typ                = Left typ
 
 -- | Custom column types for postgres.
 pgColType :: PPConfig -> SqlTypeRep -> T.Text

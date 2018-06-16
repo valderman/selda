@@ -2,7 +2,7 @@
 -- | Encoding/decoding for PostgreSQL.
 module Database.Selda.PostgreSQL.Encoding
   ( toSqlValue, fromSqlValue, fromSqlType
-  , readInt
+  , readInt, readBool
   ) where
 #ifdef __HASTE__
 
@@ -17,7 +17,9 @@ readInt = undefined
 import qualified Data.ByteString as BS
 import Data.ByteString.Builder
 import Data.ByteString.Char8 (unpack)
+import qualified Data.ByteString.Char8 as BSC (map)
 import qualified Data.ByteString.Lazy as LBS
+import Data.Char (toLower)
 import qualified Data.Text as Text
 import Data.Text.Encoding
 import Database.PostgreSQL.LibPQ (Oid (..), Format (..))
@@ -26,17 +28,19 @@ import Unsafe.Coerce
 
 -- | OIDs for all types used by Selda.
 blobType, boolType, intType, int32Type, int16Type, textType, doubleType,
-  dateType, timeType, timestampType :: Oid
+  dateType, timeType, timestampType, nameType, varcharType :: Oid
 boolType      = Oid 16
 intType       = Oid 20
 int32Type     = Oid 23
 int16Type     = Oid 21
 textType      = Oid 25
+nameType      = Oid 19
 doubleType    = Oid 701
 dateType      = Oid 1082
 timeType      = Oid 1083
 timestampType = Oid 1114
 blobType      = Oid 17
+varcharType   = Oid 1043
 
 -- | Convert a parameter into an postgres parameter triple.
 fromSqlValue :: Lit a -> Maybe (Oid, BS.ByteString, Format)
@@ -67,7 +71,7 @@ fromSqlType TRowID    = intType
 -- | Convert the given postgres return value and type to an @SqlValue@.
 toSqlValue :: Oid -> BS.ByteString -> SqlValue
 toSqlValue t val
-  | t == boolType    = SqlBool $ readBool val
+  | t == boolType    = SqlBool $ readBool (BSC.map toLower val)
   | t == intType     = SqlInt $ readInt val
   | t == int32Type   = SqlInt $ readInt val
   | t == int16Type   = SqlInt $ readInt val
@@ -91,14 +95,18 @@ toSqlValue t val
         go x
           | BS.length x >= 2 = (16*hex 0 x + (hex 1 x)) : go (BS.drop 2 x)
           | otherwise        = []
-    textish = [textType, timestampType, timeType, dateType]
-    readBool "f"     = False
-    readBool "0"     = False
-    readBool "false" = False
-    readBool "n"     = False
-    readBool "no"    = False
-    readBool "off"   = False
-    readBool _       = True
+    textish = [textType, timestampType, timeType, dateType, nameType, varcharType]
+
+-- | Attempt to make sense of a bool-ish value.
+--   Note that values should all be in lowercase.
+readBool :: BS.ByteString -> Bool
+readBool "f"     = False
+readBool "0"     = False
+readBool "false" = False
+readBool "n"     = False
+readBool "no"    = False
+readBool "off"   = False
+readBool _       = True
 
 -- | Read an integer from a strict bytestring.
 --   Assumes that the bytestring does, in fact, contain an integer.
