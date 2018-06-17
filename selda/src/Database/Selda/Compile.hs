@@ -43,7 +43,7 @@ compileWithTables :: Result a
                   => PPConfig
                   -> Query s a
                   -> ([TableName], (Text, [Param]))
-compileWithTables cfg = compSql cfg . snd . compQuery 0
+compileWithTables cfg = compSql cfg . compQuery 0
 
 -- | Compile an @INSERT@ query, given the keyword representing default values
 --   in the target SQL dialect, a table and a list of items corresponding
@@ -87,9 +87,9 @@ compileDelete cfg tbl check = compDelete cfg (tableName tbl) predicate
 
 -- | Compile a query to an SQL AST.
 --   Groups are ignored, as they are only used by 'aggregate'.
-compQuery :: Result a => Scope -> Query s a -> (Int, SQL)
+compQuery :: Result a => Scope -> Query s a -> SQL
 compQuery ns q =
-    (nameSupply st, SQL final (Product [srcs]) [] [] [] Nothing False)
+    SQL final (Product [srcs]) [] [] [] Nothing False
   where
     (cs, st) = runQueryM ns q
     final = finalCols cs
@@ -103,7 +103,7 @@ scopeSupply = unsafePerformIO $ newIORef 1
 
 -- | Get a fresh scope from the global scope supply, then use it to compile
 --   the given query.
-compQueryWithFreshScope :: Result a => Query s a -> (Int, SQL)
+compQueryWithFreshScope :: Result a => Query s a -> SQL
 compQueryWithFreshScope q = unsafePerformIO $ do
   s <- atomicModifyIORef' scopeSupply (\s -> (s+1, s))
   return $ compQuery s q

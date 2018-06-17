@@ -4,13 +4,20 @@ import Control.Monad.State.Strict
 #if !MIN_VERSION_base(4, 11, 0)
 import Data.Monoid
 #endif
+import Data.IORef
 import Data.Text (pack)
 import Database.Selda.SQL
 import Database.Selda.Column
 import Database.Selda.Types (ColName, mkColName, addColSuffix)
+import System.IO.Unsafe
 
 type Scope = Int
 type Ident = Int
+
+-- | Try using a global name supply go fix issue #28.
+{-# NOINLINE globalNameSupply #-}
+globalNameSupply :: IORef Int
+globalNameSupply = unsafePerformIO $ newIORef 0
 
 -- | A name, consisting of a scope and an identifier.
 data Name = Name Scope Ident
@@ -31,10 +38,10 @@ runQueryM scope = flip runState (initState scope) . unQ
 isolate :: Query s a -> State GenState (GenState, a)
 isolate (Query q) = do
   st <- get
-  put $ (initState (nameScope st)) {nameSupply = nameSupply st}
+  put $ initState (nameScope st)
   x <- q
   st' <- get
-  put $ st {nameSupply = nameSupply st'}
+  put st
   return (st', x)
 
 -- | SQL generation internal state.
@@ -45,7 +52,6 @@ data GenState = GenState
   { sources         :: ![SQL]
   , staticRestricts :: ![Exp SQL Bool]
   , groupCols       :: ![SomeCol SQL]
-  , nameSupply      :: !Int
   , nameScope       :: !Int
   }
 
@@ -55,7 +61,6 @@ initState scope = GenState
   { sources = []
   , staticRestricts = []
   , groupCols = []
-  , nameSupply = 0
   , nameScope  = scope
   }
 
@@ -76,8 +81,13 @@ rename col@(Named _ _) = do
 freshId :: State GenState Name
 freshId = do
   st <- get
-  put $ st {nameSupply = succ $ nameSupply st}
-  return (Name (nameScope st) (nameSupply st))
+  name <- modifyNS $ \name -> (succ name, name)
+  return (Name (nameScope st) name)
+
+{-# NOINLINE modifyNS #-}
+modifyNS :: (Int -> (Int, Int)) -> State a Int
+modifyNS f = do
+  return $! unsafePerformIO (atomicModifyIORef' globalNameSupply f)
 
 -- | Get a guaranteed unique column name.
 freshName :: State GenState ColName

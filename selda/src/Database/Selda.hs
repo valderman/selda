@@ -241,7 +241,7 @@ instance Set [] where
   isIn (C x) xs = C $ InList x (unsafeCoerce xs)
 
 instance Set (Query s) where
-  isIn (C x) = C . InQuery x . snd . compQueryWithFreshScope
+  isIn (C x) = C . InQuery x . compQueryWithFreshScope
 
 (.&&), (.||) :: Col s Bool -> Col s Bool -> Col s Bool
 (.&&) = liftC2 $ BinOp And
