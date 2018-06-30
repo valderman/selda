@@ -109,6 +109,7 @@ module Database.Selda
   , required, optional
   , primary, autoPrimary
   , fk, optFk, unique
+  , IndexMethod (..), indexed, indexedUsing
     -- * Creating and dropping tables
   , createTable, tryCreateTable
   , dropTable, tryDropTable

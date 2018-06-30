@@ -41,6 +41,10 @@ data PPConfig = PPConfig
     --   has more than this many columns, you should really rethink
     --   your database design.
   , ppMaxInsertParams :: Maybe Int
+
+    -- | @CREATE INDEX@ suffix to indicate that the index should use the given
+    --   index method.
+  , ppIndexMethodHook :: IndexMethod -> Text
   }
 
 -- | Default settings for pretty-printing.
@@ -58,6 +62,7 @@ defPPConfig = PPConfig
     , ppColAttrsHook = \_ ats _ -> T.unwords $ map defColAttr ats
     , ppAutoIncInsert = "NULL"
     , ppMaxInsertParams = Nothing
+    , ppIndexMethodHook = const ""
     }
 
 -- | Default compilation for SQL types.
@@ -79,3 +84,4 @@ defColAttr AutoIncrement = "AUTOINCREMENT"
 defColAttr Required      = "NOT NULL"
 defColAttr Optional      = "NULL"
 defColAttr Unique        = "UNIQUE"
+defColAttr (Indexed _)   = ""

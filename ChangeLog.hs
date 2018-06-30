@@ -9,7 +9,7 @@ import System.Process
 changeLog :: ChangeLog
 changeLog =
   [ Version "0.3.0.0" "TBD"
-    "Migrations, validation, minor API overhaul, and better generics."
+    "Migrations, indexes, validation, minor API overhaul, and better generics."
     [ "Support for Stack and GHC 8.4."
     , "Export ToDyn to allow more general queries."
     , "Allow nesting product types using the Nested type in generic tables."
@@ -22,6 +22,7 @@ changeLog =
     , "More generic type for sum_."
     , "Table validation against current database."
     , "Basic migration support."
+    , "Basic index support."
     ]
   , Version "0.2.0.0" "2018-04-02"
     "Fixes for inner queries and generic tables."

@@ -4,6 +4,7 @@ module Database.Selda.Backend
   ( MonadSelda (..), SeldaT, SeldaM, SeldaError (..)
   , StmtID, BackendID (..), QueryRunner, SeldaBackend (..), SeldaConnection
   , SqlType (..), SqlValue (..), SqlTypeRep (..)
+  , IndexMethod (..)
   , Param (..), Lit (..), ColAttr (..)
   , PPConfig (..), defPPConfig
   , TableName, ColName, ColumnInfo (..)
@@ -18,6 +19,7 @@ import Control.Monad.Catch
 import Control.Monad.IO.Class
 import Data.IORef
 import Database.Selda.Backend.Internal
+import Database.Selda.Table (IndexMethod (..))
 import Database.Selda.Types
 
 -- | Close a reusable Selda connection.

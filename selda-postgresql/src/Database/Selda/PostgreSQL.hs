@@ -131,14 +131,18 @@ pgOpen' schema connStr =
 
 pgPPConfig :: PPConfig
 pgPPConfig = defPPConfig
-  { ppType = pgColType defPPConfig
-  , ppTypeHook = pgTypeHook
-  , ppTypePK = pgColTypePK defPPConfig
-  , ppAutoIncInsert = "DEFAULT"
-  , ppColAttrs = T.unwords . map pgColAttr
-  , ppColAttrsHook = pgColAttrsHook
-  }
+    { ppType = pgColType defPPConfig
+    , ppTypeHook = pgTypeHook
+    , ppTypePK = pgColTypePK defPPConfig
+    , ppAutoIncInsert = "DEFAULT"
+    , ppColAttrs = T.unwords . map pgColAttr
+    , ppColAttrsHook = pgColAttrsHook
+    , ppIndexMethodHook = (" USING " <>) . compileIndexMethod
+    }
   where
+    compileIndexMethod BTreeIndex = "btree"
+    compileIndexMethod HashIndex  = "hash"
+
     pgTypeHook :: SqlTypeRep -> [ColAttr] -> (SqlTypeRep -> T.Text) -> T.Text
     pgTypeHook ty attrs fun
       | isGenericIntPrimaryKey ty attrs = pgColTypePK pgPPConfig TRowID
@@ -231,7 +235,8 @@ pgGetTableInfo c tbl = do
         Right (_, [[SqlString pk]]) <- pgQueryRunner c False pkquery []
         Right (_, uniques) <- pgQueryRunner c False uniquequery []
         Right (_, fks) <- pgQueryRunner c False fkquery []
-        mapM (describe pk fks (map toText uniques)) vals
+        Right (_, ixs) <- pgQueryRunner c False ixquery []
+        mapM (describe pk fks (map toText ixs) (map toText uniques)) vals
   where
     toText [SqlString s] = s
     tableinfo = mconcat
@@ -264,7 +269,18 @@ pgGetTableInfo c tbl = do
       , "  ON ccu.constraint_name = tc.constraint_name "
       , "WHERE constraint_type = 'FOREIGN KEY' AND tc.table_name='", tbl, "';"
       ]
-    describe pk fks us [SqlString name, SqlString ty, SqlString nullable] =
+    ixquery = mconcat
+      [ "select a.attname as column_name "
+      , "from pg_class t, pg_class i, pg_index ix, pg_attribute a "
+      , "where "
+      , "t.oid = ix.indrelid "
+      , "and i.oid = ix.indexrelid "
+      , "and a.attrelid = t.oid "
+      , "and a.attnum = ANY(ix.indkey) "
+      , "and t.relkind = 'r' "
+      , "and t.relname = '", tbl , "';"
+      ]
+    describe pk fks ixs us [SqlString name, SqlString ty, SqlString nullable] =
       return $ ColumnInfo
         { colName = mkColName name
         , colType = mkTypeRep (pk == name) ty'
@@ -272,6 +288,7 @@ pgGetTableInfo c tbl = do
         , colIsAutoIncrement = ty' == "bigserial"
         , colIsUnique = name `elem` us
         , colIsNullable = readBool (encodeUtf8 (T.toLower nullable))
+        , colHasIndex = name `elem` ixs
         , colFKs =
             [ (mkTableName tbl, mkColName col)
             | [SqlString cname, SqlString tbl, SqlString col] <- fks
@@ -279,7 +296,7 @@ pgGetTableInfo c tbl = do
             ]
         }
       where ty' = T.toLower ty
-    describe _ _ _ results =
+    describe _ _ _ _ results =
       throwM $ SqlError $ "bad result from table info query: " ++ show results
 
 pgQueryRunner :: Connection -> Bool -> T.Text -> [Param] -> IO (Either Int (Int, [[SqlValue]]))
@@ -394,6 +411,7 @@ pgColAttr AutoIncrement = ""
 pgColAttr Required      = "NOT NULL"
 pgColAttr Optional      = "NULL"
 pgColAttr Unique        = "UNIQUE"
+pgColAttr (Indexed _)   = ""
 
 -- | Custom column types (primary key position) for postgres.
 pgColTypePK :: PPConfig -> SqlTypeRep -> T.Text

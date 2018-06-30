@@ -137,6 +137,8 @@ data ColumnInfo = ColumnInfo
   , colIsUnique :: Bool
     -- | Can the column be NULL?
   , colIsNullable :: Bool
+    -- | Does the column have an index?
+  , colHasIndex :: Bool
     -- | Any foreign key (table, column) pairs referenced by this column.
   , colFKs :: [(TableName, ColName)]
   } deriving (Show, Eq)
@@ -150,6 +152,7 @@ fromColInfo ci = ColumnInfo
     , colIsAutoIncrement = AutoIncrement `elem` Table.colAttrs ci
     , colIsUnique = Unique `elem` Table.colAttrs ci
     , colIsNullable = Optional `elem` Table.colAttrs ci
+    , colHasIndex = not $ null [() | Indexed _ <- Table.colAttrs ci]
     , colFKs = map fk (Table.colFKs ci)
     }
   where

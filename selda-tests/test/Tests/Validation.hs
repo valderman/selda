@@ -122,6 +122,10 @@ validateWrongTable = do
     assertFail $ validateTable badPeople2
     assertFail $ validateTable badPeople3
     assertFail $ validateTable badPeople4
+    assertFail $ validateTable badIxPeople1
+    assertFail $ validateTable badIxPeople2
+    assertFail $ validateTable badIxPeople3
+    assertFail $ validateTable badIxPeople4
   where
     badGenPeople :: GenTable Person
     badGenPeople = genTable "genpeople" [name :- uniqueGen]
@@ -131,32 +135,65 @@ validateWrongTable = do
           table "people"
       $   primary "name"
       :*: required "age"
-      :*: required "pet"
-      :*: required "cash"
+      :*: indexed (required "pet")
+      :*: indexedUsing HashIndex (required "cash")
 
     badPeople2 :: Table (Text :*: Bool :*: Maybe Text :*: Double)
     badPeople2 =
           table "people"
       $   primary "name"
       :*: required "age"
-      :*: optional "pet"
-      :*: required "cash"
+      :*: indexed (optional "pet")
+      :*: indexedUsing HashIndex (required "cash")
 
     badPeople3 :: Table (Text :*: Bool :*: Maybe Text)
     badPeople3 =
           table "people"
       $   primary "name"
       :*: required "age"
-      :*: optional "pet"
+      :*: indexed (optional "pet")
 
     badPeople4 :: Table (Text :*: Bool :*: Maybe Text :*: Double :*: Int)
     badPeople4 =
           table "people"
       $   primary "name"
       :*: required "age"
-      :*: optional "pet"
-      :*: required "cash"
+      :*: indexed (optional "pet")
+      :*: indexedUsing HashIndex (required "cash")
       :*: required "extra"
+
+    badIxPeople1 :: Table (Text :*: Bool :*: Maybe Text :*: Double)
+    badIxPeople1 =
+          table "people"
+      $   primary "name"
+      :*: required "age"
+      :*: optional "pet"
+      :*: indexedUsing HashIndex (required "cash")
+
+    badIxPeople2 :: Table (Text :*: Bool :*: Maybe Text :*: Double)
+    badIxPeople2 =
+          table "people"
+      $   primary "name"
+      :*: required "age"
+      :*: indexed (optional "pet")
+      :*: required "cash"
+
+    badIxPeople3 :: Table (Text :*: Bool :*: Maybe Text :*: Double)
+    badIxPeople3 =
+          table "people"
+      $   indexed (primary "name")
+      :*: required "age"
+      :*: indexed (optional "pet")
+      :*: indexedUsing HashIndex (required "cash")
+
+    badIxPeople4 :: Table (Text :*: Bool :*: Maybe Text :*: Double)
+    badIxPeople4 =
+          table "people"
+      $   primary "name"
+      :*: indexedUsing HashIndex (required "age")
+      :*: indexed (optional "pet")
+      :*: indexedUsing HashIndex (required "cash")
+
 
 validateNonexistentTable = do
     assertFail $ validateTable nonsense

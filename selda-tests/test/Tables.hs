@@ -12,7 +12,7 @@ data Person = Person
   } deriving (Generic, Show, Ord, Eq)
 
 genPeople :: GenTable Person
-genPeople = genTable "genpeople" [name :- primaryGen]
+genPeople = genTable "genpeople" [name :- primaryGen, name :- indexGen]
 
 genModPeople :: GenTable Person
 genModPeople = genTableFieldMod "genmodpeople" [name :- primaryGen] $ \name ->
@@ -23,8 +23,8 @@ people =
       table "people"
   $   primary "name"
   :*: required "age"
-  :*: optional "pet"
-  :*: required "cash"
+  :*: indexed (optional "pet")
+  :*: indexedUsing HashIndex (required "cash")
 pName :*: pAge :*: pPet :*: pCash = selectors people
 
 addresses :: Table (Text :*: Text)

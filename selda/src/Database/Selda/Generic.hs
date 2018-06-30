@@ -36,6 +36,7 @@ module Database.Selda.Generic
   , genTable, genTableFieldMod, toRel, toRels, fromRel, fromRels
   , insertGen, insertGen_, insertGenWithPK
   , primaryGen, autoPrimaryGen, uniqueGen, fkGen
+  , indexGen, indexUsingGen
   ) where
 import Control.Monad.State
 import Data.Dynamic
@@ -295,6 +296,14 @@ data Attribute t c
 -- | A primary key which does not auto-increment.
 primaryGen :: Attribute t c
 primaryGen = Attribute [Primary, Required, Unique]
+
+-- | Create an index on this column.
+indexGen :: Attribute t c
+indexGen = Attribute [Indexed Nothing]
+
+-- | Create an index using the given index method on this column.
+indexUsingGen :: IndexMethod -> Attribute t c
+indexUsingGen m = Attribute [Indexed (Just m)]
 
 -- | An auto-incrementing primary key.
 autoPrimaryGen :: Attribute t (ID t)

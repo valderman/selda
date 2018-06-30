@@ -75,6 +75,11 @@ migrateAll fks =
 --   If no matching starting state is found, a 'ValidationError' is thrown.
 --   If the database is already in the state specified by the end state of the
 --   final step, no migration is performed.
+--
+--   Note that when looking for a matching starting state, index methods for
+--   indexed columns are not taken into account. Two columns @c1@ and @c2@ are
+--   considered to be identical if @c1@ is indexed with index method @foo@ and
+--   @c2@ is indexed with index method @bar@.
 autoMigrate :: MonadSelda m
             => Bool -- ^ Enforce foreign keys during migration?
             -> [MigrationStep] -- ^ Migration steps to perform.

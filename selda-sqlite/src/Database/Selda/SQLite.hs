@@ -93,6 +93,7 @@ sqliteGetTableInfo db table = do
         , colIsPK = pk == 1
         , colIsAutoIncrement = "auto_increment" `isSuffixOf` ty
         , colIsUnique = any (== (name, "u")) ixs || pk == 1
+        , colHasIndex = any (== (name, "c")) ixs
         , colIsNullable = nonnull == 0
         , colFKs =
             [ (mkTableName reftbl, mkColName refkey)

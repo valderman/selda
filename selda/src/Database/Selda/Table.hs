@@ -87,7 +87,24 @@ type family NonNull a :: Constraint where
 --   When adding elements, make sure that they are added in the order
 --   required by SQL syntax, as this list is only sorted before being
 --   pretty-printed.
-data ColAttr = Primary | AutoIncrement | Required | Optional | Unique
+data ColAttr
+  = Primary
+  | AutoIncrement
+  | Required
+  | Optional
+  | Unique
+  | Indexed (Maybe IndexMethod)
+  deriving (Show, Eq, Ord)
+
+-- | Method to use for indexing with 'indexedUsing'.
+--   Index methods are ignored by the SQLite backend, as SQLite doesn't support
+--   different index methods.
+data IndexMethod
+  = BTreeIndex
+  | HashIndex
+-- Omitted until the operator class business is sorted out
+--  | GistIndex
+--  | GinIndex
   deriving (Show, Eq, Ord)
 
 -- | A non-nullable column with the given name.
@@ -115,6 +132,14 @@ autoPrimary n = ColSpec [c {colAttrs = [Primary, AutoIncrement, Required, Unique
 --   unique, such as a primary key, is a no-op.
 unique :: SqlType a => ColSpec a -> ColSpec a
 unique = addAttr Unique
+
+-- | Create an index on the given column.
+indexed :: SqlType a => ColSpec a -> ColSpec a
+indexed = addAttr (Indexed Nothing)
+
+-- | Create an index on the given column, using the given index method.
+indexedUsing :: SqlType a => IndexMethod -> ColSpec a -> ColSpec a
+indexedUsing m = addAttr (Indexed (Just m))
 
 -- | Add an attribute to a column. Not for public consumption.
 addAttr :: SqlType a => ColAttr -> ColSpec a -> ColSpec a

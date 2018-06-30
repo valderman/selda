@@ -218,13 +218,13 @@ deleteFrom_ tbl f = void $ deleteFrom tbl f
 createTable :: MonadSelda m => Table a -> m ()
 createTable tbl = do
   cfg <- ppConfig <$> seldaBackend
-  void . flip exec [] $ compileCreateTable cfg Fail tbl
+  mapM_ (flip exec []) $ compileCreateTable cfg Fail tbl
 
 -- | Create a table from the given schema, unless it already exists.
 tryCreateTable :: MonadSelda m => Table a -> m ()
 tryCreateTable tbl = do
   cfg <- ppConfig <$> seldaBackend
-  void . flip exec [] $ compileCreateTable cfg Ignore tbl
+  mapM_ (flip exec []) $ compileCreateTable cfg Ignore tbl
 
 -- | Drop the given table.
 dropTable :: MonadSelda m => Table a -> m ()

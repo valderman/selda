@@ -16,22 +16,42 @@ import Database.Selda.Types
 data OnError = Fail | Ignore
   deriving (Eq, Ord, Show)
 
--- | Compile a @CREATE TABLE@ query from a table definition.
-compileCreateTable :: PPConfig -> OnError -> Table a -> Text
-compileCreateTable customColType ifex tbl = ensureValid `seq` mconcat
-  [ "CREATE TABLE ", ifNotExists ifex, fromTableName (tableName tbl), "("
-  , intercalate ", " (map (compileTableCol customColType) (tableCols tbl))
-  , case allFKs of
-      [] -> ""
-      _  -> ", " <> intercalate ", " compFKs
-  , ")"
-  ]
+-- | Compile a sequence of queries to create the given table, including indexes.
+--   The first query in the sequence is always @CREATE TABLE@.
+compileCreateTable :: PPConfig -> OnError -> Table a -> [Text]
+compileCreateTable cfg ifex tbl =
+    ensureValid `seq` (createTable : createIndexes)
   where
+    createTable = mconcat
+      [ "CREATE TABLE ", ifNotExists ifex, fromTableName (tableName tbl), "("
+      , intercalate ", " (map (compileTableCol cfg) (tableCols tbl))
+      , case allFKs of
+          [] -> ""
+          _  -> ", " <> intercalate ", " compFKs
+      , ")"
+      ]
+    createIndexes =
+      [ compileCreateIndex cfg (tableName tbl) (colName col) mmethod
+      | col <- tableCols tbl
+      , Indexed mmethod <- colAttrs col
+      ]
     ifNotExists Fail   = ""
     ifNotExists Ignore = "IF NOT EXISTS "
     allFKs = [(colName ci, fk) | ci <- tableCols tbl, fk <- colFKs ci]
     compFKs = zipWith (uncurry compileFK) allFKs [0..]
     ensureValid = validateOrThrow (tableName tbl) (tableCols tbl)
+
+-- | Compile a @CREATE INDEX@ query for the given index.
+compileCreateIndex :: PPConfig -> TableName -> ColName -> Maybe IndexMethod -> Text
+compileCreateIndex cfg tbl col mmethod = mconcat
+  [ "CREATE INDEX "
+  , fromColName $ addColPrefix col ("ix" <> rawTableName tbl <> "_")
+  , " ON ", fromTableName tbl
+  , case mmethod of
+      Just method -> " " <> ppIndexMethodHook cfg method
+      _           -> ""
+  , " (", fromColName col, ")"
+  ]
 
 -- | Compile a foreign key constraint.
 compileFK :: ColName -> (Table (), ColName) -> Int -> Text
