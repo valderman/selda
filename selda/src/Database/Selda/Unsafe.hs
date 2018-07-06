@@ -33,3 +33,7 @@ fun f = liftC $ UnOp (Fun f)
 -- | Like 'fun', but with two arguments.
 fun2 :: Text -> Col s a -> Col s b -> Col s c
 fun2 f = liftC2 (Fun2 f)
+
+-- | Like 'fun', but with zero arguments.
+fun0 :: Text -> Col s a
+fun0 f = C $ NulOp (Fun0 f)

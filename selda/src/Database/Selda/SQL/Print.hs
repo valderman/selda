@@ -223,6 +223,7 @@ ppCol (Col name)     = pure (fromColName name)
 ppCol (Lit l)        = ppLit l
 ppCol (BinOp op a b) = ppBinOp op a b
 ppCol (UnOp op a)    = ppUnOp op a
+ppCol (NulOp a)      = ppNulOp a
 ppCol (Fun2 f a b)   = do
   a' <- ppCol a
   b' <- ppCol b
@@ -245,6 +246,9 @@ ppCol (InQuery x q) = do
   x' <- ppCol x
   q' <- ppSql q
   pure $ mconcat [x', " IN (", q', ")"]
+
+ppNulOp :: NulOp a -> PP Text
+ppNulOp (Fun0 f) = pure $ f <> "()"
 
 ppUnOp :: UnOp a b -> Exp SQL a -> PP Text
 ppUnOp op c = do
