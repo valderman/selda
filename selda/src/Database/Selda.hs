@@ -82,7 +82,8 @@ module Database.Selda
   , (:*:)(..)
   , select, selectValues, from, distinct
   , restrict, limit
-  , order , ascending, descending
+  , order, ascending, descending
+  , orderRandom
   , inner, suchThat
     -- * Expressions over columns
   , Set (..)
