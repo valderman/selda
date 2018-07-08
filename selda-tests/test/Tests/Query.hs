@@ -203,7 +203,7 @@ selectVals = do
 selectEmptyValues = do
   res <- query $ do
     ppl <- select people
-    vals <- selectValues ([] :: [Single (Maybe Text)])
+    vals <- selectValues ([] :: [Only (Maybe Text)])
     cs <- select comments
     return cs
   assEq "result set wasn't empty" [] res
@@ -247,15 +247,15 @@ simpleIfThenElse = do
       ]
 
 roundToInt = do
-  res <- query $ round_ <$> selectValues [1.1, 1.5, 1.9 :: Single Double]
+  res <- query $ round_ <$> selectValues [1.1, 1.5, 1.9 :: Only Double]
   assEq "bad rounding" [1, 2, 2 :: Int] res
 
 serializeDouble = do
   -- The "protocol" used by PostgreSQL is insane - better check that we speak
   -- it properly!
   res <- query $ do
-    n <- selectValues [123456789 :: Single Int]
-    d <- selectValues [123456789.3 :: Single Double]
+    n <- selectValues [123456789 :: Only Int]
+    d <- selectValues [123456789.3 :: Only Double]
     restrict (d .> cast n)
     return (cast n + float 1.123)
   assEq "wrong encoding" 1 (length res)

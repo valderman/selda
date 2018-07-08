@@ -172,5 +172,5 @@ validateWrongTable = do
 validateNonexistentTable = do
     assertFail $ validateTable nonsense
   where
-    nonsense :: Table (Single Int)
+    nonsense :: Table (Only Int)
     nonsense = table "I don't exist" [the :- primary]

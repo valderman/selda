@@ -561,7 +561,7 @@ manyParameters = do
     assEq "insert returned wrong insertion count" 1001 inserted
     assEq "wrong number of items inserted" [1001] actuallyInserted
   where
-    things :: Table (Single Int)
+    things :: Table (Only Int)
     things = table "things" []
 
 emptyInsert = do
@@ -668,14 +668,14 @@ disableForeignKeys = do
       tryDropTable tbl1
       createTable tbl1
       createTable tbl2
-      pk <- insertWithPK tbl1 [Single def]
+      pk <- insertWithPK tbl1 [Only def]
       insert tbl2 [(def, pk)]
       assertFail $ dropTable tbl1
       withoutForeignKeyEnforcement $ dropTable tbl1 >> dropTable tbl2
       tryDropTable tbl2
       tryDropTable tbl1
 
-    tbl1 :: Table (Single RowID)
+    tbl1 :: Table (Only RowID)
     tbl1 = table "table1" [the :- untypedAutoPrimary]
     id1 = selectors tbl1
 
@@ -691,13 +691,13 @@ migrationTest test = do
     tryDropTable migrationTable2
     tryDropTable migrationTable3
 
-migrationTable1 :: Table (Single Int)
+migrationTable1 :: Table (Only Int)
 migrationTable1 = table "table1" [the :- primary]
 
 migrationTable2 :: Table (Text, Int)
 migrationTable2 = table "table1" [fst :- primary]
 
-migrationTable3 :: Table (Single Int)
+migrationTable3 :: Table (Only Int)
 migrationTable3 = table "table3" [the :- primary]
 
 steps =
