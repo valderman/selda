@@ -1,14 +1,16 @@
 {-# LANGUAGE GADTs, TypeOperators, TypeFamilies, ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleInstances, FlexibleContexts, UndecidableInstances #-}
+{-# LANGUAGE ConstraintKinds #-}
 -- | Selda SQL compilation.
 module Database.Selda.Compile
-  ( Result, Res
+  ( Relational', Result, Res
   , toRes, compQuery, compQueryWithFreshScope
   , compile, compileWith, compileWithTables
   , compileInsert, compileUpdate, compileDelete
   )
   where
 import Database.Selda.Column
+import Database.Selda.Generic
 import Database.Selda.Query.Type
 import Database.Selda.SQL
 import Database.Selda.SQL.Print
@@ -25,6 +27,13 @@ import Data.Typeable (Typeable)
 -- For scope supply
 import Data.IORef
 import System.IO.Unsafe
+
+-- | Adding scoped constraints to 'Relational' for convenience.
+type Relational' s a =
+  ( Relational a
+  , Columns (Cols s (Relation a))
+  , Result (Cols s (Relation a))
+  )
 
 -- | Compile a query into a parameterised SQL statement.
 --
@@ -48,7 +57,7 @@ compileWithTables cfg = compSql cfg . compQuery 0
 -- | Compile an @INSERT@ query, given the keyword representing default values
 --   in the target SQL dialect, a table and a list of items corresponding
 --   to the table.
-compileInsert :: Insert a => PPConfig -> Table a -> [a] -> [(Text, [Param])]
+compileInsert :: Relational a => PPConfig -> Table a -> [a] -> [(Text, [Param])]
 compileInsert _ _ [] =
   [(empty, [])]
 compileInsert cfg tbl rows =
@@ -65,11 +74,11 @@ compileInsert cfg tbl rows =
         (x, xs') -> x : chunk chunksize xs'
 
 -- | Compile an @UPDATE@ query.
-compileUpdate :: forall s a. (Columns (Cols s a), Result (Cols s a))
-              => PPConfig                 -- ^ SQL pretty-printer config.
-              -> Table a                  -- ^ The table to update.
-              -> (Cols s a -> Cols s a)   -- ^ Update function.
-              -> (Cols s a -> Col s Bool) -- ^ Predicate: update only when true.
+compileUpdate :: forall s a. Relational' s a
+              => PPConfig
+              -> Table a                             -- ^ Table to update.
+              -> (Cols s (Relation a) -> Cols s (Relation a)) -- ^ Update function.
+              -> (Cols s (Relation a) -> Col s Bool) -- ^ Predicate.
               -> (Text, [Param])
 compileUpdate cfg tbl upd check =
     compUpdate cfg (tableName tbl) predicate updated
@@ -80,8 +89,11 @@ compileUpdate cfg tbl upd check =
     C predicate = check cs
 
 -- | Compile a @DELETE FROM@ query.
-compileDelete :: Columns (Cols s a)
-              => PPConfig -> Table a -> (Cols s a -> Col s Bool) -> (Text, [Param])
+compileDelete :: Relational' s a
+              => PPConfig
+              -> Table a
+              -> (Cols s (Relation a) -> Col s Bool)
+              -> (Text, [Param])
 compileDelete cfg tbl check = compDelete cfg (tableName tbl) predicate
   where C predicate = check $ toTup $ map colName $ tableCols tbl
 

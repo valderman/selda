@@ -3,44 +3,16 @@
 {-# LANGUAGE UndecidableInstances, MultiParamTypeClasses, OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts, ScopedTypeVariables, ConstraintKinds #-}
 {-# LANGUAGE GADTs, CPP, DeriveGeneric, DataKinds #-}
--- | Build tables and database operations from (almost) any Haskell type.
---
---   While the types in this module may look somewhat intimidating, the rules
---   for generic tables and queries are quite simple:
---
---     * Any record type with a single data constructor, where all fields are
---       instances of 'SqlType', can be used for generic tables and queries
---       if it derives 'Generic'.
---     * Record types fulfilling the above criteria may also be included within
---       other relations by wrapping it in the 'Nested' type.
---     * Columns from several tables can be concatenated and returned
---       from queries.
---       If these concatenated columns match up with a sequence of
---       record types, the columns can be marshalled into the appropriate
---       sequence of record types using inductive tuples, by calling i.e.
---       @let foo = fromRels result :: [Person :*: Person]@.
---     * To use the standard functions from "Database.Selda" on a generic table,
---       it needs to be unwrapped using 'gen'.
---     * Performing a 'select' on a generic table returns all the table's fields
---       as an inductive tuple.
---     * Tuples obtained this way can be handled either as any other tuple, or
---       using the '!' operator together with any record selector for the
---       tuple's corresponding type.
---     * Relations obtained from a query can be re-assembled into their
---       corresponding data type using 'fromRel'.
+-- | Generics utilities.
 module Database.Selda.Generic
   ( Relational, Generic, FromRel, ToDyn
-  , GenAttr (..), GenTable (..), Attribute
   , Relation, Relations, Nested (..)
-  , ID, untyped, toId, invalidId, isInvalidId
-  , genTable, genTableFieldMod, toRel, toRels, fromRel, fromRels
-  , insertGen, insertGen_, insertGenWithPK
-  , primaryGen, autoPrimaryGen, uniqueGen, fkGen
-  , indexGen, indexUsingGen
+  , tblCols, mkDummy, identify, params
+  , def, fromRel, fromRels, toRel, toRels
   ) where
 import Control.Monad.State
 import Data.Dynamic
-import Data.Text (pack)
+import Data.Text as Text (Text, pack, intercalate, unwords, empty)
 #if MIN_VERSION_base(4, 10, 0)
 import Data.Typeable
 #endif
@@ -50,11 +22,12 @@ import qualified GHC.Generics as G ((:*:)(..), (:+:)(..), Selector, R)
 import qualified GHC.TypeLits as TL
 #endif
 import Unsafe.Coerce
-import Database.Selda hiding (from)
-import Database.Selda.Table
+import Control.Exception (Exception (..), try, throw)
+import System.IO.Unsafe
 import Database.Selda.Types
-import Database.Selda.Selectors
 import Database.Selda.SqlType
+import Database.Selda.Table.Type
+import Database.Selda.SQL (Param (..))
 
 -- | Any type which has a corresponding relation.
 --   To make a @Relational@ instance for some type, simply derive 'Generic'.
@@ -67,8 +40,6 @@ type Relational a =
   ( Generic a
   , GRelation (Rep a)
   , GFromRel (Rep a)
-  , ToDyn (Relation a)
-  , Insert (Relation a)
   )
 
 -- | Convert a generic type into the corresponding database relation.
@@ -95,43 +66,6 @@ toRel = gToRel . from
 toRels :: Relational a => [a] -> [Relation a]
 toRels = map toRel
 
--- | A typed row identifier.
---   Generic tables should use this instead of 'RowID'.
---   Use 'untyped' to erase the type of a row identifier, and @cast@ from the
---   "Database.Selda.Unsafe" module if you for some reason need to add a type
---   to a row identifier.
-newtype ID a = ID {untyped :: RowID}
-  deriving (Eq, Ord, Typeable)
-instance Show (ID a) where
-  show = show . untyped
-
--- | Create a typed row identifier from an integer.
---   Use with caution, preferably only when reading user input.
-toId :: Int -> ID a
-toId = ID . toRowId
-
--- | A typed row identifier which is guaranteed to not match any row in any
---   table.
-invalidId :: ID a
-invalidId = ID invalidRowId
-
--- | Is the given typed row identifier invalid? I.e. is it guaranteed to not
---   match any row in any table?
-isInvalidId :: ID a -> Bool
-isInvalidId = isInvalidRowId . untyped
-
-instance Typeable a => SqlType (ID a) where
-  mkLit (ID n) = LCustom $ mkLit n
-  sqlType _ = TRowID
-  fromSql = ID . fromSql
-  defaultValue = mkLit (ID invalidRowId)
-
-instance Typeable a => SqlOrd (ID a)
-
--- | A generic table. Needs to be unpacked using @gen@ before use with
---   'select', 'insert', etc.
-newtype GenTable a = GenTable {gen :: Table (Rel (Rep a))}
-
 -- | The relation corresponding to the given Haskell type.
 --   This relation simply corresponds to the fields in the data type, from
 --   left to right. For instance:
@@ -151,80 +85,6 @@ type Relation a = Rel (Rep a)
 type family Relations a where
   Relations (a :*: b) = Relations a :++: Relations b
   Relations a         = Relation a
-
--- | A generic column attribute.
---   Essentially a pair or a record selector over the type @a@ and a column
---   attribute.
-data GenAttr a where
-  (:-) :: (a -> b) -> Attribute a b -> GenAttr a
-
--- | Generate a table from the given table name and list of column attributes.
---   All @Maybe@ fields in the table's type will be represented by nullable
---   columns, and all non-@Maybe@ fields fill be represented by required
---   columns.
---   For example:
---
--- > data Person = Person
--- >   { id   :: Int
--- >   , name :: Text
--- >   , age  :: Int
--- >   , pet  :: Maybe Text
--- >   }
--- >   deriving Generic
--- >
--- > people :: GenTable Person
--- > people = genTable "people" [(name, autoPrimaryGen)]
---
---   This example will create a table with the column types
---   @Int :*: Text :*: Int :*: Maybe Text@, where the first field is
---   an auto-incrementing primary key.
-genTable :: forall a. Relational a
-         => TableName
-         -> [GenAttr a]
-         -> GenTable a
-genTable tn attrs = genTableFieldMod tn attrs id
-
--- | Generate a table from the given table name,
---   a list of column attributes and a function
---   that maps from field names to column names.
---   Ex.:
---
--- > data Person = Person
--- >   { personId   :: Int
--- >   , personName :: Text
--- >   , personAge  :: Int
--- >   , personPet  :: Maybe Text
--- >   }
--- >   deriving Generic
--- >
--- > people :: GenTable Person
--- > people = genTableFieldMod "people" [(personName, autoPrimaryGen)] (stripPrefix "person")
---
---   This will create a table with the columns named
---   @Id@, @Name@, @Age@ and @Pet@.
-genTableFieldMod :: forall a. Relational a
-                 => TableName
-                 -> [GenAttr a]
-                 -> (String -> String)
-                 -> GenTable a
-genTableFieldMod tn attrs fieldMod =
-    GenTable $ Table tn (validateOrThrow tn (map tidy cols)) apk
-  where
-    dummy = mkDummy
-    cols = zipWith addAttrs [0..] (tblCols (Proxy :: Proxy a) fieldMod)
-    apk = or [AutoIncrement `elem` as | _ :- Attribute as <- attrs]
-    addAttrs n ci = ci
-      { colAttrs = colAttrs ci ++ concat
-          [ as
-          | f :- Attribute as <- attrs
-          , identify dummy f == n
-          ]
-      , colFKs = colFKs ci ++
-          [ thefk
-          | f :- ForeignKey thefk <- attrs
-          , identify dummy f == n
-          ]
-      }
 
 -- | Re-assemble a generic type from its corresponding relation. This can be
 --   done either for ad hoc queries or for queries over generic tables:
@@ -274,65 +134,9 @@ instance (GFromRel (Rep a), Generic a, FromRel a, FromRel b) =>
   fromRelInternal xs = to a' :*: fromRelInternal xs'
     where (a', xs') = gFromRel xs
 
--- | Like 'insertWithPK', but accepts a generic table and
---   its corresponding data type.
-insertGenWithPK :: (Relational a, MonadSelda m) => GenTable a -> [a] -> m (ID a)
-insertGenWithPK t = fmap ID . insertWithPK (gen t) . toRels
-
--- | Like 'insert', but accepts a generic table and its corresponding data type.
-insertGen :: (Relational a, MonadSelda m) => GenTable a -> [a] -> m Int
-insertGen t = insert (gen t) . toRels
-
--- | Like 'insert_', but accepts a generic table and its corresponding data type.
-insertGen_ :: (Relational a, MonadSelda m) => GenTable a -> [a] -> m ()
-insertGen_ t = void . insertGen t
-
--- | Some attribute that may be set on a column of type @c@, in a table of
---   type @t@.
-data Attribute t c
-  = Attribute [ColAttr]
-  | ForeignKey (Table (), ColName)
-
--- | A primary key which does not auto-increment.
-primaryGen :: Attribute t c
-primaryGen = Attribute [Primary, Required, Unique]
-
--- | Create an index on this column.
-indexGen :: Attribute t c
-indexGen = Attribute [Indexed Nothing]
-
--- | Create an index using the given index method on this column.
-indexUsingGen :: IndexMethod -> Attribute t c
-indexUsingGen m = Attribute [Indexed (Just m)]
-
--- | An auto-incrementing primary key.
-autoPrimaryGen :: Attribute t (ID t)
-autoPrimaryGen = Attribute [Primary, AutoIncrement, Required, Unique]
-
--- | A table-unique value.
-uniqueGen :: Attribute t c
-uniqueGen = Attribute [Unique]
-
--- | A foreign key constraint referencing the given table and column.
-fkGen :: Table t -> Selector t c -> Attribute self c
-fkGen (Table tn tcs tapk) (Selector i) =
-  ForeignKey (Table tn tcs tapk, colName (tcs !! i))
-
 -- | A dummy of some type. Encapsulated to avoid improper use, since all of
 --   its fields are 'unsafeCoerce'd ints.
 newtype Dummy a = Dummy a
-
--- | Extract all column names from the given type.
---   If the type is not a record, the columns will be named @col_1@,
---   @col_2@, etc.
-tblCols :: forall a. (GRelation (Rep a)) => Proxy a -> (String -> String) -> [ColInfo]
-tblCols _ fieldMod = zipWith pack' [0 :: Int ..] $ gTblCols (Proxy :: Proxy (Rep a)) fieldMod
-  where
-    pack' n ci = ci
-      { colName = if colName ci == ""
-                    then mkColName . pack $ "col_" ++ show n
-                    else colName ci
-      }
 
 -- | Create a dummy of the given type.
 mkDummy :: (Generic a, GRelation (Rep a)) => Dummy a
@@ -373,36 +177,68 @@ type family Rel (rep :: * -> *) :: * where
   Rel (K1 G.R a)                     = a
   Rel (a G.:*: b)                    = Rel a :++: Rel b
 
+-- | Extract all insert parameters from a generic value.
+params :: Relational a => a -> [Either Param Param]
+params = unsafePerformIO . gParams . from
+
+-- | Extract all column names from the given type.
+--   If the type is not a record, the columns will be named @col_1@,
+--   @col_2@, etc.
+tblCols :: forall a. Relational a => Proxy a -> (Text -> Text) -> [ColInfo]
+tblCols _ fieldMod =
+    zipWith pack' [0 :: Int ..] $ gTblCols (Proxy :: Proxy (Rep a))
+  where
+    pack' n ci = ci
+      { colName = if colName ci == ""
+                    then mkColName $ fieldMod ("col_" <> pack (show n))
+                    else modColName (colName ci) fieldMod
+      }
+
+-- | Exception indicating the use of a default value.
+--   If any values throwing this during evaluation of @param xs@ will be
+--   replaced by their default value.
+data DefaultValueException = DefaultValueException
+  deriving Show
+instance Exception DefaultValueException
+
+-- | The default value for a column during insertion.
+--   For an auto-incrementing primary key, the default value is the next key.
+--
+--   Using @def@ in any other context than insertion results in a runtime error.
+def :: SqlType a => a
+def = throw DefaultValueException
+
 class GRelation f where
   -- | Convert a value from its Haskell type into the corresponding relation.
   gToRel   :: f a -> Rel f
 
+  -- | Generic worker for 'params'.
+  gParams :: f a -> IO [Either Param Param]
+
   -- | Compute all columns needed to represent the given type.
-  gTblCols :: Proxy f -> (String -> String) -> [ColInfo]
+  gTblCols :: Proxy f -> [ColInfo]
 
   -- | Create a dummy value where all fields are replaced by @unsafeCoerce@'d
   --   ints. See 'mkDummy' and 'identify' for more information.
   gMkDummy :: State Int (f a)
 
-instance GRelation a => GRelation (M1 C c a) where
+instance {-# OVERLAPPABLE #-} GRelation a => GRelation (M1 t c a) where
   gToRel (M1 x) = gToRel x
+  gParams (M1 x) = gParams x
   gTblCols _ = gTblCols (Proxy :: Proxy a)
   gMkDummy = M1 <$> gMkDummy
 
-instance GRelation a => GRelation (M1 D c a) where
+instance {-# OVERLAPPING #-} (G.Selector c, GRelation a) =>
+         GRelation (M1 S c a) where
   gToRel (M1 x) = gToRel x
-  gTblCols _ = gTblCols (Proxy :: Proxy a)
-  gMkDummy = M1 <$> gMkDummy
-
-instance (G.Selector c, GRelation a) => GRelation (M1 S c a) where
-  gToRel (M1 x) = gToRel x
-  gTblCols _ fieldMod = colinfos'
+  gParams (M1 x) = gParams x
+  gTblCols _ = colinfos'
     where
-      colinfos = gTblCols (Proxy :: Proxy a) fieldMod
+      colinfos = gTblCols (Proxy :: Proxy a)
       colinfos' =
         case colinfos of
           [ci] -> [ColInfo
-            { colName = mkColName . pack $ fieldMod (selName ((M1 undefined) :: M1 S c a b))
+            { colName = mkColName $ pack (selName ((M1 undefined) :: M1 S c a b))
             , colType = colType ci
             , colAttrs = colAttrs ci
             , colFKs = colFKs ci
@@ -412,13 +248,21 @@ instance (G.Selector c, GRelation a) => GRelation (M1 S c a) where
 
 instance (Rel (K1 i a) ~ a, Typeable a, SqlType a) => GRelation (K1 i a) where
   gToRel (K1 x) = x
-  gTblCols _ _  = [ColInfo "" (sqlType (Proxy :: Proxy a)) optReq []]
+
+  gParams (K1 x) = do
+    res <- try $ return $! x
+    return $ case res of
+      Right x'                   -> [Right $ Param (mkLit x')]
+      Left DefaultValueException -> [Left $ Param (defaultValue :: Lit a)]
+
+  gTblCols _ = [ColInfo "" (sqlType (Proxy :: Proxy a)) optReq []]
     where
       -- workaround for GHC 8.2 not resolving overlapping instances properly
       maybeTyCon = typeRepTyCon (typeRep (Proxy :: Proxy (Maybe ())))
       optReq
         | typeRepTyCon (typeRep (Proxy :: Proxy a)) == maybeTyCon = [Optional]
         | otherwise                                               = [Required]
+
   gMkDummy = do
     n <- get
     put (n+1)
@@ -431,13 +275,15 @@ instance {-# OVERLAPS #-}
   , Generic a
   ) => GRelation (K1 i (Nested a)) where
   gToRel (K1 (Nested x)) = gToRel (from x)
+  gParams (K1 (Nested x)) = gParams (from x)
   gTblCols _ = gTblCols (Proxy :: Proxy (Rep a))
   gMkDummy = fmap (K1 . Nested . to) gMkDummy
 
 instance (Append (Rel a) (Rel b), GRelation a, GRelation b) =>
          GRelation (a G.:*: b) where
-  gToRel (a G.:*: b)   = gToRel a `app` gToRel b
-  gTblCols _ f = gTblCols a f ++ gTblCols b f
+  gToRel (a G.:*: b) = gToRel a `app` gToRel b
+  gParams (a G.:*: b) = liftM2 (++) (gParams a) (gParams b)
+  gTblCols _ = gTblCols a ++ gTblCols b
     where
       a = Proxy :: Proxy a
       b = Proxy :: Proxy b
@@ -473,7 +319,8 @@ instance Typeable a => GFromRel (K1 i a) where
   gFromRel (x:xs) = (K1 (fromDyn x (error "impossible")), xs)
   gFromRel _      = error "impossible: too few elements to gFromRel"
 
-instance {-# OVERLAPS #-} (Typeable a, Generic a, GFromRel (Rep a)) => GFromRel (K1 i (Nested a)) where
+instance {-# OVERLAPS #-} (Typeable a, Generic a, GFromRel (Rep a)) =>
+                          GFromRel (K1 i (Nested a)) where
   gFromRel xs = (K1 $ Nested (to x), xs')
     where (x, xs') = gFromRel xs
 

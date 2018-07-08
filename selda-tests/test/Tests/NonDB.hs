@@ -3,23 +3,25 @@ module Tests.NonDB where
 import Data.List hiding (groupBy, insert)
 import Data.Text (unpack)
 import Database.Selda
-import Database.Selda.Generic
 import Test.HUnit
 import Utils
 import Tables
 
 noDBTests = test
   [ "id == fromRel . toRel" ~: fromRelToRelId
-  , "genTableFieldMod modifies fields" ~: gtfmModifiesFields
+  , "tableFieldMod modifies fields" ~: tfmModifiesFields
   ]
 
-fromRelToRelId =
-    assertEqual "fromRel . toRel /= id" genPeopleItems xs
+fromRelToRelId = do
+    assertEqual "toRel . fromRel /= id" peopleItems xs
+    assertEqual "fromRel . toRel /= id" people xs'
   where
-    xs = map (fromRel . toRel) genPeopleItems
+    people = fromRels peopleItems :: [Person]
+    xs = toRels people :: [Relation Person]
+    xs' = fromRels xs :: [Person]
 
-gtfmModifiesFields =
+tfmModifiesFields =
   assertBool "Field names are unchanged from underlying record"
-             ("genmod_" `isInfixOf` q)
+             ("mod_" `isInfixOf` q)
   where
-    q = unpack $ fst $ compile (select (gen genModPeople))
+    q = unpack $ fst $ compile (select modPeople)

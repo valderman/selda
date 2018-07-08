@@ -1,245 +1,200 @@
-{-# LANGUAGE TypeOperators, TypeFamilies, OverloadedStrings #-}
-{-# LANGUAGE UndecidableInstances, FlexibleInstances, ScopedTypeVariables #-}
-{-# LANGUAGE MultiParamTypeClasses, FlexibleContexts #-}
-{-# LANGUAGE CPP, DataKinds #-}
--- | Selda table definition language.
-module Database.Selda.Table where
-import Database.Selda.Types
-import Database.Selda.SqlType
-import Control.Exception
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# LANGUAGE TypeFamilies, TypeOperators, FlexibleInstances #-}
+{-# LANGUAGE UndecidableInstances, MultiParamTypeClasses, OverloadedStrings #-}
+{-# LANGUAGE FlexibleContexts, ScopedTypeVariables, ConstraintKinds #-}
+{-# LANGUAGE GADTs, CPP, DeriveGeneric, DataKinds #-}
+module Database.Selda.Table
+  ( Attr (..), Table (..), Attribute
+  , ColInfo (..), ColAttr (..), IndexMethod (..)
+  , ForeignKey (..)
+  , table, tableFieldMod, tableWithSelectors, selectors
+  , primary, autoPrimary, untypedAutoPrimary, unique
+  , index, indexUsing
+  ) where
+import Control.Monad.State
 import Data.Dynamic
-import Data.List (sort, group)
-#if !MIN_VERSION_base(4, 11, 0)
-import Data.Monoid
-#endif
-import Data.Text (Text, unpack, intercalate, any)
-import GHC.Exts
+import Data.Text as Text (Text, pack, intercalate, unwords, empty)
 #if MIN_VERSION_base(4, 10, 0)
-import Data.Proxy
+import Data.Typeable
 #endif
+import GHC.Generics hiding (R, (:*:), Selector)
+import qualified GHC.Generics as G ((:*:)(..), (:+:)(..), Selector, R)
 #if MIN_VERSION_base(4, 9, 0)
 import qualified GHC.TypeLits as TL
 #endif
-
--- | An error occurred when validating a database table.
---   If this error is thrown, there is a bug in your database schema, and the
---   particular table that triggered the error is unusable.
---   Since validation is deterministic, this error will be thrown on every
---   consecutive operation over the offending table.
---
---   Therefore, it is not meaningful to handle this exception in any way,
---   just fix your bug instead.
-data ValidationError = ValidationError String
-  deriving (Show, Eq, Typeable)
-instance Exception ValidationError
-
--- | A database table.
---   Tables are parameterized over their column types. For instance, a table
---   containing one string and one integer, in that order, would have the type
---   @Table (Text :*: Int)@, and a table containing only a single string column
---   would have the type @Table Text@.
---
---   Table and column names may contain any character except @\NUL@, and be
---   non-empty. Column names must be unique per table.
-data Table a = Table
-  { -- | Name of the table. NOT guaranteed to be a valid SQL name.
-    tableName :: TableName
-    -- | All table columns.
-    --   Invariant: the 'colAttrs' list of each column is sorted and contains
-    --   no duplicates.
-  , tableCols :: [ColInfo]
-    -- | Does the given table have an auto-incrementing primary key?
-  , tableHasAutoPK :: Bool
-  }
-
-data ColInfo = ColInfo
-  { colName  :: ColName
-  , colType  :: SqlTypeRep
-  , colAttrs :: [ColAttr]
-  , colFKs   :: [(Table (), ColName)]
-  }
-
-newCol :: forall a. SqlType a => ColName -> ColSpec a
-newCol name = ColSpec [ColInfo
-  { colName  = name
-  , colType  = sqlType (Proxy :: Proxy a)
-  , colAttrs = []
-  , colFKs   = []
-  }]
-
--- | A table column specification.
-newtype ColSpec a = ColSpec {unCS :: [ColInfo]}
-
--- | Any SQL type which is NOT nullable.
-type family NonNull a :: Constraint where
-#if MIN_VERSION_base(4, 9, 0)
-  NonNull (Maybe a) = TL.TypeError
-    ( 'TL.Text "Optional columns must not be nested, and" 'TL.:<>:
-      'TL.Text " required or primary key columns" 'TL.:$$:
-      'TL.Text "must not have option types."
-    )
-#else
-  NonNull (Maybe a) = a ~ Maybe a
+import Unsafe.Coerce
+import Database.Selda.Types
+import Database.Selda.Selectors
+import Database.Selda.SqlType
+#if !MIN_VERSION_base(4, 11, 0)
+import Data.Monoid
 #endif
-  NonNull a         = ()
+import Database.Selda.Generic
+import Database.Selda.SqlType
+import Database.Selda.Table.Type
+import Database.Selda.Table.Validation (snub)
 
--- | Column attributes such as nullability, auto increment, etc.
---   When adding elements, make sure that they are added in the order
---   required by SQL syntax, as this list is only sorted before being
---   pretty-printed.
-data ColAttr
-  = Primary
-  | AutoIncrement
-  | Required
-  | Optional
-  | Unique
-  | Indexed (Maybe IndexMethod)
-  deriving (Show, Eq, Ord)
+-- | A generic column attribute.
+--   Essentially a pair or a record selector over the type @a@ and a column
+--   attribute.
+data Attr a where
+  (:-) :: (a -> b) -> Attribute a b -> Attr a
 
--- | Method to use for indexing with 'indexedUsing'.
---   Index methods are ignored by the SQLite backend, as SQLite doesn't support
---   different index methods.
-data IndexMethod
-  = BTreeIndex
-  | HashIndex
--- Omitted until the operator class business is sorted out
---  | GistIndex
---  | GinIndex
-  deriving (Show, Eq, Ord)
+-- | Generate a table from the given table name and list of column attributes.
+--   All @Maybe@ fields in the table's type will be represented by nullable
+--   columns, and all non-@Maybe@ fields fill be represented by required
+--   columns.
+--   For example:
+--
+-- > data Person = Person
+-- >   { id   :: Int
+-- >   , name :: Text
+-- >   , age  :: Int
+-- >   , pet  :: Maybe Text
+-- >   }
+-- >   deriving Generic
+-- >
+-- > people :: Table Person
+-- > people = table "people" [name :- autoPrimary]
+--
+--   This example will create a table with the column types
+--   @Int :*: Text :*: Int :*: Maybe Text@, where the first field is
+--   an auto-incrementing primary key.
+--
+--   If the given type is not a record type, the column names will be
+--   @col_1@, @col_2@, etc.
+table :: forall a. Relational a
+         => TableName
+         -> [Attr a]
+         -> Table a
+table tn attrs = tableFieldMod tn attrs id
 
--- | A non-nullable column with the given name.
-required :: (SqlType a, NonNull a) => ColName -> ColSpec a
-required = addAttr Required . newCol
-
--- | A nullable column with the given name.
-optional :: (SqlType a, NonNull a) => ColName -> ColSpec (Maybe a)
-optional = addAttr Optional . newCol
-
--- | Marks the given column as the table's primary key.
---   A table may only have one primary key; marking more than one key as
---   primary will result in 'ValidationError' during validation.
-primary :: (SqlType a, NonNull a) => ColName -> ColSpec a
-primary = addAttr Primary . unique . required
-
--- | Automatically increment the given attribute if not specified during insert.
---   Also adds the @PRIMARY KEY@ and @UNIQUE@ attributes on the column.
-autoPrimary :: ColName -> ColSpec RowID
-autoPrimary n = ColSpec [c {colAttrs = [Primary, AutoIncrement, Required, Unique]}]
-  where ColSpec [c] = newCol n :: ColSpec RowID
-
--- | Add a uniqueness constraint to the given column.
---   Adding a uniqueness constraint to a column that is already implied to be
---   unique, such as a primary key, is a no-op.
-unique :: SqlType a => ColSpec a -> ColSpec a
-unique = addAttr Unique
-
--- | Create an index on the given column.
-indexed :: SqlType a => ColSpec a -> ColSpec a
-indexed = addAttr (Indexed Nothing)
-
--- | Create an index on the given column, using the given index method.
-indexedUsing :: SqlType a => IndexMethod -> ColSpec a -> ColSpec a
-indexedUsing m = addAttr (Indexed (Just m))
-
--- | Add an attribute to a column. Not for public consumption.
-addAttr :: SqlType a => ColAttr -> ColSpec a -> ColSpec a
-addAttr attr (ColSpec [ci]) = ColSpec [ci {colAttrs = attr : colAttrs ci}]
-addAttr _ _                 = error "impossible: ColSpec with several columns"
-
--- | An inductive tuple where each element is a column specification.
-type family ColSpecs a where
-  ColSpecs (a :*: b) = ColSpec a :*: ColSpecs b
-  ColSpecs a         = ColSpec a
-
--- | An inductive tuple forming a table specification.
-class TableSpec a where
-  mergeSpecs :: Proxy a -> ColSpecs a -> [ColInfo]
-instance TableSpec b => TableSpec (a :*: b) where
-  mergeSpecs _ (ColSpec a :*: b) = a ++ mergeSpecs (Proxy :: Proxy b) b
-instance {-# OVERLAPPABLE #-} ColSpecs a ~ ColSpec a => TableSpec a where
-  mergeSpecs _ (ColSpec a) = a
-
--- | A table with the given name and columns.
-table :: forall a. TableSpec a => TableName -> ColSpecs a -> Table a
-table name cs = Table
-    { tableName = name
-    , tableCols = tcs
-    , tableHasAutoPK = Prelude.any ((AutoIncrement `elem`) . colAttrs) tcs
-    }
+-- | Generate a table from the given table name,
+--   a list of column attributes and a function
+--   that maps from field names to column names.
+--   Ex.:
+--
+-- > data Person = Person
+-- >   { personId   :: Int
+-- >   , personName :: Text
+-- >   , personAge  :: Int
+-- >   , personPet  :: Maybe Text
+-- >   }
+-- >   deriving Generic
+-- >
+-- > people :: Table Person
+-- > people = tableFieldMod "people" [personName :- autoPrimaryGen] (stripPrefix "person")
+--
+--   This will create a table with the columns named
+--   @Id@, @Name@, @Age@ and @Pet@.
+tableFieldMod :: forall a. Relational a
+                 => TableName
+                 -> [Attr a]
+                 -> (Text -> Text)
+                 -> Table a
+tableFieldMod tn attrs fieldMod = Table
+  { tableName = tn
+  , tableCols = map tidy cols
+  , tableHasAutoPK = apk
+  }
   where
-    tcs = map tidy $ mergeSpecs (Proxy :: Proxy a) cs
+    dummy = mkDummy
+    cols = zipWith addAttrs [0..] (tblCols (Proxy :: Proxy a) fieldMod)
+    apk = or [AutoIncrement `elem` as | _ :- Attribute as <- attrs]
+    addAttrs n ci = ci
+      { colAttrs = colAttrs ci ++ concat
+          [ as
+          | f :- Attribute as <- attrs
+          , identify dummy f == n
+          ]
+      , colFKs = colFKs ci ++
+          [ thefk
+          | f :- ForeignKey thefk <- attrs
+          , identify dummy f == n
+          ]
+      }
 
 -- | Remove duplicate attributes.
 tidy :: ColInfo -> ColInfo
 tidy ci = ci {colAttrs = snub $ colAttrs ci}
 
--- | Sort a list and remove all duplicates from it.
-snub :: (Ord a, Eq a) => [a] -> [a]
-snub = map head . soup
-
--- | Sort a list, then group all identical elements.
-soup :: Ord a => [a] -> [[a]]
-soup = group . sort
-
--- | Ensure that there are no duplicate column names or primary keys.
---   Returns a list of validation errors encountered.
-validate :: TableName -> [ColInfo] -> [Text]
-validate name cis = errs
+-- | A pair of the table with the given name and columns, and all its selectors.
+--   For example:
+--
+-- > tbl :: Table (Int :*: Text)
+-- > (tbl, tblBar :*: tblBaz)
+-- >   =  tableWithSelectors "foo"
+-- >   $  required "bar"
+-- >   :*: required "baz"
+-- >
+-- > q :: Query s Text
+-- > q = tblBaz <$> select tbl
+tableWithSelectors :: forall a. (Relational a, HasSelectors (Relation a) (Relation a))
+                   => TableName
+                   -> [Attr a]
+                   -> (Table a, Selectors (Relation a) (Relation a))
+tableWithSelectors name cs = (t, s)
   where
-    colIdents = map (fromColName . colName) cis
-    allIdents = fromTableName name : colIdents
-    errs = concat
-      [ dupes
-      , pkDupes
-      , optionalRequiredMutex
-      , nulIdents
-      , emptyIdents
-      , emptyTableName
-      , nonPkFks
-      ]
-    emptyTableName
-      | fromTableName name == "\"\"" = ["table name is empty"]
-      | otherwise                    = []
-    emptyIdents
-      | Prelude.any (== "\"\"") colIdents =
-        ["table has columns with empty names"]
-      | otherwise =
-        []
-    nulIdents =
-      [ "table or column name contains \\NUL: " <> n
-      | n <- allIdents
-      , Data.Text.any (== '\NUL') n
-      ]
-    dupes =
-      ["duplicate column: " <> fromColName x | (x:_:_) <- soup $ map colName cis]
-    pkDupes =
-      ["multiple primary keys" | (Primary:_:_) <- soup $ concatMap colAttrs cis]
-    nonPkFks =
-      [ "column is used as a foreign key, but is not primary or unique: "
-          <> fromTableName ftn <> "." <> fromColName fcn
-      | ci <- cis
-      , (Table ftn fcs _, fcn) <- colFKs ci
-      , fc <- fcs
-      , colName fc == fcn
-      , not (Unique `elem` colAttrs fc)
-      ]
+    t = table name cs
+    s = selectors t
 
-    -- This should be impossible, but...
-    optionalRequiredMutex =
-      [ "BUG: column " <> fromColName (colName ci)
-                       <> " is both optional and required"
-      | ci <- cis
-      , Optional `elem` colAttrs ci && Required `elem` colAttrs ci
-      ]
+-- | Generate selector functions for the given table.
+--   Selectors can be used to access the fields of a query result tuple, avoiding
+--   the need to pattern match on the entire tuple.
+--
+-- > tbl :: Table (Int :*: Text)
+-- > tbl = table "foo" $ required "bar" :*: required "baz"
+-- > (tblBar :*: tblBaz) = selectors tbl
+-- >
+-- > q :: Query s Text
+-- > q = tblBaz <$> select tbl
+selectors :: forall a. HasSelectors (Relation a) (Relation a)
+          => Table a
+          -> Selectors (Relation a) (Relation a)
+selectors _ = mkSel (Proxy :: Proxy (Relation a)) 0 (Proxy :: Proxy (Relation a))
 
--- | Return all columns of the given table if the table schema is valid,
---   otherwise throw a 'ValidationError'.
-validateOrThrow :: TableName -> [ColInfo] -> [ColInfo]
-validateOrThrow name cols =
-  case validate name cols of
-    []     -> cols
-    errors -> throw $ ValidationError $ concat
-      [ "validation of table `", unpack $ fromTableName name
-      , "' failed:\n  "
-      , unpack $ intercalate "\n  " errors
-      ]
+-- | Some attribute that may be set on a column of type @c@, in a table of
+--   type @t@.
+data Attribute t c
+  = Attribute [ColAttr]
+  | ForeignKey (Table (), ColName)
+
+-- | A primary key which does not auto-increment.
+primary :: Attribute t c
+primary = Attribute [Primary, Required, Unique]
+
+-- | Create an index on this column.
+index :: Attribute t c
+index = Attribute [Indexed Nothing]
+
+-- | Create an index using the given index method on this column.
+indexUsing :: IndexMethod -> Attribute t c
+indexUsing m = Attribute [Indexed (Just m)]
+
+-- | An auto-incrementing primary key.
+autoPrimary :: Attribute t (ID t)
+autoPrimary = Attribute [Primary, AutoIncrement, Required, Unique]
+
+-- | An untyped auto-incrementing primary key.
+--   You should really only use this for ad hoc tables, such as tuples.
+untypedAutoPrimary :: Attribute t RowID
+untypedAutoPrimary = Attribute [Primary, AutoIncrement, Required, Unique]
+
+-- | A table-unique value.
+unique :: Attribute t c
+unique = Attribute [Unique]
+
+mkFK :: Table t -> Selector a b -> Attribute c d
+mkFK (Table tn tcs tapk) (Selector i) =
+  ForeignKey (Table tn tcs tapk, colName (tcs !! i))
+
+class ForeignKey a b where
+  -- | A foreign key constraint referencing the given table and column.
+  foreignKey :: Table t -> Selector (Relation t) a -> Attribute self b
+
+instance ForeignKey a a where
+  foreignKey = mkFK
+instance ForeignKey (Maybe a) a where
+  foreignKey = mkFK
+instance ForeignKey a (Maybe a) where
+  foreignKey = mkFK

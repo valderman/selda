@@ -2,7 +2,6 @@
 -- | Tables for reuse by most tests, and functions for their setup and teardown.
 module Tables where
 import Database.Selda
-import Database.Selda.Generic
 
 data Person = Person
   { name :: Text
@@ -11,42 +10,24 @@ data Person = Person
   , cash :: Double
   } deriving (Generic, Show, Ord, Eq)
 
-genPeople :: GenTable Person
-genPeople = genTable "genpeople" [name :- primaryGen, name :- indexGen]
+modPeople :: Table Person
+modPeople = tableFieldMod "modpeople" [name :- primary] $ \name ->
+  "mod_" <> name
 
-genModPeople :: GenTable Person
-genModPeople = genTableFieldMod "genmodpeople" [name :- primaryGen] $ \name ->
-  "genmod_" ++ name
-
-people :: Table (Text :*: Int :*: Maybe Text :*: Double)
-people =
-      table "people"
-  $   primary "name"
-  :*: required "age"
-  :*: indexed (optional "pet")
-  :*: indexedUsing HashIndex (required "cash")
+people :: Table Person
+people = table "people"
+  [ name :- primary
+  , name :- index
+  , cash :- indexUsing HashIndex
+  ]
 pName :*: pAge :*: pPet :*: pCash = selectors people
 
-addresses :: Table (Text :*: Text)
-(addresses, aName :*: aCity) =
-      tableWithSelectors "addresses"
-  $   required "name"
-  :*: required "city"
+addresses :: Table (Text, Text)
+(addresses, aName :*: aCity) = tableWithSelectors "addresses" []
 
-comments :: Table (RowID :*: Maybe Text :*: Text)
-comments =
-      table "comments"
-  $   autoPrimary "id"
-  :*: optional "author"
-  :*: required "comment"
+comments :: Table (RowID, Maybe Text, Text)
+comments = table "comments" [(\(x,_,_) -> x) :- untypedAutoPrimary]
 cId :*: cName :*: cComment = selectors comments
-
-genPeopleItems =
-  [ Person "Link"      125 (Just "horse")  13506
-  , Person "Velvet"     19 Nothing         5.55
-  , Person "Kobayashi"  23 (Just "dragon") 103707.55
-  , Person "Miyu"       10 Nothing         (-500)
-  ]
 
 peopleItems =
   [ "Link"      :*: 125 :*: Just "horse"  :*: 13506
@@ -68,21 +49,18 @@ commentItems =
 
 setup :: SeldaT IO ()
 setup = do
-  createTable (gen genPeople)
-  createTable (gen genModPeople)
   createTable people
+  createTable modPeople
   createTable addresses
   createTable comments
-  insert_ (gen genPeople) peopleItems
-  insert_ (gen genModPeople) peopleItems
-  insert_ people peopleItems
-  insert_ addresses addressItems
-  insert_ comments (map (def :*:) commentItems)
+  insert_ (modPeople) (fromRels peopleItems)
+  insert_ people (fromRels peopleItems)
+  insert_ addresses (fromRels addressItems)
+  insert_ comments (fromRels (map (def :*:) commentItems))
 
 teardown :: SeldaT IO ()
 teardown = do
-  tryDropTable (gen genPeople)
-  tryDropTable (gen genModPeople)
   tryDropTable people
+  tryDropTable modPeople
   tryDropTable addresses
   tryDropTable comments

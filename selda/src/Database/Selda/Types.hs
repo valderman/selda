@@ -8,7 +8,7 @@ module Database.Selda.Types
   ( (:*:)(..), Head, Append (..), (:++:), ToDyn, Tup (..)
   , first, second, third, fourth, fifth, sixth, seventh, eighth, ninth, tenth
   , ColName, TableName
-  , mkColName, mkTableName, addColSuffix, addColPrefix
+  , modColName, mkColName, mkTableName, addColSuffix, addColPrefix
   , fromColName, fromTableName, rawTableName
   , toDyns, fromDyns, unsafeToList, unsafeFromList
   ) where
@@ -32,6 +32,10 @@ newtype ColName = ColName Text
 -- | Name of a database table.
 newtype TableName = TableName Text
   deriving (Ord, Eq, Show, IsString)
+
+-- | Modify the given column name using the given function.
+modColName :: ColName -> (Text -> Text) -> ColName
+modColName (ColName cn) f = ColName (f cn)
 
 -- | Add a prefix to a column name.
 addColPrefix :: ColName -> Text -> ColName

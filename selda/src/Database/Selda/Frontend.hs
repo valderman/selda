@@ -1,7 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables, FlexibleContexts, OverloadedStrings #-}
 -- | API for running Selda operations over databases.
 module Database.Selda.Frontend
-  ( Result, Res, MonadIO (..), MonadSelda (..), SeldaT
+  ( Relational', Result, Res, MonadIO (..), MonadSelda (..), SeldaT
   , query, queryInto
   , insert, insert_, insertWithPK, tryInsert, insertWhen, insertUnless
   , update, update_, upsert
@@ -14,8 +14,8 @@ import Database.Selda.Backend.Internal
 import Database.Selda.Caching
 import Database.Selda.Column
 import Database.Selda.Compile
+import Database.Selda.Generic
 import Database.Selda.Query.Type
-import Database.Selda.SQL
 import Database.Selda.SqlType (RowID, invalidRowId, toRowId)
 import Database.Selda.Table
 import Database.Selda.Table.Compile
@@ -37,7 +37,10 @@ query q = do
 
 -- | Perform the given query, and insert the result into the given table.
 --   Returns the number of inserted rows.
-queryInto :: (MonadSelda m, Result (Cols s a)) => Table a -> Query s (Cols s a) -> m Int
+queryInto :: (MonadSelda m, Relational' s a)
+          => Table a
+          -> Query s (Cols s (Relation a))
+          -> m Int
 queryInto tbl q = do
     backend <- seldaBackend
     let (qry, ps) = compileWith (ppConfig backend) q
@@ -70,7 +73,7 @@ queryInto tbl q = do
 --
 --   Note that if one or more of the inserted rows would cause a constraint
 --   violation, NO rows will be inserted; the whole insertion fails atomically.
-insert :: (MonadSelda m, Insert a) => Table a -> [a] -> m Int
+insert :: (MonadSelda m, Relational a) => Table a -> [a] -> m Int
 insert _ [] = do
   return 0
 insert t cs = do
@@ -85,7 +88,7 @@ insert t cs = do
 --
 --   Like 'insert', if even one of the inserted rows would cause a constraint
 --   violation, the whole insert operation fails.
-tryInsert :: (MonadCatch m, MonadSelda m, Insert a) => Table a -> [a] -> m Bool
+tryInsert :: (MonadCatch m, MonadSelda m, Relational a) => Table a -> [a] -> m Bool
 tryInsert tbl row = do
   mres <- try $ insert tbl row
   case mres of
@@ -104,13 +107,11 @@ tryInsert tbl row = do
 --   followed by one insert.
 upsert :: ( MonadCatch m
           , MonadSelda m
-          , Insert a
-          , Columns (Cols s a)
-          , Result (Cols s a)
+          , Relational' s a
           )
        => Table a
-       -> (Cols s a -> Col s Bool)
-       -> (Cols s a -> Cols s a)
+       -> (Cols s (Relation a) -> Col s Bool)
+       -> (Cols s (Relation a) -> Cols s (Relation a))
        -> [a]
        -> m (Maybe RowID)
 upsert tbl check upd rows = transaction $ do
@@ -128,12 +129,10 @@ upsert tbl check upd rows = transaction $ do
 --   identifier guaranteed to not match any row in any table.
 insertUnless :: ( MonadCatch m
                 , MonadSelda m
-                , Insert a
-                , Columns (Cols s a)
-                , Result (Cols s a)
+                , Relational' s a
                 )
              => Table a
-             -> (Cols s a -> Col s Bool)
+             -> (Cols s (Relation a) -> Col s Bool)
              -> [a]
              -> m (Maybe RowID)
 insertUnless tbl check rows = upsert tbl check id rows
@@ -142,12 +141,10 @@ insertUnless tbl check rows = upsert tbl check id rows
 --   the predicate.
 insertWhen :: ( MonadCatch m
               , MonadSelda m
-              , Insert a
-              , Columns (Cols s a)
-              , Result (Cols s a)
+              , Relational' s a
               )
            => Table a
-           -> (Cols s a -> Col s Bool)
+           -> (Cols s (Relation a) -> Col s Bool)
            -> [a]
            -> m (Maybe RowID)
 insertWhen tbl check rows = transaction $ do
@@ -158,14 +155,14 @@ insertWhen tbl check rows = transaction $ do
 
 -- | Like 'insert', but does not return anything.
 --   Use this when you really don't care about how many rows were inserted.
-insert_ :: (MonadSelda m, Insert a) => Table a -> [a] -> m ()
+insert_ :: (MonadSelda m, Relational a) => Table a -> [a] -> m ()
 insert_ t cs = void $ insert t cs
 
 -- | Like 'insert', but returns the primary key of the last inserted row.
 --   Attempting to run this operation on a table without an auto-incrementing
 --   primary key will always return a row identifier that is guaranteed to not
 --   match any row in any table.
-insertWithPK :: (MonadSelda m, Insert a) => Table a -> [a] -> m RowID
+insertWithPK :: (MonadSelda m, Relational a) => Table a -> [a] -> m RowID
 insertWithPK t cs = do
   b <- seldaBackend
   if tableHasAutoPK t
@@ -180,10 +177,10 @@ insertWithPK t cs = do
 
 -- | Update the given table using the given update function, for all rows
 --   matching the given predicate. Returns the number of updated rows.
-update :: (MonadSelda m, Columns (Cols s a), Result (Cols s a))
-       => Table a                  -- ^ The table to update.
-       -> (Cols s a -> Col s Bool) -- ^ Predicate.
-       -> (Cols s a -> Cols s a)   -- ^ Update function.
+update :: (MonadSelda m, Relational' s a)
+       => Table a                                      -- ^ Table to update.
+       -> (Cols s (Relation a) -> Col s Bool)          -- ^ Predicate.
+       -> (Cols s (Relation a) -> Cols s (Relation a)) -- ^ Update function.
        -> m Int
 update tbl check upd = do
   cfg <- ppConfig <$> seldaBackend
@@ -192,17 +189,19 @@ update tbl check upd = do
   return res
 
 -- | Like 'update', but doesn't return the number of updated rows.
-update_ :: (MonadSelda m, Columns (Cols s a), Result (Cols s a))
+update_ :: (MonadSelda m, Relational' s a)
        => Table a
-       -> (Cols s a -> Col s Bool)
-       -> (Cols s a -> Cols s a)
+       -> (Cols s (Relation a) -> Col s Bool)
+       -> (Cols s (Relation a) -> Cols s (Relation a))
        -> m ()
 update_ tbl check upd = void $ update tbl check upd
 
 -- | From the given table, delete all rows matching the given predicate.
 --   Returns the number of deleted rows.
-deleteFrom :: (MonadSelda m, Columns (Cols s a))
-           => Table a -> (Cols s a -> Col s Bool) -> m Int
+deleteFrom :: (MonadSelda m, Relational' s a)
+           => Table a
+           -> (Cols s (Relation a) -> Col s Bool)
+           -> m Int
 deleteFrom tbl f = do
   cfg <- ppConfig <$> seldaBackend
   res <- uncurry exec $ compileDelete cfg tbl f
@@ -210,8 +209,10 @@ deleteFrom tbl f = do
   return res
 
 -- | Like 'deleteFrom', but does not return the number of deleted rows.
-deleteFrom_ :: (MonadSelda m, Columns (Cols s a))
-            => Table a -> (Cols s a -> Col s Bool) -> m ()
+deleteFrom_ :: (MonadSelda m, Relational' s a)
+            => Table a
+            -> (Cols s (Relation a) -> Col s Bool)
+            -> m ()
 deleteFrom_ tbl f = void $ deleteFrom tbl f
 
 -- | Create a table from the given schema.

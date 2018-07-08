@@ -7,6 +7,8 @@ module Database.Selda.Query
   ) where
 import Data.Maybe (isNothing)
 import Database.Selda.Column
+import Database.Selda.Compile (Relational')
+import Database.Selda.Generic
 import Database.Selda.Inner
 import Database.Selda.Query.Type
 import Database.Selda.SQL as SQL
@@ -17,7 +19,7 @@ import Unsafe.Coerce
 
 -- | Query the given table. Result is returned as an inductive tuple, i.e.
 --   @first :*: second :*: third <- query tableOfThree@.
-select :: Columns (Cols s a) => Table a -> Query s (Cols s a)
+select :: Relational' s a => Table a -> Query s (Cols s (Relation a))
 select (Table name cs _) = Query $ do
     rns <- mapM (rename . Some . Col) cs'
     st <- get
@@ -28,7 +30,7 @@ select (Table name cs _) = Query $ do
 
 -- | Query an ad hoc table of type @a@. Each element in the given list represents
 --   one row in the ad hoc table.
-selectValues :: (Insert a, Columns (Cols s a)) => [a] -> Query s (Cols s a)
+selectValues :: Relational' s a => [a] -> Query s (Cols s (Relation a))
 selectValues [] = Query $ do
   st <- get
   put $ st {sources = sqlFrom [] EmptyTable : sources st}

@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings, FlexibleInstances, UndecidableInstances #-}
 {-# LANGUAGE ScopedTypeVariables, TypeOperators, GADTs, FlexibleContexts #-}
+{-# LANGUAGE DeriveGeneric, GeneralizedNewtypeDeriving #-}
 -- | Selda is not LINQ, but they're definitely related.
 --
 --   Selda is a high-level EDSL for interacting with relational databases.
@@ -65,7 +66,9 @@ module Database.Selda
   ( -- * Running queries
     MonadSelda
   , SeldaError (..), ValidationError
-  , SeldaT, SeldaM, Table, Query, Col, Res, Result
+  , SeldaT, SeldaM
+  , Relational, Relational', Relation, Single (..)
+  , Table, Query, Col, Res, Result
   , query, queryInto
   , transaction, setLocalCache, withoutForeignKeyEnforcement
     -- * Constructing queries
@@ -80,7 +83,9 @@ module Database.Selda
   , inner, suchThat
     -- * Expressions over columns
   , Set (..)
+  , ID, invalidId, isInvalidId, untyped, toId
   , RowID, invalidRowId, isInvalidRowId, fromRowId, toRowId
+  , Append (..), (:++:), (.++)
   , (.==), (./=), (.>), (.<), (.>=), (.<=), like
   , (.&&), (.||), not_
   , literal, int, float, text, true, false, null_
@@ -93,23 +98,20 @@ module Database.Selda
   , aggregate, groupBy
   , count, avg, sum_, max_, min_
     -- * Modifying tables
-  , Insert
   , insert, insert_, insertWithPK, tryInsert, insertUnless, insertWhen, def
   , update, update_, upsert
   , deleteFrom, deleteFrom_
+  , toRel, toRels, fromRel, fromRels
     -- * Prepared statements
   , Preparable, Prepare
   , prepared
     -- * Defining schemas
-  , TableSpec, ColSpecs, ColSpec, TableName, ColName
-  , NonNull
-  , Append (..), (:++:), (.++)
-  , Selectors, HasSelectors
-  , table, tableWithSelectors, selectors
-  , required, optional
-  , primary, autoPrimary
-  , fk, optFk, unique
-  , IndexMethod (..), indexed, indexedUsing
+  , Generic
+  , TableName, ColName, Attr (..), Attribute, Nested (..)
+  , Selectors, HasSelectors, ForeignKey (..)
+  , table, tableFieldMod, tableWithSelectors, selectors
+  , primary, autoPrimary, untypedAutoPrimary, unique
+  , IndexMethod (..), index, indexUsing
     -- * Creating and dropping tables
   , createTable, tryCreateTable
   , dropTable, tryDropTable
@@ -125,10 +127,12 @@ module Database.Selda
   , MonadIO, liftIO
   , Text, Day, TimeOfDay, UTCTime
   ) where
+import Data.Typeable (Typeable)
 import Database.Selda.Backend
 import Database.Selda.Column
 import Database.Selda.Compile
 import Database.Selda.Frontend
+import Database.Selda.Generic
 import Database.Selda.Inner
 import Database.Selda.Prepared
 import Database.Selda.Query
@@ -138,11 +142,12 @@ import Database.Selda.SQL hiding (distinct)
 import Database.Selda.SqlType
 import Database.Selda.Table
 import Database.Selda.Table.Compile
-import Database.Selda.Table.Foreign
+import Database.Selda.Table.Validation
 import Database.Selda.Types
 import Database.Selda.Unsafe
 import Control.Exception (throw)
 import Data.Text (Text)
+import Data.String (IsString)
 import Data.Time (Day, TimeOfDay, UTCTime)
 import Data.Typeable (eqT, (:~:)(..))
 import Unsafe.Coerce
@@ -156,6 +161,24 @@ instance SqlOrd Day
 instance SqlOrd UTCTime
 instance SqlOrd TimeOfDay
 instance SqlOrd a => SqlOrd (Maybe a)
+instance Typeable a => SqlOrd (ID a)
+
+-- | Wrapper for single column tables.
+newtype Single a = Single {the :: a}
+  deriving
+    ( Generic
+    , Show
+    , Read
+    , Eq
+    , Ord
+    , Bounded
+    , Enum
+    , Num
+    , Integral
+    , Fractional
+    , Real
+    , IsString
+    )
 
 -- | Convenient shorthand for @fmap (! sel) q@.
 --   The following two queries are quivalent:
@@ -254,13 +277,6 @@ infixr 2 .||
 ascending, descending :: Order
 ascending = Asc
 descending = Desc
-
--- | The default value for a column during insertion.
---   For an auto-incrementing primary key, the default value is the next key.
---
---   Using @def@ in any other context than insertion results in a runtime error.
-def :: SqlType a => a
-def = throw DefaultValueException
 
 -- | Lift a non-nullable column to a nullable one.
 --   Useful for creating expressions over optional columns:

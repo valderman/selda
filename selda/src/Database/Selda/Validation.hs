@@ -13,11 +13,8 @@ import Data.Maybe (catMaybes)
 import Data.Text (Text, pack, unpack)
 import Database.Selda
 import Database.Selda.Backend
-import Database.Selda.Table
-  ( Table, ValidationError (..)
-  , tableName, tableCols
-  , validateOrThrow
-  )
+import Database.Selda.Table.Type (tableName, tableCols)
+import Database.Selda.Table.Validation (ValidationError (..), validateOrThrow)
 import Database.Selda.Types (fromTableName, fromColName)
 
 -- | Are the given types compatible?

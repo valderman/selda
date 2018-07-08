@@ -64,9 +64,9 @@ simultaneousWrites open = do
     c2 <- open
     withC c1 c2 $ runSeldaT (teardown >> setup)
     flip runSeldaT c1 $ do
-      insert_ people ["Marina" :*: 18 :*: def :*: def]
+      insert_ people [Person "Marina" 18 def def]
     flip runSeldaT c2 $ do
-      insert_ people ["Amber" :*: 19 :*: def :*: def]
+      insert_ people [Person "Amber" 19 def def]
     res1 <- flip runSeldaT c1 $ do
       query $ (pName `from` select people) `suchThat` (.== "Amber")
     res2 <- flip runSeldaT c1 $ do

@@ -2,6 +2,7 @@
 -- | Generating SQL for creating and deleting tables.
 module Database.Selda.Table.Compile where
 import Database.Selda.Table
+import Database.Selda.Table.Validation
 import Data.List ((\\), foldl')
 #if !MIN_VERSION_base(4, 11, 0)
 import Data.Monoid

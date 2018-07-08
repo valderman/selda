@@ -3,8 +3,9 @@
 -- | Types representable in Selda's subset of SQL.
 module Database.Selda.SqlType
   ( SqlType (..), SqlEnum (..)
-  , Lit (..), RowID, SqlValue (..), SqlTypeRep (..)
+  , Lit (..), RowID, ID (..), SqlValue (..), SqlTypeRep (..)
   , invalidRowId, isInvalidRowId, toRowId, fromRowId
+  , toId, invalidId, isInvalidId
   , compLit, litType
   , sqlDateTimeFormat, sqlDateFormat, sqlTimeFormat
   ) where
@@ -195,12 +196,43 @@ toRowId = RowID
 fromRowId :: RowID -> Int
 fromRowId (RowID n) = n
 
+-- | A typed row identifier.
+--   Generic tables should use this instead of 'RowID'.
+--   Use 'untyped' to erase the type of a row identifier, and @cast@ from the
+--   "Database.Selda.Unsafe" module if you for some reason need to add a type
+--   to a row identifier.
+newtype ID a = ID {untyped :: RowID}
+  deriving (Eq, Ord, Typeable)
+instance Show (ID a) where
+  show = show . untyped
+
+-- | Create a typed row identifier from an integer.
+--   Use with caution, preferably only when reading user input.
+toId :: Int -> ID a
+toId = ID . toRowId
+
+-- | A typed row identifier which is guaranteed to not match any row in any
+--   table.
+invalidId :: ID a
+invalidId = ID invalidRowId
+
+-- | Is the given typed row identifier invalid? I.e. is it guaranteed to not
+--   match any row in any table?
+isInvalidId :: ID a -> Bool
+isInvalidId = isInvalidRowId . untyped
+
 instance SqlType RowID where
   mkLit (RowID n) = LCustom $ LInt n
   sqlType _ = TRowID
   fromSql (SqlInt x) = RowID x
   fromSql v          = error $ "fromSql: RowID column with non-int value: " ++ show v
   defaultValue = mkLit invalidRowId
+
+instance Typeable a => SqlType (ID a) where
+  mkLit (ID n) = LCustom $ mkLit n
+  sqlType _ = TRowID
+  fromSql = ID . fromSql
+  defaultValue = mkLit (ID invalidRowId)
 
 instance SqlType Int where
   mkLit = LInt

@@ -1,9 +1,8 @@
-{-# LANGUAGE TypeOperators, OverloadedStrings #-}
+{-# LANGUAGE TypeOperators, OverloadedStrings, DeriveGeneric #-}
 -- | Tests that don't modify the database.
 module Tests.Query (queryTests) where
 import Data.List hiding (groupBy, insert)
 import Database.Selda
-import Database.Selda.Generic
 import Database.Selda.Unsafe
 import Database.Selda.Validation
 import Test.HUnit
@@ -26,9 +25,6 @@ queryTests run = test
   , "order + limit" ~: run orderLimit
   , "limit gives correct number of results" ~: run limitCorrectNumber
   , "aggregate with doubles" ~: run aggregateWithDoubles
-  , "generic query on ad hoc table" ~: run genQueryAdHocTable
-  , "generic query on generic table" ~: run genQueryGenTable
-  , "ad hoc query on generic table" ~: run adHocQueryGenTable
   , "select from value table" ~: run selectVals
   , "select from empty value table" ~: run selectEmptyValues
   , "aggregate from empty value table" ~: run aggregateEmptyValues
@@ -200,36 +196,14 @@ aggregateWithDoubles = do
   where
     ans = sum (map fourth peopleItems)/fromIntegral (length peopleItems)
 
-genQueryAdHocTable = do
-  ppl <- map fromRel <$> query (select people)
-  assEq "wrong results from fromRel" (sort genPeopleItems) (sort ppl)
-
-genQueryGenTable = do
-    ppl1 <- query $ do
-      person <- select $ gen genPeople
-      restrict (person ! pCash .> 0)
-      return (person ! pName :*: person ! pAge)
-    assEq "query gave wrong result" (sort ppl2) (sort ppl1)
-  where
-    ppl2 = [name p :*: age p | p <- genPeopleItems, cash p > 0]
-
-adHocQueryGenTable = do
-    ppl1 <- query $ do
-      name :*: age :*: pet :*: cash <- select $ gen genPeople
-      restrict (cash .> 0)
-      return (name :*: age)
-    assEq "query gave wrong result" (sort ppl2) (sort ppl1)
-  where
-    ppl2 = [name p :*: age p | p <- genPeopleItems, cash p > 0]
-
 selectVals = do
-  vals <- query $ selectValues peopleItems
+  vals <- query $ selectValues (fromRels peopleItems :: [Person])
   assEq "wrong columns returned" (sort peopleItems) (sort vals)
 
 selectEmptyValues = do
   res <- query $ do
     ppl <- select people
-    vals <- selectValues ([] :: [Maybe Text])
+    vals <- selectValues ([] :: [Single (Maybe Text)])
     cs <- select comments
     return cs
   assEq "result set wasn't empty" [] res
@@ -273,15 +247,15 @@ simpleIfThenElse = do
       ]
 
 roundToInt = do
-  res <- query $ round_ <$> selectValues [1.1, 1.5, 1.9 :: Double]
+  res <- query $ round_ <$> selectValues [1.1, 1.5, 1.9 :: Single Double]
   assEq "bad rounding" [1, 2, 2 :: Int] res
 
 serializeDouble = do
   -- The "protocol" used by PostgreSQL is insane - better check that we speak
   -- it properly!
   res <- query $ do
-    n <- selectValues [123456789 :: Int]
-    d <- selectValues [123456789.3 :: Double]
+    n <- selectValues [123456789 :: Single Int]
+    d <- selectValues [123456789.3 :: Single Double]
     restrict (d .> cast n)
     return (cast n + float 1.123)
   assEq "wrong encoding" 1 (length res)
@@ -358,7 +332,7 @@ preparedDifferentResults = do
   assEq "wrong result from second query" ["Kobayashi", "Miyu"] res2
 
 orderCorrectOrder = do
-    insert_ people ["Amber" :*: 19 :*: Nothing :*: 123]
+    insert_ people [Person "Amber" 19 Nothing 123]
 
     res1 <- query $ do
       p <- select people
@@ -433,8 +407,11 @@ selectDistinct = do
     return name
   assEq "wrong result set" ["Kobayashi", "Link", "Miyu", "Velvet"] res
 
+data L = L Text
+  deriving Generic
+
 selectValuesDistinct = do
-  res <- query $ distinct $ selectValues $ replicate 5 ("Link" :: Text)
+  res <- query $ distinct $ selectValues $ replicate 5 (L "Link")
   assEq "wrong result set" ["Link"] res
 
 simpleMatchNull = do
@@ -455,8 +432,8 @@ validateTableValidates = do
     validateTable people
     assertFail $ validateTable bad
   where
-    bad :: Table (RowID :*: RowID)
-    bad = table "bad" $ primary "a" :*: primary "b"
+    bad :: Table (RowID, RowID)
+    bad = table "bad" [fst :- primary, snd :- primary]
 
 genericTuples = do
   res <- query $ do
