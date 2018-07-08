@@ -20,25 +20,28 @@
 --   populating, modifying and querying tables -- and is intended to act as a
 --   Hello World-ish quickstart.
 --
--- > {-# LANGUAGE TypeOperators, OverloadedStrings #-}
+-- > {-# LANGUAGE TypeOperators, OverloadedStrings, DeriveGeneric #-}
 -- > import Data.Text (Text, unpack)
 -- > import Database.Selda
 -- > import Database.Selda.SQLite
 -- >
--- > people :: Table (Text :*: Int :*: Maybe Text)
+-- > data Person = Person
+-- >   { name :: Text
+-- >   , age :: Int
+-- >   , pet :: Maybe Text
+-- >   } deriving Generic
+-- >
+-- > people :: Table Person
 -- > (people, pName :*: pAge :*: pPet)
--- >   = tableWithSelectors "people"
--- >   $   primary "name"
--- >   :*: required "age"
--- >   :*: optional "pet"
+-- >   = tableWithSelectors "people" [name :- primary]
 -- >
 -- > main = withSQLite "people.sqlite" $ do
 -- >   createTable people
 -- >
 -- >   insert_ people
--- >     [ "Velvet"    :*: 19 :*: Nothing
--- >     , "Kobayashi" :*: 23 :*: Just "dragon"
--- >     , "Miyu"      :*: 10 :*: Nothing
+-- >     [ Person "Velvet"    19 Nothing
+-- >     , Person "Kobayashi" 23 (Just "dragon")
+-- >     , Person "Miyu"      10 Nothing
 -- >     ]
 -- >
 -- >   update_ people
@@ -67,7 +70,7 @@ module Database.Selda
     MonadSelda
   , SeldaError (..), ValidationError
   , SeldaT, SeldaM
-  , Relational, Relational', Relation, Single (..)
+  , Relational, Relational', Relation, Only (..)
   , Table, Query, Col, Res, Result
   , query, queryInto
   , transaction, setLocalCache, withoutForeignKeyEnforcement
@@ -164,7 +167,9 @@ instance SqlOrd a => SqlOrd (Maybe a)
 instance Typeable a => SqlOrd (ID a)
 
 -- | Wrapper for single column tables.
-newtype Single a = Single {the :: a}
+--   Use this when you need a table with only a single column, with 'table' or
+--   'selectValues'.
+newtype Only a = Only {the :: a}
   deriving
     ( Generic
     , Show
