@@ -638,7 +638,7 @@ getPeopleOfAge :: Int -> SeldaM [Person]
 getPeopleOfAge yrs = do
   ps <- query $ do
     (name :*: age :*: _) <- select (gen people)
-    restrict (age .== yrs)
+    restrict (age .== literal yrs)
     return p
   return (fromRels ps) -- equivalent to return (map fromRel ps)
 ```
