@@ -6,7 +6,7 @@ module Database.Selda.SqlResult
   , runResultReader, next
   ) where
 import Database.Selda.SqlType
-import Control.Monad.State
+import Control.Monad.State.Strict
 import GHC.Generics
 
 import Data.Typeable
