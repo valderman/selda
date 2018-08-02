@@ -181,7 +181,7 @@ mkFK (Table tn tcs tapk) sel =
 
 class ForeignKey a b where
   -- | A foreign key constraint referencing the given table and column.
-  foreignKey :: Table t -> Selector (Relation t) a -> Attribute self b
+  foreignKey :: Table t -> Selector t a -> Attribute self b
 
 instance ForeignKey a a where
   foreignKey = mkFK

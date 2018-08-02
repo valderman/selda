@@ -70,7 +70,7 @@ module Database.Selda
     MonadSelda
   , SeldaError (..), ValidationError
   , SeldaT, SeldaM
-  , Relational, Relation, Only (..)
+  , Relational, Only (..)
   , Table, Query, Col, Res, Result
   , query, queryInto
   , transaction, setLocalCache, withoutForeignKeyEnforcement
@@ -105,7 +105,6 @@ module Database.Selda
   , insert, insert_, insertWithPK, tryInsert, insertUnless, insertWhen, def
   , update, update_, upsert
   , deleteFrom, deleteFrom_
-  , toRel, toRels, fromRel, fromRels
     -- * Prepared statements
   , Preparable, Prepare
   , prepared
