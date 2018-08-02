@@ -5,7 +5,7 @@
 {-# LANGUAGE GADTs, CPP, DeriveGeneric, DataKinds #-}
 -- | Generics utilities.
 module Database.Selda.Generic
-  ( Relational, Generic, ToDyn, Nested (..)
+  ( Relational, Generic, Nested (..)
   , tblCols, mkDummy, identify, params
   , def
   ) where

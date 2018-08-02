@@ -76,7 +76,7 @@ module Database.Selda
   , transaction, setLocalCache, withoutForeignKeyEnforcement
     -- * Constructing queries
   , Selector, (!), Assignment(..), with
-  , ToDyn, SqlType (..), SqlResult (..), SqlEnum (..)
+  , SqlType (..), SqlResult (..), SqlEnum (..)
   , Cols, Columns
   , Order (..)
   , (:*:)(..)
@@ -89,7 +89,6 @@ module Database.Selda
   , Set (..)
   , ID, invalidId, isInvalidId, untyped, toId
   , RowID, invalidRowId, isInvalidRowId, fromRowId, toRowId
-  , Append (..), (:++:), (.++)
   , (.==), (./=), (.>), (.<), (.>=), (.<=), like
   , (.&&), (.||), not_
   , literal, int, float, text, true, false, null_
@@ -197,12 +196,6 @@ from :: Typeable a => Selector a b
      -> Query s (Col s b)
 from s q = (! s) <$> q
 infixr 7 `from`
-
--- | Concatenate two inductive tuples of columns. Handy for returning i.e.
---   two or more joined tables from a query.
-(.++) :: Append a b => a -> b -> a :++: b
-(.++) = app
-infixr 5 .++
 
 -- | Explicitly create an inner query. Equivalent to @innerJoin (const true)@.
 --

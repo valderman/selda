@@ -5,18 +5,16 @@
 {-# LANGUAGE CPP #-}
 -- | Basic Selda types.
 module Database.Selda.Types
-  ( (:*:)(..), Head, Append (..), (:++:), ToDyn, Tup (..)
+  ( (:*:)(..), Head, Tup (..)
   , first, second, third, fourth, fifth, sixth, seventh, eighth, ninth, tenth
   , ColName, TableName
   , modColName, mkColName, mkTableName, addColSuffix, addColPrefix
   , fromColName, fromTableName, rawTableName
-  , toDyns, fromDyns, unsafeToList, unsafeFromList
   ) where
 import Data.Dynamic
 import Data.String
 import Data.Text (Text, replace, append)
 import GHC.Generics (Generic)
-import Unsafe.Coerce
 
 #ifndef NO_LOCALCACHE
 import Data.Hashable
@@ -140,51 +138,3 @@ ninth (_ :*: _ :*: _ :*: _ :*: _ :*: _ :*: _ :*: _ :*: i) = tupHead i
 tenth :: Tup j => (a :*: b :*: c :*: d :*: e :*: f :*: g :*: h :*: i :*: j)
       -> Head j
 tenth (_ :*: _ :*: _ :*: _ :*: _ :*: _ :*: _ :*: _ :*: _ :*: j) = tupHead j
-
--- | Normalized append of two inductive tuples.
---   Note that this will flatten any nested inductive tuples.
-type family a :++: b where
-  (a :*: b) :++: c = a :*: (b :++: c)
-  a         :++: b = a :*: b
-
-class Append a b where
-  app :: a -> b -> a :++: b
-instance {-# OVERLAPPING #-} Append b c => Append (a :*: b) c where
-  app (a :*: b) c = a :*: app b c
-instance ((a :*: b) ~ (a :++: b)) => Append a b where
-  app a b = a :*: b
-
-data Unsafe = Unsafe Int
-
--- Prevent users from creating unsafe instances of ToDyn.
-class ToDynInternal a => ToDyn a
-instance ToDynInternal a => ToDyn a
-
-class Typeable a => ToDynInternal a where
-  toDyns :: a -> [Dynamic]
-  fromDyns :: [Dynamic] -> Maybe a
-  -- | TODO: replace with safe coercions when that hits platform-1.
-  unsafeToList :: a -> [Unsafe]
-  -- | TODO: replace with safe coercions when that hits platform-1.
-  unsafeFromList :: [Unsafe] -> a
-
-instance (Typeable a, ToDynInternal b) => ToDynInternal (a :*: b) where
-  toDyns (a :*: b) = toDyn a : toDyns b
-  fromDyns (x:xs) = do
-    x' <- fromDynamic x
-    xs' <- fromDyns xs
-    return (x' :*: xs')
-  fromDyns _ = do
-    Nothing
-  unsafeToList (x :*: xs) = unsafeCoerce x : unsafeToList xs
-  unsafeFromList (x : xs) = unsafeCoerce x :*: unsafeFromList xs
-  unsafeFromList _        = error "too short list to unsafeFromList"
-
-instance {-# OVERLAPPABLE #-} Typeable a => ToDynInternal a where
-  toDyns a = [toDyn a]
-  fromDyns [x] = fromDynamic x
-  fromDyns _   = Nothing
-  unsafeToList x = [unsafeCoerce x]
-  unsafeFromList [x] = unsafeCoerce x
-  unsafeFromList []  = error "too short list to unsafeFromList"
-  unsafeFromList _   = error "too long list to unsafeFromList"
