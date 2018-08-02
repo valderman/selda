@@ -28,7 +28,7 @@ license:
 	cp -f LICENSE ./selda-sqlite/LICENSE
 
 deps: license
-	cd ./selda ; cabal install
+	cd ./selda ; cabal install --allow-newer=base
 	cabal install -f-haste $(PACKAGES)
 	cabal install ./selda-tests --only-dependencies --enable-tests
 
