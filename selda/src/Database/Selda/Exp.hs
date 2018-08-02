@@ -1,5 +1,5 @@
 {-# LANGUAGE GADTs, FlexibleContexts, FlexibleInstances #-}
-{-# LANGUAGE TypeOperators, CPP, DataKinds #-}
+{-# LANGUAGE TypeOperators, CPP, DataKinds, UndecidableInstances #-}
 -- | The expression type underlying 'Col'.
 module Database.Selda.Exp where
 import Database.Selda.SqlType

@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, CPP #-}
 module Database.Selda.Table.Validation where
 import Control.Exception
 import Data.List (group, sort)
@@ -6,6 +6,9 @@ import Data.Text (Text, any, intercalate, unpack)
 import Data.Typeable
 import Database.Selda.Table.Type
 import Database.Selda.Types
+#if !MIN_VERSION_base(4, 11, 0)
+import Data.Monoid
+#endif
 
 -- | An error occurred when validating a database table.
 --   If this error is thrown, there is a bug in your database schema, and the

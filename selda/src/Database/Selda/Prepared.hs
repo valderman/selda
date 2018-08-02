@@ -1,5 +1,6 @@
 {-# LANGUAGE TypeFamilies, FlexibleInstances, ScopedTypeVariables #-}
 {-# LANGUAGE MultiParamTypeClasses, FlexibleContexts #-}
+{-# LANGUAGE UndecidableInstances #-}
 -- | Building and executing prepared statements.
 module Database.Selda.Prepared (Preparable, Prepare, prepared) where
 import Database.Selda.Backend.Internal

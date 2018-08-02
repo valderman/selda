@@ -77,7 +77,7 @@ instance GSelectors t (a G.:*: (b G.:*: c)) =>
          GSelectors t ((a G.:*: b) G.:*: c) where
   mkSel _ = mkSel (Proxy :: Proxy (a G.:*: (b G.:*: c)))
 
-instance
+instance {-# OVERLAPPABLE #-}
   ( GSelectors t a
   , GSelectors t b
   , Sels t (a G.:*: b) ~ (Sels t a :*: Sels t b)

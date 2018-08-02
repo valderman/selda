@@ -6,8 +6,7 @@
 -- | Generics utilities.
 module Database.Selda.Generic
   ( Relational, Generic, Nested (..)
-  , tblCols, mkDummy, identify, params
-  , def
+  , tblCols, mkDummy, identify, params, def
   ) where
 import Control.Monad.State
 import Data.Dynamic
@@ -30,6 +29,9 @@ import Database.Selda.SqlResult (SqlResult)
 import Database.Selda.Table.Type
 import Database.Selda.SQL (Param (..))
 import Database.Selda.Exp (Exp (Col), UntypedCol (..))
+#if !MIN_VERSION_base(4, 11, 0)
+import Data.Monoid
+#endif
 
 -- | Any type which has a corresponding relation.
 --   To make a @Relational@ instance for some type, simply derive 'Generic'.
