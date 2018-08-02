@@ -1,4 +1,5 @@
-{-# LANGUAGE GADTs, TypeFamilies, TypeOperators, PolyKinds, FlexibleInstances, OverloadedStrings #-}
+{-# LANGUAGE GADTs, TypeFamilies, TypeOperators, PolyKinds #-}
+{-# LANGUAGE FlexibleInstances, OverloadedStrings #-}
 -- | Columns and associated utility functions, specialized to 'SQL'.
 module Database.Selda.Column
   ( Cols, Columns

@@ -122,10 +122,10 @@ tidy ci = ci {colAttrs = snub $ colAttrs ci}
 -- >
 -- > q :: Query s Text
 -- > q = tblBaz <$> select tbl
-tableWithSelectors :: forall a. (Relational a, HasSelectors (Relation a) (Relation a))
+tableWithSelectors :: forall a. Relational a
                    => TableName
                    -> [Attr a]
-                   -> (Table a, Selectors (Relation a) (Relation a))
+                   -> (Table a, Selectors a)
 tableWithSelectors name cs = (t, s)
   where
     t = table name cs
@@ -141,10 +141,8 @@ tableWithSelectors name cs = (t, s)
 -- >
 -- > q :: Query s Text
 -- > q = tblBaz <$> select tbl
-selectors :: forall a. HasSelectors (Relation a) (Relation a)
-          => Table a
-          -> Selectors (Relation a) (Relation a)
-selectors _ = mkSel (Proxy :: Proxy (Relation a)) 0 (Proxy :: Proxy (Relation a))
+selectors :: forall a. Relational a => Table a -> Selectors a
+selectors _ = selectorsFor (Proxy :: Proxy a)
 
 -- | Some attribute that may be set on a column of type @c@, in a table of
 --   type @t@.
@@ -178,8 +176,8 @@ unique :: Attribute t c
 unique = Attribute [Unique]
 
 mkFK :: Table t -> Selector a b -> Attribute c d
-mkFK (Table tn tcs tapk) (Selector i) =
-  ForeignKey (Table tn tcs tapk, colName (tcs !! i))
+mkFK (Table tn tcs tapk) sel =
+  ForeignKey (Table tn tcs tapk, colName (tcs !! selectorIndex sel))
 
 class ForeignKey a b where
   -- | A foreign key constraint referencing the given table and column.

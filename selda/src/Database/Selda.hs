@@ -112,7 +112,7 @@ module Database.Selda
     -- * Defining schemas
   , Generic
   , TableName, ColName, Attr (..), Attribute, Nested (..)
-  , Selectors, HasSelectors, ForeignKey (..)
+  , Selectors, ForeignKey (..)
   , table, tableFieldMod, tableWithSelectors, selectors
   , primary, autoPrimary, untypedAutoPrimary, unique
   , IndexMethod (..), index, indexUsing
@@ -193,9 +193,8 @@ newtype Only a = Only {the :: a}
 -- > q2 = do
 -- >   person <- select people
 -- >   return (person ! name)
-from :: ToDyn (Cols () a)
-     => Selector a b
-     -> Query s (Cols s a)
+from :: Typeable a => Selector a b
+     -> Query s (Col s a)
      -> Query s (Col s b)
 from s q = (! s) <$> q
 infixr 7 `from`

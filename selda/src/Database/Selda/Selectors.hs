@@ -1,62 +1,88 @@
 {-# LANGUAGE ScopedTypeVariables, TypeFamilies, MultiParamTypeClasses #-}
 {-# LANGUAGE TypeOperators, UndecidableInstances, FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts, RankNTypes, AllowAmbiguousTypes, GADTs, CPP #-}
-module Database.Selda.Selectors where
+{-# LANGUAGE DeriveGeneric #-}
+module Database.Selda.Selectors
+  ( Assignment (..), Selector, Selectors, GSelectors
+  , (!), with
+  , selectorsFor, selectorIndex
+  ) where
+import Control.Monad.State.Strict
+import Database.Selda.SqlType
 import Database.Selda.Types
 import Database.Selda.Column
-import Data.Dynamic
 import Data.List (foldl')
 #if MIN_VERSION_base(4, 10, 0)
 import Data.Proxy
 #endif
+import GHC.Generics hiding (Selector, (:*:))
+import qualified GHC.Generics as G
 import Unsafe.Coerce
 
--- | Get the value at the given index from the given inductive tuple.
-(!)  :: forall s t a. ToDyn (Cols () t) => Cols s t -> Selector t a -> Col s a
-tup ! (Selector n) = unsafeCoerce (unsafeToList (toU tup) !! n)
-  where toU = unsafeCoerce :: Cols s t -> Cols () t
-infixl 9 !
+(!) :: Col s a -> Selector a b -> Col s b
+(Many xs) ! (Selector i) = unsafeCoerce (xs !! i)
+(One _)   ! _            = nonProdColError
 
-upd :: forall s t. (ToDyn (Cols () t))
-     => Cols s t -> Assignment s t -> Cols s t
-upd tup (Selector n := x) =
-    fromU . unsafeFromList $ replace (unsafeToList $ toU tup) (unsafeCoerce x)
-  where
-    toU = unsafeCoerce :: Cols s t -> Cols () t
-    fromU = unsafeCoerce :: Cols () t -> Cols s t
-    replace xs x' =
-      case splitAt n xs of
-        (left, _:right) -> left ++ x' : right
-        _               -> error "impossible"
+nonProdColError :: a
+nonProdColError = error "BUG: used selector on non-product column"
+
+upd :: Col s a -> Assignment s a -> Col s a
+upd (Many xs) (Selector i := x') =
+  case splitAt i xs of
+    (left, _:right) -> Many (left ++ unsafeCoerce x' : right)
+    _               -> error "impossible"
+upd (One _) _ =
+  nonProdColError
 
 -- | A selector-value assignment pair.
-data Assignment s t where
+data Assignment s a where
   (:=) :: Selector t a -> Col s a -> Assignment s t
 infixl 2 :=
 
 -- | For each selector-value pair in the given list, on the given tuple,
 --   update the field pointed out by the selector with the corresponding value.
-with :: forall s t. (ToDyn (Cols () t))
-     => Cols s t -> [Assignment s t] -> Cols s t
+with :: Col s a -> [Assignment s a] -> Col s a
 with = foldl' upd
 
 -- | A column selector. Column selectors can be used together with the '!' and
 --   'with' functions to get and set values on inductive tuples, or to indicate
 --   foreign keys.
-data Selector t a = Selector Int
+newtype Selector t a = Selector {selectorIndex :: Int}
 
--- | The inductive tuple of selectors for a table of type @a@.
-type family Selectors t a where
-  Selectors t (a :*: b) = (Selector t a :*: Selectors t b)
-  Selectors t a         = Selector t a
+-- | Generate selectors for the given type.
+selectorsFor :: forall r. GSelectors r (Rep r) => Proxy r -> Selectors r
+selectorsFor = flip evalState 0 . mkSel (Proxy :: Proxy (Rep r))
+
+-- | An inductive tuple of selectors for the given relation.
+type Selectors r = Sels r (Rep r)
+
+type family Sels t f where
+  Sels t ((a G.:*: b) G.:*: c) = Sels t (a G.:*: (b G.:*: c))
+  Sels t (a G.:*: b)           = Sels t a :*: Sels t b
+  Sels t (M1 x y f)            = Sels t f
+  Sels t (K1 i a)              = Selector t a
 
 -- | Any table type that can have selectors generated.
-class HasSelectors t a where
-  mkSel :: Proxy t -> Int -> Proxy a -> Selectors t a
+class GSelectors t (f :: * -> *) where
+  mkSel :: Proxy f -> Proxy t -> State Int (Sels t f)
 
-instance (Typeable a, HasSelectors t b) => HasSelectors t (a :*: b) where
-  mkSel p n _ = (Selector n :*: mkSel p (n+1) (Proxy :: Proxy b))
+instance SqlType a => GSelectors t (K1 i a) where
+  mkSel _ _ = Selector <$> state (\n -> (n, n+1))
 
-instance {-# OVERLAPPABLE #-} (Selectors t a ~ Selector t a) =>
-         HasSelectors t a where
-  mkSel _ n _ = Selector n
+instance (GSelectors t f, Sels t f ~ Sels t (M1 x y f)) =>
+         GSelectors t (M1 x y f) where
+  mkSel _ = mkSel (Proxy :: Proxy f)
+
+instance GSelectors t (a G.:*: (b G.:*: c)) =>
+         GSelectors t ((a G.:*: b) G.:*: c) where
+  mkSel _ = mkSel (Proxy :: Proxy (a G.:*: (b G.:*: c)))
+
+instance
+  ( GSelectors t a
+  , GSelectors t b
+  , Sels t (a G.:*: b) ~ (Sels t a :*: Sels t b)
+  ) => GSelectors t (a G.:*: b) where
+    mkSel _ p = do
+      x <- mkSel (Proxy :: Proxy a) p
+      xs <- mkSel (Proxy :: Proxy b) p
+      return (x :*: xs)

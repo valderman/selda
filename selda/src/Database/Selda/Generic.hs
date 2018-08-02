@@ -25,6 +25,7 @@ import Unsafe.Coerce
 import Control.Exception (Exception (..), try, throw)
 import System.IO.Unsafe
 import Database.Selda.Types
+import Database.Selda.Selectors
 import Database.Selda.SqlType
 import Database.Selda.SqlResult (SqlResult)
 import Database.Selda.Table.Type
@@ -42,7 +43,7 @@ type Relational a =
   ( Generic a
   , SqlResult a
   , GRelation (Rep a)
-  , GFromRel (Rep a)
+  , GSelectors a (Rep a)
   )
 
 -- | Convert a generic type into the corresponding database relation.
