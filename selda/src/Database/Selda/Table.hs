@@ -10,27 +10,20 @@ module Database.Selda.Table
   , table, tableFieldMod, tableWithSelectors, selectors
   , primary, autoPrimary, untypedAutoPrimary, unique
   , index, indexUsing
+  , tableExpr
   ) where
-import Control.Monad.State
-import Data.Dynamic
-import Data.Text as Text (Text, pack, intercalate, unwords, empty)
+import Data.Text (Text)
 #if MIN_VERSION_base(4, 10, 0)
 import Data.Typeable
 #endif
-import GHC.Generics hiding (R, (:*:), Selector)
-import qualified GHC.Generics as G ((:*:)(..), (:+:)(..), Selector, R)
-#if MIN_VERSION_base(4, 9, 0)
-import qualified GHC.TypeLits as TL
-#endif
-import Unsafe.Coerce
 import Database.Selda.Types
 import Database.Selda.Selectors
 import Database.Selda.SqlType
 #if !MIN_VERSION_base(4, 11, 0)
 import Data.Monoid
 #endif
+import Database.Selda.Column (Col (..))
 import Database.Selda.Generic
-import Database.Selda.SqlType
 import Database.Selda.Table.Type
 import Database.Selda.Table.Validation (snub)
 
@@ -198,3 +191,7 @@ instance ForeignKey (Maybe a) a where
   foreignKey = mkFK
 instance ForeignKey a (Maybe a) where
   foreignKey = mkFK
+
+-- | An expression representing the given table.
+tableExpr :: Table a -> Col s a
+tableExpr = Many . map colExpr . tableCols

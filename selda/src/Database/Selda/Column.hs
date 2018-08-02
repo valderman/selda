@@ -2,9 +2,11 @@
 -- | Columns and associated utility functions, specialized to 'SQL'.
 module Database.Selda.Column
   ( Cols, Columns
-  , Col (..), SomeCol (..), Exp (..), NulOp (..), UnOp (..), BinOp (..)
+  , Col (..), SomeCol (..), UntypedCol (..)
+  , Exp (..), NulOp (..), UnOp (..), BinOp (..)
   , toTup, fromTup, liftC, liftC2, liftC3
   , allNamesIn
+  , hideRenaming
   , literal
   ) where
 import Database.Selda.Exp
@@ -22,38 +24,50 @@ type family Cols s a where
 -- | Any column tuple.
 class Columns a where
   toTup :: [ColName] -> a
-  fromTup :: a -> [SomeCol SQL]
+  fromTup :: a -> [UntypedCol SQL]
 
+-- TODO: toTup needs to give back Many (take n xs) when a is not SqlType
 instance Columns b => Columns (Col s a :*: b) where
-  toTup (x:xs) = C (Col x) :*: toTup xs
+  toTup (x:xs) = One (Col x) :*: toTup xs
   toTup _      = error "too few elements to toTup"
-  fromTup (C x :*: xs) = Some x : fromTup xs
+  fromTup (One x :*: xs) = Untyped x : fromTup xs
+  fromTup (Many xs :*: xss) = xs ++ fromTup xss
 
 instance Columns (Col s a) where
-  toTup [x] = C (Col x)
+  toTup [x] = One (Col x)
   toTup []  = error "too few elements to toTup"
-  toTup xs  = C (TblCol xs)
-  fromTup (C x) = [Some x]
+  toTup xs  = One (TblCol xs)
+  fromTup (One x) = [Untyped x]
+  fromTup (Many xs) = xs
 
 -- | A database column. A column is often a literal column table, but can also
 --   be an expression over such a column or a constant expression.
-newtype Col s a = C {unC :: Exp SQL a}
+data Col s a where
+  One :: !(Exp SQL a) -> Col s a
+  Many :: ![UntypedCol SQL] -> Col s a
 
 -- | A literal expression.
 literal :: SqlType a => a -> Col s a
-literal = C . Lit . mkLit
+literal = One . Lit . mkLit
 
 instance IsString (Col s Text) where
   fromString = literal . fromString
 
-liftC3 :: (Exp SQL a -> Exp SQL b -> Exp SQL c -> Exp SQL d) -> Col s a -> Col s b -> Col s c -> Col s d
-liftC3 f (C a) (C b) (C c) = C (f a b c)
+liftC3 :: (Exp SQL a -> Exp SQL b -> Exp SQL c -> Exp SQL d)
+       -> Col s a
+       -> Col s b
+       -> Col s c
+       -> Col s d
+liftC3 f (One a) (One b) (One c) = One (f a b c)
+liftC3 _ _ _ _ = error "Can't use liftC3 with product columns"
 
 liftC2 :: (Exp SQL a -> Exp SQL b -> Exp SQL c) -> Col s a -> Col s b -> Col s c
-liftC2 f (C a) (C b) = C (f a b)
+liftC2 f (One a) (One b) = One (f a b)
+liftC2 _ _ _ = error "Can't use liftC2 with product columns"
 
 liftC :: (Exp SQL a -> Exp SQL b) -> Col s a -> Col s b
-liftC f = C . f . unC
+liftC f (One x) = One (f x)
+liftC _ _ = error "Can't use liftC with product columns"
 
 instance (SqlType a, Num a) => Num (Col s a) where
   fromInteger = literal . fromInteger
@@ -75,11 +89,11 @@ instance {-# OVERLAPPING #-} (SqlType a, Num a) => Num (Col s (Maybe a)) where
 
 instance Fractional (Col s Double) where
   fromRational = literal . fromRational
-  (/) = liftC2 $ BinOp Div  
+  (/) = liftC2 $ BinOp Div
 
 instance Fractional (Col s (Maybe Double)) where
   fromRational = literal . Just . fromRational
-  (/) = liftC2 $ BinOp Div  
+  (/) = liftC2 $ BinOp Div
 
 instance Fractional (Col s Int) where
   fromRational = literal . (truncate :: Double -> Int) . fromRational

@@ -9,7 +9,7 @@ import Data.Monoid
 #endif
 import Data.Text (Text, intercalate, pack)
 import qualified Data.Text as Text
-import Database.Selda.SQL hiding (params, param)
+import Database.Selda.SQL hiding (param)
 import Database.Selda.SQL.Print.Config
 import Database.Selda.SqlType (SqlTypeRep(..))
 import Database.Selda.Types

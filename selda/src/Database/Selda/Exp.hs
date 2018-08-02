@@ -1,15 +1,29 @@
-{-# LANGUAGE GADTs #-}
+{-# LANGUAGE GADTs, FlexibleContexts, FlexibleInstances #-}
+{-# LANGUAGE TypeOperators, CPP, DataKinds #-}
 -- | The expression type underlying 'Col'.
 module Database.Selda.Exp where
 import Database.Selda.SqlType
-import Database.Selda.Types
+import Database.Selda.Types hiding ((:*:))
 import Data.Text (Text)
+import Data.Typeable
+import GHC.Generics
+import qualified GHC.TypeLits as TL
 
 -- | A type-erased column, which may also be renamed.
 --   Only for internal use.
 data SomeCol sql where
   Some  :: !(Exp sql a) -> SomeCol sql
   Named :: !ColName -> !(Exp sql a) -> SomeCol sql
+
+data UntypedCol sql where
+  Untyped :: !(Exp sql a) -> UntypedCol sql
+
+-- | Turn a renamed column back into a regular one.
+--   If the column was renamed, it will be represented by a literal column,
+--   and not its original expression.
+hideRenaming :: SomeCol sql -> UntypedCol sql
+hideRenaming (Named n _) = Untyped (Col n)
+hideRenaming (Some c)    = Untyped c
 
 -- | Underlying column expression type, parameterised over the type of
 --   SQL queries.
@@ -78,3 +92,32 @@ instance Names sql => Names (Exp sql a) where
 instance Names sql => Names (SomeCol sql) where
   allNamesIn (Some c)    = allNamesIn c
   allNamesIn (Named n c) = n : allNamesIn c
+
+instance Names sql => Names (UntypedCol sql) where
+  allNamesIn (Untyped c) = allNamesIn c
+
+class GExp f where
+  gExpressions :: f x -> [UntypedCol sql]
+
+instance GExp f => GExp (D1 x f) where
+  gExpressions (M1 x) = gExpressions x
+
+instance GExp f => GExp (C1 x f) where
+  gExpressions (M1 x) = gExpressions x
+
+instance GExp f => GExp (S1 ('MetaSel x y z 'DecidedLazy) f) where
+  gExpressions (M1 x) = gExpressions x
+
+#if MIN_VERSION_base(4, 9, 0)
+instance
+  (TL.TypeError
+    ('TL.Text "Types with strict fields are not usable within queries.")
+  ) => GExp (S1 ('MetaSel x y z 'DecidedStrict) f) where
+  gExpressions _ = error "unreachable"
+#endif
+
+instance (Typeable a, SqlType a) => GExp (K1 i a) where
+  gExpressions (K1 x) = [Untyped (Lit (mkLit x))]
+
+instance (GExp a, GExp b) => GExp (a :*: b) where
+  gExpressions (a :*: b) = gExpressions a ++ gExpressions b

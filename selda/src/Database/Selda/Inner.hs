@@ -5,6 +5,7 @@
 module Database.Selda.Inner where
 import Database.Selda.Column
 import Database.Selda.SQL (SQL)
+import Database.Selda.SqlType (SqlType)
 import Database.Selda.Types
 import Data.Text (Text)
 import Data.Typeable
@@ -38,8 +39,9 @@ data Inner s
 -- | Create a named aggregate function.
 --   Like 'fun', this function is generally unsafe and should ONLY be used
 --   to implement missing backend-specific functionality.
-aggr :: Text -> Col s a -> Aggr s b
-aggr f = Aggr . AggrEx f . unC
+aggr :: SqlType a => Text -> Col s a -> Aggr s b
+aggr f (One x)  = Aggr (AggrEx f x)
+aggr _ (Many _) = error "BUG: SqlType should never be a product column"
 
 -- | Convert one or more inner column to equivalent columns in the outer query.
 --   @OuterCols (Aggr (Inner s) a :*: Aggr (Inner s) b) = Col s a :*: Col s b@,
@@ -93,8 +95,8 @@ type family LeftCols a where
 
 -- | One or more aggregate columns.
 class Aggregates a where
-  unAggrs :: a -> [SomeCol SQL]
+  unAggrs :: a -> [UntypedCol SQL]
 instance Aggregates (Aggr (Inner s) a) where
-  unAggrs (Aggr x) = [Some x]
+  unAggrs (Aggr x) = [Untyped x]
 instance Aggregates b => Aggregates (Aggr (Inner s) a :*: b) where
-  unAggrs (Aggr a :*: b) = Some a : unAggrs b
+  unAggrs (Aggr a :*: b) = Untyped a : unAggrs b

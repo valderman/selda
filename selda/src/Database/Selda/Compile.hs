@@ -3,18 +3,20 @@
 {-# LANGUAGE ConstraintKinds #-}
 -- | Selda SQL compilation.
 module Database.Selda.Compile
-  ( Relational', Result, Res
-  , toRes, compQuery, compQueryWithFreshScope
+  ( Result, Res
+  , buildResult, compQuery, compQueryWithFreshScope
   , compile, compileWith, compileWithTables
   , compileInsert, compileUpdate, compileDelete
   )
   where
+import Control.Monad (liftM2)
 import Database.Selda.Column
 import Database.Selda.Generic
 import Database.Selda.Query.Type
 import Database.Selda.SQL
 import Database.Selda.SQL.Print
 import Database.Selda.SQL.Print.Config
+import Database.Selda.SqlResult
 import Database.Selda.SqlType
 import Database.Selda.Table
 import Database.Selda.Table.Compile
@@ -27,13 +29,6 @@ import Data.Typeable (Typeable)
 -- For scope supply
 import Data.IORef
 import System.IO.Unsafe
-
--- | Adding scoped constraints to 'Relational' for convenience.
-type Relational' s a =
-  ( Relational a
-  , Columns (Cols s (Relation a))
-  , Result (Cols s (Relation a))
-  )
 
 -- | Compile a query into a parameterised SQL statement.
 --
@@ -74,28 +69,28 @@ compileInsert cfg tbl rows =
         (x, xs') -> x : chunk chunksize xs'
 
 -- | Compile an @UPDATE@ query.
-compileUpdate :: forall s a. Relational' s a
+compileUpdate :: forall s a. (Relational a, SqlResult a)
               => PPConfig
-              -> Table a                             -- ^ Table to update.
-              -> (Cols s (Relation a) -> Cols s (Relation a)) -- ^ Update function.
-              -> (Cols s (Relation a) -> Col s Bool) -- ^ Predicate.
+              -> Table a                 -- ^ Table to update.
+              -> (Col s a -> Col s a)    -- ^ Update function.
+              -> (Col s a -> Col s Bool) -- ^ Predicate.
               -> (Text, [Param])
 compileUpdate cfg tbl upd check =
     compUpdate cfg (tableName tbl) predicate updated
   where
     names = map colName (tableCols tbl)
-    cs = toTup names
+    cs = tableExpr tbl
     updated = zip names (finalCols (upd cs))
-    C predicate = check cs
+    One predicate = check cs
 
 -- | Compile a @DELETE FROM@ query.
-compileDelete :: Relational' s a
+compileDelete :: Relational a
               => PPConfig
               -> Table a
-              -> (Cols s (Relation a) -> Col s Bool)
+              -> (Col s a -> Col s Bool)
               -> (Text, [Param])
 compileDelete cfg tbl check = compDelete cfg (tableName tbl) predicate
-  where C predicate = check $ toTup $ map colName $ tableCols tbl
+  where One predicate = check $ toTup $ map colName $ tableCols tbl
 
 -- | Compile a query to an SQL AST.
 --   Groups are ignored, as they are only used by 'aggregate'.
@@ -120,6 +115,9 @@ compQueryWithFreshScope q = unsafePerformIO $ do
   s <- atomicModifyIORef' scopeSupply (\s -> (s+1, s))
   return $ compQuery s q
 
+buildResult :: Result r => Proxy r -> [SqlValue] -> Res r
+buildResult p = runResultReader (toRes p)
+
 -- | An acceptable query result type; one or more columns stitched together
 --   with @:*:@.
 class Typeable (Res r) => Result r where
@@ -130,20 +128,18 @@ class Typeable (Res r) => Result r where
   --   The given list must contain exactly as many elements as dictated by
   --   the @Res r@. If the result is @a :*: b :*: c@, then the list must
   --   contain exactly three values, for instance.
-  toRes :: Proxy r -> [SqlValue] -> Res r
+  toRes :: Proxy r -> ResultReader (Res r)
 
   -- | Produce a list of all columns present in the result.
   finalCols :: r -> [SomeCol SQL]
 
-instance (SqlType a, Result b) => Result (Col s a :*: b) where
+instance (SqlResult a, Result b) => Result (Col s a :*: b) where
   type Res (Col s a :*: b) = a :*: Res b
-  toRes _ (x:xs) = fromSql x :*: toRes (Proxy :: Proxy b) xs
-  toRes _ _      = error "backend bug: too few result columns to toRes"
+  toRes _ = liftM2 (:*:) nextResult (toRes (Proxy :: Proxy b))
   finalCols (a :*: b) = finalCols a ++ finalCols b
 
-instance SqlType a => Result (Col s a) where
+instance SqlResult a => Result (Col s a) where
   type Res (Col s a) = a
-  toRes _ [x] = fromSql x
-  toRes _ []  = error "backend bug: too few result columns to toRes"
-  toRes _ _   = error "backend bug: too many result columns to toRes"
-  finalCols (C c) = [Some c]
+  toRes _ = nextResult
+  finalCols (One c) = [Some c]
+  finalCols (Many cs) = [Some c | Untyped c <- cs]

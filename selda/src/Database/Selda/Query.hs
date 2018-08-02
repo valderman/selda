@@ -7,41 +7,38 @@ module Database.Selda.Query
   ) where
 import Data.Maybe (isNothing)
 import Database.Selda.Column
-import Database.Selda.Compile (Relational')
 import Database.Selda.Generic
 import Database.Selda.Inner
 import Database.Selda.Query.Type
 import Database.Selda.SQL as SQL
+import Database.Selda.SqlType (SqlType)
 import Database.Selda.Table
 import Database.Selda.Transform
 import Control.Monad.State.Strict
 import Unsafe.Coerce
 
--- | Query the given table. Result is returned as an inductive tuple, i.e.
---   @first :*: second :*: third <- query tableOfThree@.
-select :: Relational' s a => Table a -> Query s (Cols s (Relation a))
+-- | Query the given table.
+select :: Relational a => Table a -> Query s (Col s a)
 select (Table name cs _) = Query $ do
-    rns <- mapM (rename . Some . Col) cs'
-    st <- get
-    put $ st {sources = sqlFrom rns (TableName name) : sources st}
-    return $ toTup [n | Named n _ <- rns]
-  where
-    cs' = map colName cs
+  rns <- renameAll $ map colExpr cs
+  st <- get
+  put $ st {sources = sqlFrom rns (TableName name) : sources st}
+  return $ Many (map hideRenaming rns)
 
 -- | Query an ad hoc table of type @a@. Each element in the given list represents
 --   one row in the ad hoc table.
-selectValues :: Relational' s a => [a] -> Query s (Cols s (Relation a))
+selectValues :: Relational a => [a] -> Query s (Col s a)
 selectValues [] = Query $ do
   st <- get
   put $ st {sources = sqlFrom [] EmptyTable : sources st}
-  return $ toTup (repeat "NULL")
+  return $ Many (repeat (Untyped $ Col "NULL"))
 selectValues (row:rows) = Query $ do
     names <- mapM (const freshName) firstrow
     let rns = [Named n (Col n) | n <- names]
         row' = mkFirstRow names
     s <- get
     put $ s {sources = sqlFrom rns (Values row' rows') : sources s}
-    return $ toTup [n | Named n _ <- rns]
+    return $ Many (map hideRenaming rns)
   where
     firstrow = map defToVal $ params row
     mkFirstRow ns =
@@ -54,7 +51,7 @@ selectValues (row:rows) = Query $ do
 
 -- | Restrict the query somehow. Roughly equivalent to @WHERE@.
 restrict :: Col s Bool -> Query s ()
-restrict (C p) = Query $ do
+restrict (One p) = Query $ do
     st <- get
     put $ case sources st of
       [] ->
@@ -71,6 +68,7 @@ restrict (C p) = Query $ do
     wasRenamedIn predicate cs =
       let cs' = [n | Named n _ <- cs]
       in  any (`elem` cs') (colNames [Some predicate])
+restrict (Many _) = error "BUG: Bool should never be a product column"
 
 -- | Execute a query, returning an aggregation of its results.
 --   The query must return an inductive tuple of 'Aggregate' columns.
@@ -100,7 +98,7 @@ aggregate :: (Columns (AggrCols a), Aggregates a)
           -> Query s (AggrCols a)
 aggregate q = Query $ do
   (gst, aggrs) <- isolate q
-  cs <- mapM rename $ unAggrs aggrs
+  cs <- renameAll $ unAggrs aggrs
   let sql = (sqlFrom cs (Product [state2sql gst])) {groups = groupCols gst}
   modify $ \st -> st {sources = sql : sources st}
   pure $ toTup [n | Named n _ <- cs]
@@ -149,12 +147,12 @@ someJoin :: (Columns a, Columns (OuterCols a), Columns a')
          -> Query s a'
 someJoin jointype check q = Query $ do
   (join_st, res) <- isolate q
-  cs <- mapM rename $ fromTup res
+  cs <- renameAll $ fromTup res
   st <- get
   let nameds = [n | Named n _ <- cs]
       left = state2sql st
       right = sqlFrom cs (Product [state2sql join_st])
-      C on = check $ toTup nameds
+      One on = check $ toTup nameds
       outCols = [Some $ Col n | Named n _ <- cs] ++ allCols [left]
   put $ st {sources = [sqlFrom outCols (Join jointype on left right)]}
   pure $ toTup nameds
@@ -169,11 +167,12 @@ someJoin jointype check q = Query $ do
 -- >   (name :*: pet_name) <- select people
 -- >   name' <- groupBy name
 -- >   return (name' :*: count(pet_name) .> 0)
-groupBy :: Col (Inner s) a -> Query (Inner s) (Aggr (Inner s) a)
-groupBy (C c) = Query $ do
+groupBy :: SqlType a => Col (Inner s) a -> Query (Inner s) (Aggr (Inner s) a)
+groupBy (One c) = Query $ do
   st <- get
   put $ st {groupCols = Some c : groupCols st}
   return (Aggr c)
+groupBy (Many _) = error "BUG: SqlType should never be a product column"
 
 -- | Drop the first @m@ rows, then get at most @n@ of the remaining rows from the
 --   given subquery.
@@ -209,13 +208,14 @@ limit from to q = Query $ do
 --   is buried somewhere deep in an earlier query.
 --   However, the ordering must always be stable, to ensure that previous
 --   calls to order are not simply erased.
-order :: Col s a -> Order -> Query s ()
-order (C c) o = Query $ do
+order :: SqlType a => Col s a -> Order -> Query s ()
+order (One c) o = Query $ do
   st <- get
   case sources st of
     [sql] -> put st {sources = [sql {ordering = (o, Some c) : ordering sql}]}
-    ss    -> put st {sources = [sql {ordering = [(o,Some c)]}]}
+    ss    -> put st {sources = [sql {ordering = [(o, Some c)]}]}
       where sql = sqlFrom (allCols ss) (Product ss)
+order (Many _) _ = error "BUG: SqlType should never be a product column"
 
 -- | Sort the result rows in random order.
 orderRandom :: Query s ()

@@ -8,7 +8,6 @@ import Control.Monad (void, when)
 import Control.Monad.Catch
 import Database.Selda hiding (from)
 import Database.Selda.Backend.Internal
-import Database.Selda.Generic
 import Database.Selda.Table.Type (tableName)
 import Database.Selda.Table.Validation (ValidationError (..))
 import Database.Selda.Types (mkTableName, fromTableName, rawTableName)
@@ -23,10 +22,10 @@ import Database.Selda.Validation
 -- >   , ...
 -- >   ]
 data Migration where
-  Migration :: (Relational' s a, Relational' s b)
+  Migration :: (Relational a, Relational b)
             => Table a
             -> Table b
-            -> (Cols s (Relation a) -> Query s (Cols s (Relation b)))
+            -> (Col s a -> Query s (Col s b))
             -> Migration
 
 -- | A migration step is zero or more migrations that need to be performed in
@@ -40,20 +39,20 @@ type MigrationStep = [Migration]
 --
 --   The migration is performed as a migration, ensuring that either the entire
 --   migration passes, or none of it does.
-migrate :: (MonadSelda m, Relational' () a, Relational' () b)
+migrate :: (MonadSelda m, Relational a, Relational b)
         => Table a -- ^ Table to migrate from.
         -> Table b -- ^ Table to migrate to.
-        -> (Cols () (Relation a) -> Cols () (Relation b))
+        -> (Col () a -> Col () b)
                    -- ^ Mapping from old to new table.
         -> m ()
 migrate t1 t2 upg = migrateM t1 t2 ((pure :: a -> Query () a) . upg)
 
 -- | Like 'migrate', but allows the column upgrade to access
 --   the entire database.
-migrateM :: (MonadSelda m, Relational' s a, Relational' s b)
+migrateM :: (MonadSelda m, Relational a, Relational b)
          => Table a
          -> Table b
-         -> (Cols s (Relation a) -> Query s (Cols s (Relation b)))
+         -> (Col s a -> Query s (Col s b))
          -> m ()
 migrateM t1 t2 upg = migrateAll True [Migration t1 t2 upg]
 
@@ -111,10 +110,10 @@ autoMigrate fks steps = wrap fks $ do
 -- | Workhorse for migration.
 --   Is NOT performed as a transaction, so exported functions need to
 --   properly wrap calls this function.
-migrateInternal :: (MonadSelda m, Relational' s a, Relational' s b)
+migrateInternal :: (MonadSelda m, Relational a, Relational b)
                 => Table a
                 -> Table b
-                -> (Cols s (Relation a) -> Query s (Cols s (Relation b)))
+                -> (Col s a -> Query s (Col s b))
                 -> m ()
 migrateInternal t1 t2 upg = do
     validateTable t1

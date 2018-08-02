@@ -1,7 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables, FlexibleContexts, OverloadedStrings #-}
 -- | API for running Selda operations over databases.
 module Database.Selda.Frontend
-  ( Relational', Result, Res, MonadIO (..), MonadSelda (..), SeldaT
+  ( Result, Res, MonadIO (..), MonadSelda (..), SeldaT
   , query, queryInto
   , insert, insert_, insertWithPK, tryInsert, insertWhen, insertUnless
   , update, update_, upsert
@@ -37,9 +37,9 @@ query q = do
 
 -- | Perform the given query, and insert the result into the given table.
 --   Returns the number of inserted rows.
-queryInto :: (MonadSelda m, Relational' s a)
+queryInto :: (MonadSelda m, Relational a)
           => Table a
-          -> Query s (Cols s (Relation a))
+          -> Query s (Col s a)
           -> m Int
 queryInto tbl q = do
     backend <- seldaBackend
@@ -107,11 +107,11 @@ tryInsert tbl row = do
 --   followed by one insert.
 upsert :: ( MonadCatch m
           , MonadSelda m
-          , Relational' s a
+          , Relational a
           )
        => Table a
-       -> (Cols s (Relation a) -> Col s Bool)
-       -> (Cols s (Relation a) -> Cols s (Relation a))
+       -> (Col s a -> Col s Bool)
+       -> (Col s a -> Col s a)
        -> [a]
        -> m (Maybe RowID)
 upsert tbl check upd rows = transaction $ do
@@ -129,10 +129,10 @@ upsert tbl check upd rows = transaction $ do
 --   identifier guaranteed to not match any row in any table.
 insertUnless :: ( MonadCatch m
                 , MonadSelda m
-                , Relational' s a
+                , Relational a
                 )
              => Table a
-             -> (Cols s (Relation a) -> Col s Bool)
+             -> (Col s a -> Col s Bool)
              -> [a]
              -> m (Maybe RowID)
 insertUnless tbl check rows = upsert tbl check id rows
@@ -141,10 +141,10 @@ insertUnless tbl check rows = upsert tbl check id rows
 --   the predicate.
 insertWhen :: ( MonadCatch m
               , MonadSelda m
-              , Relational' s a
+              , Relational a
               )
            => Table a
-           -> (Cols s (Relation a) -> Col s Bool)
+           -> (Col s a -> Col s Bool)
            -> [a]
            -> m (Maybe RowID)
 insertWhen tbl check rows = transaction $ do
@@ -177,10 +177,10 @@ insertWithPK t cs = do
 
 -- | Update the given table using the given update function, for all rows
 --   matching the given predicate. Returns the number of updated rows.
-update :: (MonadSelda m, Relational' s a)
+update :: (MonadSelda m, Relational a)
        => Table a                                      -- ^ Table to update.
-       -> (Cols s (Relation a) -> Col s Bool)          -- ^ Predicate.
-       -> (Cols s (Relation a) -> Cols s (Relation a)) -- ^ Update function.
+       -> (Col s a -> Col s Bool)          -- ^ Predicate.
+       -> (Col s a -> Col s a) -- ^ Update function.
        -> m Int
 update tbl check upd = do
   cfg <- ppConfig <$> seldaBackend
@@ -189,18 +189,18 @@ update tbl check upd = do
   return res
 
 -- | Like 'update', but doesn't return the number of updated rows.
-update_ :: (MonadSelda m, Relational' s a)
+update_ :: (MonadSelda m, Relational a)
        => Table a
-       -> (Cols s (Relation a) -> Col s Bool)
-       -> (Cols s (Relation a) -> Cols s (Relation a))
+       -> (Col s a -> Col s Bool)
+       -> (Col s a -> Col s a)
        -> m ()
 update_ tbl check upd = void $ update tbl check upd
 
 -- | From the given table, delete all rows matching the given predicate.
 --   Returns the number of deleted rows.
-deleteFrom :: (MonadSelda m, Relational' s a)
+deleteFrom :: (MonadSelda m, Relational a)
            => Table a
-           -> (Cols s (Relation a) -> Col s Bool)
+           -> (Col s a -> Col s Bool)
            -> m Int
 deleteFrom tbl f = do
   cfg <- ppConfig <$> seldaBackend
@@ -209,9 +209,9 @@ deleteFrom tbl f = do
   return res
 
 -- | Like 'deleteFrom', but does not return the number of deleted rows.
-deleteFrom_ :: (MonadSelda m, Relational' s a)
+deleteFrom_ :: (MonadSelda m, Relational a)
             => Table a
-            -> (Cols s (Relation a) -> Col s Bool)
+            -> (Col s a -> Col s Bool)
             -> m ()
 deleteFrom_ tbl f = void $ deleteFrom tbl f
 
@@ -294,7 +294,7 @@ queryWith qr q = do
 
 -- | Generate the final result of a query from a list of untyped result rows.
 mkResults :: Result a => Proxy a -> [[SqlValue]] -> [Res a]
-mkResults p = map (toRes p)
+mkResults p = map (buildResult p)
 
 -- | Run the given computation over a table after invalidating all cached
 --   results depending on that table.

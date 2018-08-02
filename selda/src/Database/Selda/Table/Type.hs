@@ -1,6 +1,8 @@
 module Database.Selda.Table.Type where
 import Database.Selda.SqlType (SqlTypeRep)
+import Database.Selda.SQL (SQL)
 import Database.Selda.Types
+import Database.Selda.Exp
 
 -- | A database table, based on some Haskell data type.
 --   Any single constructor type can form the basis of a table, as long as
@@ -8,10 +10,12 @@ import Database.Selda.Types
 data Table a = Table
   { -- | Name of the table. NOT guaranteed to be a valid SQL name.
     tableName :: TableName
+
     -- | All table columns.
     --   Invariant: the 'colAttrs' list of each column is sorted and contains
     --   no duplicates.
   , tableCols :: [ColInfo]
+
     -- | Does the given table have an auto-incrementing primary key?
   , tableHasAutoPK :: Bool
   }
@@ -22,6 +26,7 @@ data ColInfo = ColInfo
   , colType  :: SqlTypeRep
   , colAttrs :: [ColAttr]
   , colFKs   :: [(Table (), ColName)]
+  , colExpr  :: UntypedCol SQL
   }
 
 -- | Column attributes such as nullability, auto increment, etc.

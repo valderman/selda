@@ -12,7 +12,7 @@ module Database.Selda.Generic
   ) where
 import Control.Monad.State
 import Data.Dynamic
-import Data.Text as Text (Text, pack, intercalate, unwords, empty)
+import Data.Text as Text (Text, pack)
 #if MIN_VERSION_base(4, 10, 0)
 import Data.Typeable
 #endif
@@ -26,8 +26,10 @@ import Control.Exception (Exception (..), try, throw)
 import System.IO.Unsafe
 import Database.Selda.Types
 import Database.Selda.SqlType
+import Database.Selda.SqlResult (SqlResult)
 import Database.Selda.Table.Type
 import Database.Selda.SQL (Param (..))
+import Database.Selda.Exp (Exp (Col), UntypedCol (..))
 
 -- | Any type which has a corresponding relation.
 --   To make a @Relational@ instance for some type, simply derive 'Generic'.
@@ -38,6 +40,7 @@ import Database.Selda.SQL (Param (..))
 --   obey those constraints will result in a very confusing type error.
 type Relational a =
   ( Generic a
+  , SqlResult a
   , GRelation (Rep a)
   , GFromRel (Rep a)
   )
@@ -186,13 +189,10 @@ params = unsafePerformIO . gParams . from
 --   @col_2@, etc.
 tblCols :: forall a. Relational a => Proxy a -> (Text -> Text) -> [ColInfo]
 tblCols _ fieldMod =
-    zipWith pack' [0 :: Int ..] $ gTblCols (Proxy :: Proxy (Rep a))
+    evalState (gTblCols (Proxy :: Proxy (Rep a)) Nothing rename) 0
   where
-    pack' n ci = ci
-      { colName = if colName ci == ""
-                    then mkColName $ fieldMod ("col_" <> pack (show n))
-                    else modColName (colName ci) fieldMod
-      }
+    rename n Nothing     = mkColName $ fieldMod ("col_" <> pack (show n))
+    rename _ (Just name) = modColName name fieldMod
 
 -- | Exception indicating the use of a default value.
 --   If any values throwing this during evaluation of @param xs@ will be
@@ -216,7 +216,10 @@ class GRelation f where
   gParams :: f a -> IO [Either Param Param]
 
   -- | Compute all columns needed to represent the given type.
-  gTblCols :: Proxy f -> [ColInfo]
+  gTblCols :: Proxy f
+           -> Maybe ColName
+           -> (Int -> Maybe ColName -> ColName)
+           -> State Int [ColInfo]
 
   -- | Create a dummy value where all fields are replaced by @unsafeCoerce@'d
   --   ints. See 'mkDummy' and 'identify' for more information.
@@ -232,18 +235,8 @@ instance {-# OVERLAPPING #-} (G.Selector c, GRelation a) =>
          GRelation (M1 S c a) where
   gToRel (M1 x) = gToRel x
   gParams (M1 x) = gParams x
-  gTblCols _ = colinfos'
-    where
-      colinfos = gTblCols (Proxy :: Proxy a)
-      colinfos' =
-        case colinfos of
-          [ci] -> [ColInfo
-            { colName = mkColName $ pack (selName ((M1 undefined) :: M1 S c a b))
-            , colType = colType ci
-            , colAttrs = colAttrs ci
-            , colFKs = colFKs ci
-            }]
-          _ -> colinfos
+  gTblCols _ _ = gTblCols (Proxy :: Proxy a) (Just name)
+    where name = mkColName $ pack (selName ((M1 undefined) :: M1 S c a b))
   gMkDummy = M1 <$> gMkDummy
 
 instance (Rel (K1 i a) ~ a, Typeable a, SqlType a) => GRelation (K1 i a) where
@@ -255,7 +248,19 @@ instance (Rel (K1 i a) ~ a, Typeable a, SqlType a) => GRelation (K1 i a) where
       Right x'                   -> [Right $ Param (mkLit x')]
       Left DefaultValueException -> [Left $ Param (defaultValue :: Lit a)]
 
-  gTblCols _ = [ColInfo "" (sqlType (Proxy :: Proxy a)) optReq []]
+  gTblCols _ name rename = do
+    n <- get
+    put (n+1)
+    let name' = rename n name
+    return
+      [ ColInfo
+        { colName = name'
+        , colType = sqlType (Proxy :: Proxy a)
+        , colAttrs = optReq
+        , colFKs = []
+        , colExpr = Untyped (Col name')
+        }
+      ]
     where
       -- workaround for GHC 8.2 not resolving overlapping instances properly
       maybeTyCon = typeRepTyCon (typeRep (Proxy :: Proxy (Maybe ())))
@@ -283,7 +288,10 @@ instance (Append (Rel a) (Rel b), GRelation a, GRelation b) =>
          GRelation (a G.:*: b) where
   gToRel (a G.:*: b) = gToRel a `app` gToRel b
   gParams (a G.:*: b) = liftM2 (++) (gParams a) (gParams b)
-  gTblCols _ = gTblCols a ++ gTblCols b
+  gTblCols _ _ rename = do
+      as <- gTblCols a Nothing rename
+      bs <- gTblCols b Nothing rename
+      return (as ++ bs)
     where
       a = Proxy :: Proxy a
       b = Proxy :: Proxy b
@@ -300,6 +308,7 @@ instance
       'TL.Text "Restrict your table type to a single data constructor."
     )) => GRelation (a G.:+: b) where
   gToRel = error "unreachable"
+  gParams = error "unreachable"
   gTblCols = error "unreachable"
   gMkDummy = error "unreachable"
 #endif

@@ -70,13 +70,13 @@ module Database.Selda
     MonadSelda
   , SeldaError (..), ValidationError
   , SeldaT, SeldaM
-  , Relational, Relational', Relation, Only (..)
+  , Relational, Relation, Only (..)
   , Table, Query, Col, Res, Result
   , query, queryInto
   , transaction, setLocalCache, withoutForeignKeyEnforcement
     -- * Constructing queries
   , Selector, (!), Assignment(..), with
-  , ToDyn, SqlType (..), SqlEnum (..)
+  , ToDyn, SqlType (..), SqlResult (..), SqlEnum (..)
   , Cols, Columns
   , Order (..)
   , (:*:)(..)
@@ -143,13 +143,13 @@ import Database.Selda.Query
 import Database.Selda.Query.Type
 import Database.Selda.Selectors
 import Database.Selda.SQL hiding (distinct)
+import Database.Selda.SqlResult
 import Database.Selda.SqlType
 import Database.Selda.Table
 import Database.Selda.Table.Compile
 import Database.Selda.Table.Validation
 import Database.Selda.Types
 import Database.Selda.Unsafe
-import Control.Exception (throw)
 import Data.Text (Text)
 import Data.String (IsString)
 import Data.Time (Day, TimeOfDay, UTCTime)
@@ -262,16 +262,18 @@ matchNull nullvalue f x = ifThenElse (isNull x) nullvalue (f (cast x))
 -- | Any container type for which we can check object membership.
 class Set set where
   -- | Is the given column contained in the given set?
-  isIn :: SqlType a => Col s a -> set (Col s a) -> Col s Bool
+  isIn :: (SqlType a, SqlResult a) => Col s a -> set (Col s a) -> Col s Bool
 infixl 4 `isIn`
 
 instance Set [] where
   -- TODO: use safe coercions instead of unsafeCoerce
   isIn _ []     = false
-  isIn (C x) xs = C $ InList x (unsafeCoerce xs)
+  isIn (One x) xs = One $ InList x (unsafeCoerce xs)
+  isIn (Many _) _ = error "unreachable"
 
 instance Set (Query s) where
-  isIn (C x) = C . InQuery x . compQueryWithFreshScope
+  isIn (One x) = One . InQuery x . compQueryWithFreshScope
+  isIn (Many _) = error "unreachable"
 
 (.&&), (.||) :: Col s Bool -> Col s Bool -> Col s Bool
 (.&&) = liftC2 $ BinOp And

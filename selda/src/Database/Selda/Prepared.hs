@@ -15,6 +15,7 @@ import qualified Data.HashMap.Strict as M
 import Data.IORef
 import Data.Proxy
 import Data.Text (Text)
+import Data.Typeable
 import System.IO.Unsafe
 
 data Placeholder = Placeholder Int
@@ -58,7 +59,7 @@ class Prepare q f where
 instance (SqlType a, Prepare q b) => Prepare q (a -> b) where
   mkFun ref sid qry ps x = mkFun ref sid qry (param x : ps)
 
-instance (MonadSelda m, a ~ Res (ResultT q), Result (ResultT q)) =>
+instance (Typeable a, MonadSelda m, a ~ Res (ResultT q), Result (ResultT q)) =>
          Prepare q (m [a]) where
   -- This function uses read/writeIORef instead of atomicModifyIORef.
   -- For once, this is actually safe: the IORef points to a single compiled
@@ -109,11 +110,11 @@ instance (MonadSelda m, a ~ Res (ResultT q), Result (ResultT q)) =>
           _ -> do
             res <- runPrepared backend hdl ps
             cache (stmtTables stm) key res
-            return $ map (toRes (Proxy :: Proxy (ResultT q))) (snd res)
+            return $ map (buildResult (Proxy :: Proxy (ResultT q))) (snd res)
 
 instance (SqlType a, Preparable b) => Preparable (Col s a -> b) where
   mkQuery n f ts = mkQuery (n+1) (f x) (sqlType (Proxy :: Proxy a) : ts)
-    where x = C $ Lit $ LCustom (throw (Placeholder n) :: Lit a)
+    where x = One $ Lit $ LCustom (throw (Placeholder n) :: Lit a)
 
 instance Result a => Preparable (Query s a) where
   mkQuery _ q types = do

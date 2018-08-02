@@ -64,18 +64,20 @@ initState scope = GenState
   , nameScope  = scope
   }
 
+renameAll :: [UntypedCol sql] -> State GenState [SomeCol sql]
+renameAll = fmap concat . mapM rename
+
 -- | Generate a unique name for the given column.
-rename :: SomeCol sql -> State GenState (SomeCol sql)
-rename (Some col) = do
+--   Flattens any composite columns.
+rename :: UntypedCol sql -> State GenState [SomeCol sql]
+rename (Untyped col) = do
     n <- freshId
-    return $ Named (newName n) col
+    return [Named (newName n) col]
   where
     newName ns =
       case col of
         Col n -> addColSuffix n $ "_" <> pack (show ns)
         _     -> mkColName $ "tmp_" <> pack (show ns)
-rename col@(Named _ _) = do
-  return col
 
 -- | Get a guaranteed unique identifier.
 freshId :: State GenState Name
