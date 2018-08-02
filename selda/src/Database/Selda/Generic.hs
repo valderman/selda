@@ -133,8 +133,12 @@ instance {-# OVERLAPPABLE #-} GRelation a => GRelation (M1 t c a) where
 instance {-# OVERLAPPING #-} (G.Selector c, GRelation a) =>
          GRelation (M1 S c a) where
   gParams (M1 x) = gParams x
-  gTblCols _ _ = gTblCols (Proxy :: Proxy a) (Just name)
-    where name = mkColName $ pack (selName ((M1 undefined) :: M1 S c a b))
+  gTblCols _ _ = gTblCols (Proxy :: Proxy a) name
+    where
+      name =
+        case selName ((M1 undefined) :: M1 S c a b) of
+          "" -> Nothing
+          s  -> Just (mkColName $ pack s)
   gMkDummy = M1 <$> gMkDummy
 
 instance (Typeable a, SqlType a) => GRelation (K1 i a) where
