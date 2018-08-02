@@ -1,13 +1,10 @@
 {-# LANGUAGE GADTs, FlexibleContexts, FlexibleInstances #-}
-{-# LANGUAGE TypeOperators, CPP, DataKinds, UndecidableInstances #-}
+{-# LANGUAGE TypeOperators, CPP, DataKinds #-}
 -- | The expression type underlying 'Col'.
 module Database.Selda.Exp where
 import Database.Selda.SqlType
-import Database.Selda.Types hiding ((:*:))
+import Database.Selda.Types
 import Data.Text (Text)
-import Data.Typeable
-import GHC.Generics
-import qualified GHC.TypeLits as TL
 
 -- | A type-erased column, which may also be renamed.
 --   Only for internal use.
@@ -95,29 +92,3 @@ instance Names sql => Names (SomeCol sql) where
 
 instance Names sql => Names (UntypedCol sql) where
   allNamesIn (Untyped c) = allNamesIn c
-
-class GExp f where
-  gExpressions :: f x -> [UntypedCol sql]
-
-instance GExp f => GExp (D1 x f) where
-  gExpressions (M1 x) = gExpressions x
-
-instance GExp f => GExp (C1 x f) where
-  gExpressions (M1 x) = gExpressions x
-
-instance GExp f => GExp (S1 ('MetaSel x y z 'DecidedLazy) f) where
-  gExpressions (M1 x) = gExpressions x
-
-#if MIN_VERSION_base(4, 9, 0)
-instance
-  (TL.TypeError
-    ('TL.Text "Types with strict fields are not usable within queries.")
-  ) => GExp (S1 ('MetaSel x y z 'DecidedStrict) f) where
-  gExpressions _ = error "unreachable"
-#endif
-
-instance (Typeable a, SqlType a) => GExp (K1 i a) where
-  gExpressions (K1 x) = [Untyped (Lit (mkLit x))]
-
-instance (GExp a, GExp b) => GExp (a :*: b) where
-  gExpressions (a :*: b) = gExpressions a ++ gExpressions b
