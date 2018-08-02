@@ -36,6 +36,9 @@ class Typeable a => SqlResult a where
   default nestedCols :: (Generic a, GSqlResult (Rep a)) => Proxy a -> Int
   nestedCols _ = gNestedCols (Proxy :: Proxy (Rep a))
 
+instance {-# OVERLAPPABLE #-} (Typeable a, Generic a, GSqlResult (Rep a)) =>
+  SqlResult a
+
 instance SqlResult RowID where
   nextResult = fromSql <$> next
   nestedCols _ = 0
