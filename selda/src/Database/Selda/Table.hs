@@ -15,13 +15,12 @@ module Database.Selda.Table
 import Data.Text (Text)
 #if MIN_VERSION_base(4, 10, 0)
 import Data.Typeable
+#else
+import Data.Proxy
 #endif
 import Database.Selda.Types
 import Database.Selda.Selectors
 import Database.Selda.SqlType
-#if !MIN_VERSION_base(4, 11, 0)
-import Data.Monoid
-#endif
 import Database.Selda.Column (Col (..))
 import Database.Selda.Generic
 import Database.Selda.Table.Type

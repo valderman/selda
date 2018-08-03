@@ -1,7 +1,9 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving, MultiParamTypeClasses #-}
 {-# LANGUAGE UndecidableInstances, FlexibleInstances, FlexibleContexts #-}
-{-# LANGUAGE TypeOperators, DefaultSignatures, ScopedTypeVariables #-}
+{-# LANGUAGE TypeOperators, DefaultSignatures, ScopedTypeVariables, CPP #-}
+#if MIN_VERSION_base(4, 10, 0)
 {-# OPTIONS_GHC -Wno-simplifiable-class-constraints #-}
+#endif
 module Database.Selda.SqlResult
   ( SqlResult (..), ResultReader
   , runResultReader, next

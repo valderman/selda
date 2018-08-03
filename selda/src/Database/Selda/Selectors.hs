@@ -1,6 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables, TypeFamilies, MultiParamTypeClasses #-}
 {-# LANGUAGE TypeOperators, UndecidableInstances, FlexibleInstances #-}
-{-# LANGUAGE FlexibleContexts, RankNTypes, AllowAmbiguousTypes, GADTs, CPP #-}
+{-# LANGUAGE FlexibleContexts, RankNTypes, AllowAmbiguousTypes, GADTs #-}
 {-# LANGUAGE DeriveGeneric #-}
 module Database.Selda.Selectors
   ( Assignment ((:=)), Selected, Selector, Source, Selectors, GSelectors
@@ -12,9 +12,7 @@ import Database.Selda.SqlType
 import Database.Selda.Types
 import Database.Selda.Column
 import Data.List (foldl')
-#if MIN_VERSION_base(4, 10, 0)
 import Data.Proxy
-#endif
 import GHC.Generics hiding (Selector, (:*:))
 import qualified GHC.Generics as G
 import Unsafe.Coerce

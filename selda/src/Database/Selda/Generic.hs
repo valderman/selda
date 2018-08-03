@@ -15,9 +15,10 @@ import Data.Text as Text (Text, pack)
 import Data.Typeable
 #endif
 import GHC.Generics hiding (R, (:*:), Selector)
-import qualified GHC.Generics as G ((:*:)(..), (:+:)(..), Selector)
+import qualified GHC.Generics as G ((:*:)(..), Selector)
 #if MIN_VERSION_base(4, 9, 0)
 import qualified GHC.TypeLits as TL
+import qualified GHC.Generics as G ((:+:)(..))
 #endif
 import Unsafe.Coerce
 import Control.Exception (Exception (..), try, throw)

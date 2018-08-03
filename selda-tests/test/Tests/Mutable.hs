@@ -1,5 +1,5 @@
 {-# LANGUAGE TypeOperators, OverloadedStrings, DeriveGeneric #-}
-{-# LANGUAGE ScopedTypeVariables, GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE ScopedTypeVariables, GeneralizedNewtypeDeriving, CPP #-}
 -- | Tests that modify the database.
 module Tests.Mutable (mutableTests, invalidateCacheAfterTransaction) where
 import Control.Concurrent
@@ -15,6 +15,9 @@ import Database.Selda.Migrations
 import Test.HUnit
 import Utils
 import Tables
+#if !MIN_VERSION_base(4, 11, 0)
+import Data.Monoid
+#endif
 
 mutableTests freshEnv = test
   [ "tryDrop never fails"            ~: freshEnv tryDropNeverFails

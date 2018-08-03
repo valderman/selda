@@ -1,7 +1,10 @@
-{-# LANGUAGE OverloadedStrings, TypeOperators, DeriveGeneric #-}
+{-# LANGUAGE OverloadedStrings, TypeOperators, DeriveGeneric, CPP #-}
 -- | Tables for reuse by most tests, and functions for their setup and teardown.
 module Tables where
 import Database.Selda
+#if !MIN_VERSION_base(4, 11, 0)
+import Data.Monoid
+#endif
 
 data Person = Person
   { name :: Text

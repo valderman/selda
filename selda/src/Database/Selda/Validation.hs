@@ -10,12 +10,11 @@ module Database.Selda.Validation
 import Control.Monad.Catch
 import Data.List ((\\))
 import Data.Maybe (catMaybes)
-import Data.Text (Text, pack, unpack)
+import Data.Text (pack, unpack)
 import Database.Selda
 import Database.Selda.Backend
 import Database.Selda.Table.Type (tableName, tableCols)
 import Database.Selda.Table.Validation (ValidationError (..), validateOrThrow)
-import Database.Selda.Types (fromTableName, fromColName)
 
 -- | Are the given types compatible?
 isCompatibleWith :: SqlTypeRep -> SqlTypeRep -> Bool
