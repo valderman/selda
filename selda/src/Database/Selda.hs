@@ -186,6 +186,7 @@ newtype Only a = Only a
     , Real
     , IsString
     )
+instance SqlType a => SqlResult (Only a)
 
 class The a where
   type TheOnly a

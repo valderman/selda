@@ -36,9 +36,29 @@ class Typeable a => SqlResult a where
   default nestedCols :: (Generic a, GSqlResult (Rep a)) => Proxy a -> Int
   nestedCols _ = gNestedCols (Proxy :: Proxy (Rep a))
 
-instance {-# OVERLAPPABLE #-} (Typeable a, Generic a, GSqlResult (Rep a)) =>
-  SqlResult a
 
+-- * Generic derivation for SqlResult
+class GSqlResult f where
+  gNextResult :: ResultReader (f x)
+  gNestedCols :: Proxy f -> Int
+
+instance SqlType a => GSqlResult (K1 i a) where
+  gNextResult = K1 <$> fromSql <$> next
+  gNestedCols _ = 1
+
+instance GSqlResult f => GSqlResult (M1 c i f) where
+  gNextResult = M1 <$> gNextResult
+  gNestedCols _ = gNestedCols (Proxy :: Proxy f)
+
+instance (GSqlResult a, GSqlResult b) => GSqlResult (a :*: b) where
+  gNextResult = liftM2 (:*:) gNextResult gNextResult
+  gNestedCols _ = gNestedCols (Proxy :: Proxy a) + gNestedCols (Proxy :: Proxy b)
+
+
+-- * Various instances
+instance {-# OVERLAPPABLE #-} (Typeable a, SqlEnum a) => SqlResult a where
+  nextResult = fromSql <$> next
+  nestedCols _ = 0
 instance SqlResult RowID where
   nextResult = fromSql <$> next
   nestedCols _ = 0
@@ -76,18 +96,48 @@ instance SqlType a => SqlResult (Maybe a) where
   nextResult = fromSql <$> next
   nestedCols _ = 0
 
-class GSqlResult f where
-  gNextResult :: ResultReader (f x)
-  gNestedCols :: Proxy f -> Int
-
-instance SqlResult a => GSqlResult (K1 i a) where
-  gNextResult = K1 <$> nextResult
-  gNestedCols _ = 1
-
-instance GSqlResult f => GSqlResult (M1 c i f) where
-  gNextResult = M1 <$> gNextResult
-  gNestedCols _ = gNestedCols (Proxy :: Proxy f)
-
-instance (GSqlResult a, GSqlResult b) => GSqlResult (a :*: b) where
-  gNextResult = liftM2 (:*:) gNextResult gNextResult
-  gNestedCols _ = gNestedCols (Proxy :: Proxy a) + gNestedCols (Proxy :: Proxy b)
+instance
+  ( Generic (a, b)
+  , Typeable (a, b)
+  , GSqlResult (Rep (a, b))
+  ) => SqlResult (a, b)
+instance
+  ( Generic (a, b, c)
+  , Typeable (a, b, c)
+  , GSqlResult (Rep (a, b, c))
+  ) => SqlResult (a, b, c)
+instance
+  ( Generic (a, b, c, d)
+  , Typeable (a, b, c, d)
+  , GSqlResult (Rep (a, b, c, d))
+  ) => SqlResult (a, b, c, d)
+instance
+  ( Generic (a, b, c, d, e)
+  , Typeable (a, b, c, d, e)
+  , GSqlResult (Rep (a, b, c, d, e))
+  ) => SqlResult (a, b, c, d, e)
+instance
+  ( Generic (a, b, c, d, e, f)
+  , Typeable (a, b, c, d, e, f)
+  , GSqlResult (Rep (a, b, c, d, e, f))
+  ) => SqlResult (a, b, c, d, e, f)
+instance
+  ( Generic (a, b, c, d, e, f, g)
+  , Typeable (a, b, c, d, e, f, g)
+  , GSqlResult (Rep (a, b, c, d, e, f, g))
+  ) => SqlResult (a, b, c, d, e, f, g)
+instance
+  ( Generic (a, b, c, d, e, f, g, h)
+  , Typeable (a, b, c, d, e, f, g, h)
+  , GSqlResult (Rep (a, b, c, d, e, f, g, h))
+  ) => SqlResult (a, b, c, d, e, f, g, h)
+instance
+  ( Generic (a, b, c, d, e, f, g, h, i)
+  , Typeable (a, b, c, d, e, f, g, h, i)
+  , GSqlResult (Rep (a, b, c, d, e, f, g, h, i))
+  ) => SqlResult (a, b, c, d, e, f, g, h, i)
+instance
+  ( Generic (a, b, c, d, e, f, g, h, i, j)
+  , Typeable (a, b, c, d, e, f, g, h, i, j)
+  , GSqlResult (Rep (a, b, c, d, e, f, g, h, i, j))
+  ) => SqlResult (a, b, c, d, e, f, g, h, i, j)
