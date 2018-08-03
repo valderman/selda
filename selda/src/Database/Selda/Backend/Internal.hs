@@ -15,7 +15,7 @@ module Database.Selda.Backend.Internal
   , newConnection, allStmts
   , runSeldaT, seldaBackend
   ) where
-import Database.Selda.Caching (invalidate)
+import Database.Selda.Caching (invalidate, setMaxItems)
 import Database.Selda.SQL (Param (..))
 import Database.Selda.SqlType
 import Database.Selda.Table (Table (..), ColAttr (..), tableName)
@@ -213,6 +213,11 @@ data SeldaState = SeldaState
   }
 
 -- | Some monad with Selda SQL capabilitites.
+--
+--   Note that the default implementations of 'invalidateTable' and
+--   'wrapTransaction' flush the entire cache and disable caching when
+--   invoked. If you want to use Selda's built-in caching mechanism, you will
+--   need to implement these operations yourself.
 class (MonadIO m, MonadMask m) => MonadSelda m where
   -- | Get the connection in use by the computation.
   seldaConnection :: m SeldaConnection
@@ -220,6 +225,7 @@ class (MonadIO m, MonadMask m) => MonadSelda m where
   -- | Invalidate the given table as soon as the current transaction finishes.
   --   Invalidate the table immediately if no transaction is ongoing.
   invalidateTable :: Table a -> m ()
+  invalidateTable _ = liftIO $ setMaxItems 0
 
   -- | Safely wrap a transaction. To ensure consistency of the in-process cache,
   --   it is important that any cached tables modified during a transaction are
@@ -233,14 +239,17 @@ class (MonadIO m, MonadMask m) => MonadSelda m where
   --   2. Start bookkeeping of tables invalidated during the transaction.
   --   3. Perform the transaction, with async exceptions restored.
   --   4. Commit transaction, invalidate tables, and disable bookkeeping; OR
-  --   5. If an exception was raised, rollback transaction and
-  --      disable bookkeeping.
-  --
-  --   See the instance for 'SeldaT' for an example of how to do this safely.
+  --   5. If an exception was raised, rollback transaction,
+  --      disable bookkeeping, and re-throw the exception.
   wrapTransaction :: m () -- ^ Signal transaction commit to SQL backend.
                   -> m () -- ^ Signal transaction rollback to SQL backend.
                   -> m a  -- ^ Transaction to perform.
                   -> m a
+  wrapTransaction commit rollback act = do
+    bracketOnError (pure ())
+                   (const rollback)
+                   (const (act <* commit <* liftIO (setMaxItems 0)))
+  {-# MINIMAL seldaConnection #-}
 
 -- | Get the backend in use by the computation.
 seldaBackend :: MonadSelda m => m SeldaBackend

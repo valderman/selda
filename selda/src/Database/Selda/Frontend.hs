@@ -240,7 +240,7 @@ tryDropTable :: MonadSelda m => Table a -> m ()
 tryDropTable = withInval $ void . flip exec [] . compileDropTable Ignore
 
 -- | Perform the given computation atomically.
---   If an exception is raised during its execution, the enture transaction
+--   If an exception is raised during its execution, the entire transaction
 --   will be rolled back and the exception re-thrown, even if the exception
 --   is caught and handled within the transaction.
 transaction :: MonadSelda m => m a -> m a
