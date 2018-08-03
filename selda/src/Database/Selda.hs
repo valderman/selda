@@ -93,6 +93,7 @@ module Database.Selda
   , (.&&), (.||), not_
   , literal, int, float, text, true, false, null_
   , roundTo, length_, isNull, ifThenElse, matchNull
+  , new
     -- * Converting between column types
   , round_, just, fromBool, fromInt, toString
     -- * Inner queries
@@ -148,10 +149,12 @@ import Database.Selda.Table.Compile
 import Database.Selda.Table.Validation
 import Database.Selda.Types
 import Database.Selda.Unsafe
-import Data.Text (Text)
+import Data.Proxy
 import Data.String (IsString)
+import Data.Text (Text)
 import Data.Time (Day, TimeOfDay, UTCTime)
 import Data.Typeable (eqT, (:~:)(..))
+import GHC.Generics (Rep)
 import Unsafe.Coerce
 
 -- | Any column type that can be used with the 'min_' and 'max_' functions.
@@ -183,6 +186,11 @@ newtype Only a = Only {the :: a}
     , Real
     , IsString
     )
+
+-- | Create a new column with the given fields.
+--   Any unassigned fields will contain their default values.
+new :: forall s a. Relational a => [Assignment s a] -> Col s a
+new fields = Many (gNew (Proxy :: Proxy (Rep a))) `with` fields
 
 -- | Convenient shorthand for @fmap (! sel) q@.
 --   The following two queries are quivalent:

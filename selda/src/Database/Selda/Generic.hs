@@ -6,7 +6,7 @@
 -- | Generics utilities.
 module Database.Selda.Generic
   ( Relational, Generic, Nested (..)
-  , tblCols, mkDummy, identify, params, def
+  , tblCols, mkDummy, identify, params, def, gNew
   ) where
 import Control.Monad.State
 import Data.Dynamic
@@ -28,7 +28,7 @@ import Database.Selda.SqlType
 import Database.Selda.SqlResult (SqlResult)
 import Database.Selda.Table.Type
 import Database.Selda.SQL (Param (..))
-import Database.Selda.Exp (Exp (Col), UntypedCol (..))
+import Database.Selda.Exp (Exp (Col, Lit), UntypedCol (..))
 #if !MIN_VERSION_base(4, 11, 0)
 import Data.Monoid
 #endif
@@ -125,10 +125,14 @@ class GRelation f where
   --   ints. See 'mkDummy' and 'identify' for more information.
   gMkDummy :: State Int (f a)
 
+  -- | Create a new value with all default fields.
+  gNew :: Proxy f -> [UntypedCol sql]
+
 instance {-# OVERLAPPABLE #-} GRelation a => GRelation (M1 t c a) where
   gParams (M1 x) = gParams x
   gTblCols _ = gTblCols (Proxy :: Proxy a)
   gMkDummy = M1 <$> gMkDummy
+  gNew _ = gNew (Proxy :: Proxy a)
 
 instance {-# OVERLAPPING #-} (G.Selector c, GRelation a) =>
          GRelation (M1 S c a) where
@@ -140,6 +144,7 @@ instance {-# OVERLAPPING #-} (G.Selector c, GRelation a) =>
           "" -> Nothing
           s  -> Just (mkColName $ pack s)
   gMkDummy = M1 <$> gMkDummy
+  gNew _ = gNew (Proxy :: Proxy a)
 
 instance (Typeable a, SqlType a) => GRelation (K1 i a) where
   gParams (K1 x) = do
@@ -173,6 +178,8 @@ instance (Typeable a, SqlType a) => GRelation (K1 i a) where
     put (n+1)
     return $ unsafeCoerce n
 
+  gNew _ = [Untyped (Lit (defaultValue :: Lit a))]
+
 instance {-# OVERLAPS #-}
   ( Typeable a
   , GRelation (Rep a)
@@ -181,6 +188,7 @@ instance {-# OVERLAPS #-}
   gParams (K1 (Nested x)) = gParams (from x)
   gTblCols _ = gTblCols (Proxy :: Proxy (Rep a))
   gMkDummy = fmap (K1 . Nested . to) gMkDummy
+  gNew _ = gNew (Proxy :: Proxy (Rep a))
 
 instance (GRelation a, GRelation b) => GRelation (a G.:*: b) where
   gParams (a G.:*: b) = liftM2 (++) (gParams a) (gParams b)
@@ -195,6 +203,7 @@ instance (GRelation a, GRelation b) => GRelation (a G.:*: b) where
     a <- gMkDummy :: State Int (a x)
     b <- gMkDummy :: State Int (b x)
     return (a G.:*: b)
+  gNew _ = gNew (Proxy :: Proxy a) ++ gNew (Proxy :: Proxy b)
 
 #if MIN_VERSION_base(4, 9, 0)
 instance
@@ -206,4 +215,5 @@ instance
   gParams = error "unreachable"
   gTblCols = error "unreachable"
   gMkDummy = error "unreachable"
+  gNew = error "unreachable"
 #endif
