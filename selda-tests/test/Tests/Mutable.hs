@@ -560,7 +560,7 @@ manyParameters = do
     tryDropTable things
     createTable things
     inserted <- insert things [0..1000]
-    actuallyInserted <- query $ aggregate $ count <$> select things
+    actuallyInserted <- query $ aggregate $ count . the <$> select things
     dropTable things
     assEq "insert returned wrong insertion count" 1001 inserted
     assEq "wrong number of items inserted" [1001] actuallyInserted
@@ -614,6 +614,7 @@ data AutoPrimaryUser = AutoPrimaryUser
 -- | For customEnum
 data Foo = A | B | C | D
   deriving (Show, Read, Eq, Ord, Enum, Bounded)
+instance SqlType Foo
 
 customEnum = do
     tryDropTable tbl
@@ -691,7 +692,7 @@ mt3_1 = selectors migrationTable3
 steps =
   [ [Migration migrationTable1 migrationTable1 pure]
   , [Migration migrationTable1 migrationTable2 $ \foo -> pure $ new
-      [ mt2_1 := toString foo
+      [ mt2_1 := toString (the foo)
       , mt2_2 := the foo
       ]
     ]
@@ -709,7 +710,7 @@ migrateIntoSelf = do
 
 addColumn = do
   migrate migrationTable1 migrationTable2 $ \foo -> new
-    [ mt2_1 := toString foo
+    [ mt2_1 := toString (the foo)
     , mt2_2 := the foo
     ]
   res <- query $ do
@@ -720,14 +721,14 @@ addColumn = do
 
 dropColumn = do
   migrate migrationTable1 migrationTable2 $ \foo -> new
-    [ mt2_1 := toString foo
+    [ mt2_1 := toString (the foo)
     , mt2_2 := the foo
     ]
   migrate migrationTable2 migrationTable3 $ \tbl -> only (tbl ! mt2_2)
   assertFail $ query $ select migrationTable2
   res <- query $ do
     x <- select migrationTable3
-    order x ascending
+    order (the x) ascending
     return x
   assEq "migrating back went wrong" [1,2,3] res
 
@@ -736,7 +737,7 @@ autoMigrateOneStep = do
   autoMigrate False steps
   res <- query $ do
     x <- select migrationTable1
-    order x ascending
+    order (the x) ascending
     return x
   assEq "automigration failed" [1,2,3] res
 
@@ -744,7 +745,7 @@ autoMigrateNoOp = do
   autoMigrate True steps
   res <- query $ do
     x <- select migrationTable1
-    order x ascending
+    order (the x) ascending
     return x
   assEq "no-op automigration failed" [1,2,3] res
 
@@ -754,7 +755,7 @@ migrateAggregate = do
     age <- aggregate $ do
       person <- select people
       return $ min_ (person ! pAge)
-    return $ new [mt2_1 := toString foo, mt2_2 := age]
+    return $ new [mt2_1 := toString (the foo), mt2_2 := age]
   res <- query $ do
     t <- select migrationTable2
     order (t ! mt2_2) ascending
@@ -765,6 +766,6 @@ autoMigrateMultiStep = do
   autoMigrate True steps
   res <- query $ do
     x <- select migrationTable1
-    order x ascending
+    order (the x) ascending
     return x
   assEq "multi-step automigration failed" [1,2,3] res

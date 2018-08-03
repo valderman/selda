@@ -204,15 +204,15 @@ instance (TypeError
   defaultValue = error "unreachable"
 #endif
 
-(+=) :: Num (Col s a) => Selector t a -> Col s a -> Assignment s t
+(+=) :: (SqlType a, Num (Col s a)) => Selector t a -> Col s a -> Assignment s t
 s += c = s $= (+ c)
 infixl 2 +=
 
-(-=) :: Num (Col s a) => Selector t a -> Col s a -> Assignment s t
+(-=) :: (SqlType a, Num (Col s a)) => Selector t a -> Col s a -> Assignment s t
 s -= c = s $= (\x -> x - c)
 infixl 2 -=
 
-(*=) :: Num (Col s a) => Selector t a -> Col s a -> Assignment s t
+(*=) :: (SqlType a, Num (Col s a)) => Selector t a -> Col s a -> Assignment s t
 s *= c = s $= (* c)
 infixl 2 *=
 
@@ -304,14 +304,18 @@ infixl 4 .>=
 infixl 4 .<=
 
 -- | Is the given column null?
-isNull :: Col s (Maybe a) -> Col s Bool
+isNull :: SqlType a => Col s (Maybe a) -> Col s Bool
 isNull = liftC $ UnOp IsNull
 
 -- | Applies the given function to the given nullable column where it isn't null,
 --   and returns the given default value where it is.
 --
 --   This is the Selda equivalent of 'maybe'.
-matchNull :: SqlType a => Col s b -> (Col s a -> Col s b) -> Col s (Maybe a) -> Col s b
+matchNull :: (SqlType a, SqlType b)
+          => Col s b
+          -> (Col s a -> Col s b)
+          -> Col s (Maybe a)
+          -> Col s b
 matchNull nullvalue f x = ifThenElse (isNull x) nullvalue (f (cast x))
 
 -- | Any container type for which we can check object membership.
@@ -430,10 +434,10 @@ fromBool = cast
 fromInt :: (SqlType a, Num a) => Col s Int -> Col s a
 fromInt = cast
 
--- | Convert any column to a string.
-toString :: Col s a -> Col s Text
+-- | Convert any SQL type to a string.
+toString :: SqlType a => Col s a -> Col s Text
 toString = cast
 
 -- | Perform a conditional on a column
-ifThenElse :: Col s Bool -> Col s a -> Col s a -> Col s a
+ifThenElse :: SqlType a => Col s Bool -> Col s a -> Col s a -> Col s a
 ifThenElse = liftC3 If
