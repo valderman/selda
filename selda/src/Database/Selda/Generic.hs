@@ -5,7 +5,7 @@
 {-# LANGUAGE GADTs, CPP, DeriveGeneric, DataKinds #-}
 -- | Generics utilities.
 module Database.Selda.Generic
-  ( Relational, Generic, Nested (..)
+  ( Relational, Generic
   , tblCols, mkDummy, identify, params, def, gNew
   ) where
 import Control.Monad.State
@@ -58,30 +58,6 @@ mkDummy = Dummy $ to $ evalState gMkDummy 0
 -- | Get the selector identifier of the given selector for the given dummy.
 identify :: Dummy a -> (a -> b) -> Int
 identify (Dummy d) f = unsafeCoerce $ f d
-
--- | Allows nesting the given type within another type used as a relation.
---   For instance, the following code will produce a type error since relational
---   product types must normally contain only @SqlType@ types:
---
--- > data Foo = Foo Int Bool
--- > data Bar = Bar Text Foo
--- >
--- > tbl :: GenTable Bar
--- > tbl = genTable "some_table" []
---
---   However, by wrapping the @Foo@ in @Nested@, we tell Selda to flatten @Foo@
---   into @Bar@, resulting in a relation equivalent to
---   @Text :*: Int :*: Bool@:
---
--- > data Bar = Bar Text (Nested Foo)
---
---   Note that when generating selectors for a relation with flattened
---   components, the selector list is also flattened.
---   To generate selectors for the @Bar@ type:
---
--- > bar_text :*: bar_foo_int :*: bar_foo_bool = selectors (gen tbl)
-newtype Nested a = Nested {unNest :: a}
-  deriving (Show, Eq, Ord, Generic)
 
 -- | Extract all insert parameters from a generic value.
 params :: Relational a => a -> [Either Param Param]
@@ -179,16 +155,6 @@ instance (Typeable a, SqlType a) => GRelation (K1 i a) where
     return $ unsafeCoerce n
 
   gNew _ = [Untyped (Lit (defaultValue :: Lit a))]
-
-instance {-# OVERLAPS #-}
-  ( Typeable a
-  , GRelation (Rep a)
-  , Generic a
-  ) => GRelation (K1 i (Nested a)) where
-  gParams (K1 (Nested x)) = gParams (from x)
-  gTblCols _ = gTblCols (Proxy :: Proxy (Rep a))
-  gMkDummy = fmap (K1 . Nested . to) gMkDummy
-  gNew _ = gNew (Proxy :: Proxy (Rep a))
 
 instance (GRelation a, GRelation b) => GRelation (a G.:*: b) where
   gParams (a G.:*: b) = liftM2 (++) (gParams a) (gParams b)

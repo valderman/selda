@@ -110,7 +110,7 @@ module Database.Selda
   , prepared
     -- * Defining schemas
   , Generic
-  , TableName, ColName, Attr (..), Attribute, Nested (..)
+  , TableName, ColName, Attr (..), Attribute
   , Selectors, ForeignKey (..)
   , table, tableFieldMod, tableWithSelectors, selectors
   , primary, autoPrimary, untypedAutoPrimary, unique
@@ -199,9 +199,12 @@ instance The (Only a) where
 instance The (Col s (Only a)) where
   type TheOnly (Col s (Only a)) = Col s a
   the (Many [Untyped x]) = One (unsafeCoerce x)
+  the (Many _)           = error "BUG: non-singleton Only-column"
+  the (One _)            = error "BUG: Only-column with raw expression"
 
 only :: SqlType a => Col s a -> Col s (Only a)
-only (One x) = Many [Untyped x]
+only (One x)  = Many [Untyped x]
+only (Many _) = error "BUG: SqlType compound column"
 
 -- | Create a new column with the given fields.
 --   Any unassigned fields will contain their default values.
