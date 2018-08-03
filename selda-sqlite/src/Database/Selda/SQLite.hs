@@ -28,7 +28,7 @@ sqliteOpen file = do
       Right db -> flip onException (liftIO (close db)) . restore $ do
         absFile <- liftIO $ pack <$> makeAbsolute file
         let backend = sqliteBackend db
-        liftIO $ runStmt backend "PRAGMA foreign_keys = ON;" []
+        void . liftIO $ runStmt backend "PRAGMA foreign_keys = ON;" []
         newConnection backend absFile
 #endif
 
@@ -58,16 +58,16 @@ sqliteBackend db = SeldaBackend
   }
 
 sqliteGetTableInfo :: Database -> Text -> IO [ColumnInfo]
-sqliteGetTableInfo db table = do
+sqliteGetTableInfo db tbl = do
     cols <- (snd . snd) <$> sqliteQueryRunner db tblinfo []
     indexes <- (snd . snd) <$> sqliteQueryRunner db indexes []
     fks <- (snd . snd) <$> sqliteQueryRunner db fklist []
     indexes' <- mapM indexInfo indexes
     mapM (describe fks indexes') cols
   where
-    tblinfo = mconcat ["PRAGMA table_info(", table, ");"]
-    indexes = mconcat ["PRAGMA index_list(", table, ");"]
-    fklist = mconcat ["PRAGMA foreign_key_list(", table, ");"]
+    tblinfo = mconcat ["PRAGMA table_info(", tbl, ");"]
+    indexes = mconcat ["PRAGMA index_list(", tbl, ");"]
+    fklist = mconcat ["PRAGMA foreign_key_list(", tbl, ");"]
     ixinfo name = mconcat ["PRAGMA index_info(", name, ");"]
 
     toTypeRep _ "text"                      = Right TText
@@ -85,6 +85,8 @@ sqliteGetTableInfo db table = do
       let q = (ixinfo ixname)
       [[_, _, SqlString name]] <- (snd . snd) <$> sqliteQueryRunner db q []
       return (name, itype)
+    indexInfo _ = do
+      error "unreachable"
 
     describe fks ixs [_, SqlString name, SqlString ty, SqlInt nonnull, _, SqlInt pk] = do
       return $ ColumnInfo
@@ -101,7 +103,7 @@ sqliteGetTableInfo db table = do
             , key == name
             ]
         }
-    describe fks ixs result = do
+    describe _ _ result = do
       throwM $ SqlError $ "bad result from PRAGMA table_info: " ++ show result
 
 disableFKs :: Database -> Bool -> IO ()

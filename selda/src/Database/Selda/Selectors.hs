@@ -1,7 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables, TypeFamilies, MultiParamTypeClasses #-}
 {-# LANGUAGE TypeOperators, UndecidableInstances, FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts, RankNTypes, AllowAmbiguousTypes, GADTs #-}
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveGeneric, CPP #-}
 module Database.Selda.Selectors
   ( Assignment ((:=)), Selected, Selector, Source, Selectors, GSelectors
   , (!), with, ($=)
@@ -58,10 +58,14 @@ upd _ _ =
 
 -- | A selector-value assignment pair.
 data Assignment s a where
+#if MIN_VERSION_base(4, 9, 0)
   -- | Set the given column to the given value.
+#endif
   (:=) :: Selector t a -> Col s a -> Assignment s t
 
+#if MIN_VERSION_base(4, 9, 0)
   -- | Modify the given column by the given function.
+#endif
   Modify :: Selector t a -> (Col s a -> Col s a) -> Assignment s t
 infixl 2 :=
 
