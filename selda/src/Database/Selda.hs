@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings, FlexibleInstances, UndecidableInstances #-}
 {-# LANGUAGE ScopedTypeVariables, TypeOperators, GADTs, FlexibleContexts #-}
-{-# LANGUAGE DeriveGeneric, GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE DeriveGeneric, GeneralizedNewtypeDeriving, TypeFamilies #-}
 -- | Selda is not LINQ, but they're definitely related.
 --
 --   Selda is a high-level EDSL for interacting with relational databases.
@@ -70,7 +70,7 @@ module Database.Selda
     MonadSelda
   , SeldaError (..), ValidationError
   , SeldaT, SeldaM
-  , Relational, Only (..)
+  , Relational, Only (..), The (..)
   , Table, Query, Col, Res, Result
   , query, queryInto
   , transaction, setLocalCache, withoutForeignKeyEnforcement
@@ -93,7 +93,7 @@ module Database.Selda
   , (.&&), (.||), not_
   , literal, int, float, text, true, false, null_
   , roundTo, length_, isNull, ifThenElse, matchNull
-  , new
+  , new, only
     -- * Converting between column types
   , round_, just, fromBool, fromInt, toString
     -- * Inner queries
@@ -171,7 +171,7 @@ instance Typeable a => SqlOrd (ID a)
 -- | Wrapper for single column tables.
 --   Use this when you need a table with only a single column, with 'table' or
 --   'selectValues'.
-newtype Only a = Only {the :: a}
+newtype Only a = Only a
   deriving
     ( Generic
     , Show
@@ -186,6 +186,22 @@ newtype Only a = Only {the :: a}
     , Real
     , IsString
     )
+
+class The a where
+  type TheOnly a
+  -- | Extract the value of a single column row.
+  the :: a -> TheOnly a
+
+instance The (Only a) where
+  type TheOnly (Only a) = a
+  the (Only x) = x
+
+instance The (Col s (Only a)) where
+  type TheOnly (Col s (Only a)) = Col s a
+  the (Many [Untyped x]) = One (unsafeCoerce x)
+
+only :: SqlType a => Col s a -> Col s (Only a)
+only (One x) = Many [Untyped x]
 
 -- | Create a new column with the given fields.
 --   Any unassigned fields will contain their default values.
