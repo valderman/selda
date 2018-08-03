@@ -3,8 +3,8 @@
 {-# LANGUAGE FlexibleContexts, RankNTypes, AllowAmbiguousTypes, GADTs, CPP #-}
 {-# LANGUAGE DeriveGeneric #-}
 module Database.Selda.Selectors
-  ( Assignment (..), Selector, Selectors, GSelectors
-  , (!), with
+  ( Assignment ((:=)), Selector, Selectors, GSelectors
+  , (!), with, ($=)
   , selectorsFor, selectorIndex
   ) where
 import Control.Monad.State.Strict
@@ -27,17 +27,33 @@ nonProdColError :: a
 nonProdColError = error "BUG: used selector on non-product column"
 
 upd :: Col s a -> Assignment s a -> Col s a
-upd (Many xs) (Selector i := x') =
+upd (Many xs) (Selector i := (One x')) =
   case splitAt i xs of
-    (left, _:right) -> Many (left ++ unsafeCoerce x' : right)
+    (left, _:right) -> Many (left ++ Untyped x' : right)
     _               -> error "impossible"
-upd (One _) _ =
+upd (Many xs) (Modify (Selector i) f) =
+  case splitAt i xs of
+    (left, Untyped x:right) -> Many (left ++ f' (unsafeCoerce x) : right)
+    _               -> error "impossible"
+  where
+    f' x = case f (One x) of
+      One y -> Untyped y
+      _     -> nonProdColError
+upd _ _ =
   nonProdColError
 
 -- | A selector-value assignment pair.
 data Assignment s a where
+  -- | Set the given column to the given value.
   (:=) :: Selector t a -> Col s a -> Assignment s t
+
+  -- | Modify the given column by the given function.
+  Modify :: Selector t a -> (Col s a -> Col s a) -> Assignment s t
 infixl 2 :=
+
+($=) :: Selector t a -> (Col s a -> Col s a) -> Assignment s t
+($=) = Modify
+infixl 2 $=
 
 -- | For each selector-value pair in the given list, on the given tuple,
 --   update the field pointed out by the selector with the corresponding value.

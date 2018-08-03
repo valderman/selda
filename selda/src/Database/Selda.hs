@@ -75,7 +75,8 @@ module Database.Selda
   , query, queryInto
   , transaction, setLocalCache, withoutForeignKeyEnforcement
     -- * Constructing queries
-  , Selector, (!), Assignment(..), with
+  , Selector, (!), Assignment ((:=)), with
+  , (+=), (-=), (*=), (||=), (&&=), ($=)
   , SqlType (..), SqlResult (..), SqlEnum (..)
   , Cols, Columns
   , Order (..)
@@ -187,6 +188,26 @@ newtype Only a = Only a
     , IsString
     )
 instance SqlType a => SqlResult (Only a)
+
+(+=) :: Num (Col s a) => Selector t a -> Col s a -> Assignment s t
+s += c = s $= (+ c)
+infixl 2 +=
+
+(-=) :: Num (Col s a) => Selector t a -> Col s a -> Assignment s t
+s -= c = s $= (\x -> x - c)
+infixl 2 -=
+
+(*=) :: Num (Col s a) => Selector t a -> Col s a -> Assignment s t
+s *= c = s $= (* c)
+infixl 2 *=
+
+(||=) :: Selector t Bool -> Col s Bool -> Assignment s t
+s ||= c = s $= (.|| c)
+infixl 2 ||=
+
+(&&=) :: Selector t Bool -> Col s Bool -> Assignment s t
+s &&= c = s $= (.&& c)
+infixl 2 &&=
 
 class The a where
   type TheOnly a
