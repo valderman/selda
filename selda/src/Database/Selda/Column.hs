@@ -1,5 +1,5 @@
 {-# LANGUAGE GADTs, TypeFamilies, TypeOperators, PolyKinds #-}
-{-# LANGUAGE FlexibleInstances, OverloadedStrings #-}
+{-# LANGUAGE FlexibleInstances, OverloadedStrings, ScopedTypeVariables #-}
 -- | Columns and associated utility functions, specialized to 'SQL'.
 module Database.Selda.Column
   ( Cols, Columns
@@ -13,7 +13,9 @@ module Database.Selda.Column
 import Database.Selda.Exp
 import Database.Selda.SQL
 import Database.Selda.SqlType
+import Database.Selda.SqlResult
 import Database.Selda.Types
+import Data.Proxy
 import Data.String
 import Data.Text (Text)
 
@@ -27,17 +29,18 @@ class Columns a where
   toTup :: [ColName] -> a
   fromTup :: a -> [UntypedCol SQL]
 
--- TODO: toTup needs to give back Many (take n xs) when a is not SqlType
-instance Columns b => Columns (Col s a :*: b) where
-  toTup (x:xs) = One (Col x) :*: toTup xs
-  toTup _      = error "too few elements to toTup"
+instance (SqlResult a, Columns b) => Columns (Col s a :*: b) where
+  toTup xs =
+    case nestedCols (Proxy :: Proxy a) of
+      0 -> One (Col (head xs)) :*: toTup (tail xs)
+      n -> Many (map (Untyped . Col) (take n xs)) :*: toTup (drop n xs)
   fromTup (One x :*: xs) = Untyped x : fromTup xs
   fromTup (Many xs :*: xss) = xs ++ fromTup xss
 
 instance Columns (Col s a) where
   toTup [x] = One (Col x)
   toTup []  = error "too few elements to toTup"
-  toTup xs  = One (TblCol xs)
+  toTup xs  = Many (map (Untyped . Col) xs)
   fromTup (One x) = [Untyped x]
   fromTup (Many xs) = xs
 

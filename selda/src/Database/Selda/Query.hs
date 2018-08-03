@@ -219,7 +219,7 @@ order (Many _) _ = error "BUG: SqlType should never be a product column"
 
 -- | Sort the result rows in random order.
 orderRandom :: Query s ()
-orderRandom = order (C (NulOp (Fun0 "RANDOM"))) Asc
+orderRandom = order (One (NulOp (Fun0 "RANDOM") :: Exp SQL Int)) Asc
 
 -- | Remove all duplicates from the result set.
 distinct :: Query s a -> Query s a

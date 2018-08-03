@@ -2,7 +2,7 @@
 -- | Unsafe operations giving the user unchecked low-level control over
 --   the generated SQL.
 module Database.Selda.Unsafe
-  ( fun, fun2
+  ( fun, fun2, fun0
   , aggr
   , cast
   , castAggr
@@ -36,4 +36,4 @@ fun2 f = liftC2 (Fun2 f)
 
 -- | Like 'fun', but with zero arguments.
 fun0 :: Text -> Col s a
-fun0 f = C $ NulOp (Fun0 f)
+fun0 = One . NulOp . Fun0
