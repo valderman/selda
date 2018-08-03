@@ -1,6 +1,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving, MultiParamTypeClasses #-}
 {-# LANGUAGE UndecidableInstances, FlexibleInstances, FlexibleContexts #-}
 {-# LANGUAGE TypeOperators, DefaultSignatures, ScopedTypeVariables #-}
+{-# OPTIONS_GHC -Wno-simplifiable-class-constraints #-}
 module Database.Selda.SqlResult
   ( SqlResult (..), ResultReader
   , runResultReader, next
@@ -97,47 +98,26 @@ instance SqlType a => SqlResult (Maybe a) where
   nestedCols _ = 0
 
 instance
-  ( Generic (a, b)
-  , Typeable (a, b)
+  ( Typeable (a, b)
   , GSqlResult (Rep (a, b))
   ) => SqlResult (a, b)
 instance
-  ( Generic (a, b, c)
-  , Typeable (a, b, c)
+  ( Typeable (a, b, c)
   , GSqlResult (Rep (a, b, c))
   ) => SqlResult (a, b, c)
 instance
-  ( Generic (a, b, c, d)
-  , Typeable (a, b, c, d)
+  ( Typeable (a, b, c, d)
   , GSqlResult (Rep (a, b, c, d))
   ) => SqlResult (a, b, c, d)
 instance
-  ( Generic (a, b, c, d, e)
-  , Typeable (a, b, c, d, e)
+  ( Typeable (a, b, c, d, e)
   , GSqlResult (Rep (a, b, c, d, e))
   ) => SqlResult (a, b, c, d, e)
 instance
-  ( Generic (a, b, c, d, e, f)
-  , Typeable (a, b, c, d, e, f)
+  ( Typeable (a, b, c, d, e, f)
   , GSqlResult (Rep (a, b, c, d, e, f))
   ) => SqlResult (a, b, c, d, e, f)
 instance
-  ( Generic (a, b, c, d, e, f, g)
-  , Typeable (a, b, c, d, e, f, g)
+  ( Typeable (a, b, c, d, e, f, g)
   , GSqlResult (Rep (a, b, c, d, e, f, g))
   ) => SqlResult (a, b, c, d, e, f, g)
-instance
-  ( Generic (a, b, c, d, e, f, g, h)
-  , Typeable (a, b, c, d, e, f, g, h)
-  , GSqlResult (Rep (a, b, c, d, e, f, g, h))
-  ) => SqlResult (a, b, c, d, e, f, g, h)
-instance
-  ( Generic (a, b, c, d, e, f, g, h, i)
-  , Typeable (a, b, c, d, e, f, g, h, i)
-  , GSqlResult (Rep (a, b, c, d, e, f, g, h, i))
-  ) => SqlResult (a, b, c, d, e, f, g, h, i)
-instance
-  ( Generic (a, b, c, d, e, f, g, h, i, j)
-  , Typeable (a, b, c, d, e, f, g, h, i, j)
-  , GSqlResult (Rep (a, b, c, d, e, f, g, h, i, j))
-  ) => SqlResult (a, b, c, d, e, f, g, h, i, j)
