@@ -112,8 +112,6 @@ joinLikeProductWithSels = do
       , n == n'
       ]
 
-{-
-TODO: left join over compound column
 simpleLeftJoin = do
   res <- query $ do
     name <- pName `from` select people
@@ -128,10 +126,7 @@ simpleLeftJoin = do
       , "Miyu"      :*: Just "Fuyukishi"
       , "Kobayashi" :*: Just "Tokyo"
       ]
--}
 
-{-
-TODO: left join over compound column
 leftJoinThenProduct = do
   res <- query $ do
     name <- pName `from` select people
@@ -144,7 +139,6 @@ leftJoinThenProduct = do
   where
     linkComment = head [c | (_, n, c) <- commentItems, n == Just "Link"]
     ans = ["Link" :*: Just "Kakariko" :*: linkComment]
--}
 
 countAggregate = do
   [res] <- query . aggregate $ do
@@ -154,8 +148,6 @@ countAggregate = do
   where
     ans = length [p | Just p <- map pet peopleItems]
 
-{-
-TODO: how to handle left joins over compound columns?
 joinGroupAggregate = do
   res <- query . aggregate $ do
     p <- select people
@@ -168,7 +160,6 @@ joinGroupAggregate = do
     -- There are pet owners in Tokyo and Kakariko, there is no pet owner in
     -- Fuyukishi
     ans = [False :*: 2, True :*: 1]
--}
 
 nestedLeftJoin = do
   res <- query $ do

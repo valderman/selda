@@ -3,7 +3,7 @@
 {-# LANGUAGE FlexibleContexts, RankNTypes, AllowAmbiguousTypes, GADTs, CPP #-}
 {-# LANGUAGE DeriveGeneric #-}
 module Database.Selda.Selectors
-  ( Assignment ((:=)), Selector, Selectors, GSelectors
+  ( Assignment ((:=)), Selected, Selector, Source, Selectors, GSelectors
   , (!), with, ($=)
   , selectorsFor, selectorIndex
   ) where
@@ -19,7 +19,23 @@ import GHC.Generics hiding (Selector, (:*:))
 import qualified GHC.Generics as G
 import Unsafe.Coerce
 
-(!) :: Col s a -> Selector a b -> Col s b
+-- | The result of a '(!)' operation.
+--   If either the source composite column, the value column to extract,
+--   or both, is nullable, the result is also nullable.
+type family Selected a b where
+  Selected (Maybe a) (Maybe b) = Maybe b
+  Selected (Maybe a) b         = Maybe b
+  Selected a         b         = b
+
+-- | The source type of a '(!)' operation.
+type family Source a where
+  Source (Maybe a) = a
+  Source a         = a
+
+-- | Extract the given value column from the given composite column.
+--   Extracting a value from a nullable column will yield a nullable value.
+--   In other words, this operator is null-coalescing.
+(!) :: SqlType b => Col s a -> Selector (Source a) b -> Col s (Selected a b)
 (Many xs) ! (Selector i) = unsafeCoerce (xs !! i)
 (One _)   ! _            = nonProdColError
 
@@ -51,6 +67,7 @@ data Assignment s a where
   Modify :: Selector t a -> (Col s a -> Col s a) -> Assignment s t
 infixl 2 :=
 
+-- | Apply the given function to the given column.
 ($=) :: Selector t a -> (Col s a -> Col s a) -> Assignment s t
 ($=) = Modify
 infixl 2 $=
@@ -61,7 +78,7 @@ with :: Col s a -> [Assignment s a] -> Col s a
 with = foldl' upd
 
 -- | A column selector. Column selectors can be used together with the '!' and
---   'with' functions to get and set values on inductive tuples, or to indicate
+--   'with' functions to get and set values on composite columns, or to specify
 --   foreign keys.
 newtype Selector t a = Selector {selectorIndex :: Int}
 

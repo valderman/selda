@@ -76,7 +76,7 @@ module Database.Selda
   , query, queryInto
   , transaction, setLocalCache, withoutForeignKeyEnforcement
     -- * Constructing queries
-  , Selector, (!), Assignment ((:=)), with
+  , Selector, Source, Selected, (!), Assignment ((:=)), with
   , (+=), (-=), (*=), (||=), (&&=), ($=)
   , SqlType (..), SqlResult (..), SqlEnum (..)
   , Cols, Columns
@@ -255,9 +255,10 @@ new fields = Many (gNew (Proxy :: Proxy (Rep a))) `with` fields
 -- > q2 = do
 -- >   person <- select people
 -- >   return (person ! name)
-from :: Typeable a => Selector a b
+from :: (Typeable a, SqlType b)
+     => Selector (Source a) b
      -> Query s (Col s a)
-     -> Query s (Col s b)
+     -> Query s (Col s (Selected a b))
 from s q = (! s) <$> q
 infixr 7 `from`
 
@@ -325,7 +326,6 @@ class Set set where
 infixl 4 `isIn`
 
 instance Set [] where
-  -- TODO: use safe coercions instead of unsafeCoerce
   isIn _ []     = false
   isIn (One x) xs = One $ InList x [c | One c <- xs]
   isIn (Many _) _ = error "unreachable"
