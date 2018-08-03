@@ -1,5 +1,5 @@
 {-# LANGUAGE GADTs, OverloadedStrings, ScopedTypeVariables, FlexibleInstances #-}
-{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE UndecidableInstances, DefaultSignatures #-}
 -- | Types representable in Selda's subset of SQL.
 module Database.Selda.SqlType
   ( SqlType (..), SqlEnum (..)
@@ -48,6 +48,8 @@ data SqlTypeRep
 class Typeable a => SqlType a where
   -- | Create a literal of this type.
   mkLit :: a -> Lit a
+  default mkLit :: (Typeable a, SqlEnum a) => a -> Lit a
+  mkLit = LCustom . LText . toText
 
   -- | The SQL representation for this type.
   sqlType :: Proxy a -> SqlTypeRep
@@ -55,9 +57,13 @@ class Typeable a => SqlType a where
 
   -- | Convert an SqlValue into this type.
   fromSql :: SqlValue -> a
+  default fromSql :: (Typeable a, SqlEnum a) => SqlValue -> a
+  fromSql = fromText . fromSql
 
   -- | Default value when using 'def' at this type.
   defaultValue :: Lit a
+  default defaultValue :: (Typeable a, SqlEnum a) => Lit a
+  defaultValue = LCustom $ mkLit (toText (minBound :: a))
 
 -- | Any type that's bounded, enumerable and has a text representation, and
 --   thus representable as a Selda enumerable.
@@ -316,8 +322,4 @@ instance SqlType a => SqlType (Maybe a) where
   fromSql x         = Just $ fromSql x
   defaultValue = LNull
 
-instance {-# OVERLAPPABLE #-} (Typeable a, SqlEnum a) => SqlType a where
-  mkLit = LCustom . LText . toText
-  sqlType _ = sqlType (Proxy :: Proxy Text)
-  fromSql = fromText . fromSql
-  defaultValue = LCustom $ mkLit (toText (minBound :: a))
+instance SqlType Ordering

@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings, FlexibleInstances, UndecidableInstances #-}
 {-# LANGUAGE ScopedTypeVariables, TypeOperators, GADTs, FlexibleContexts #-}
-{-# LANGUAGE DeriveGeneric, GeneralizedNewtypeDeriving, TypeFamilies #-}
+{-# LANGUAGE DeriveGeneric, GeneralizedNewtypeDeriving, TypeFamilies, CPP #-}
+{-# LANGUAGE DataKinds #-}
 -- | Selda is not LINQ, but they're definitely related.
 --
 --   Selda is a high-level EDSL for interacting with relational databases.
@@ -158,6 +159,10 @@ import Data.Typeable (eqT, (:~:)(..))
 import GHC.Generics (Rep)
 import Unsafe.Coerce
 
+#if MIN_VERSION_base(4, 9, 0)
+import GHC.TypeLits as TL
+#endif
+
 -- | Any column type that can be used with the 'min_' and 'max_' functions.
 class SqlType a => SqlOrd a
 instance {-# OVERLAPPABLE #-} (SqlType a, Num a) => SqlOrd a
@@ -179,7 +184,6 @@ newtype Only a = Only a
     , Read
     , Eq
     , Ord
-    , Bounded
     , Enum
     , Num
     , Integral
@@ -188,6 +192,17 @@ newtype Only a = Only a
     , IsString
     )
 instance SqlType a => SqlResult (Only a)
+
+#if MIN_VERSION_base(4, 9, 0)
+instance (TypeError
+  ( 'TL.Text "'Only " ':<>: 'ShowType a ':<>: 'TL.Text "' is not a proper SQL type."
+    ':$$: 'TL.Text "Use 'the' to access the value of the column."
+  ), Typeable a) => SqlType (Only a) where
+  mkLit = error "unreachable"
+  sqlType = error "unreachable"
+  fromSql = error "unreachable"
+  defaultValue = error "unreachable"
+#endif
 
 (+=) :: Num (Col s a) => Selector t a -> Col s a -> Assignment s t
 s += c = s $= (+ c)
