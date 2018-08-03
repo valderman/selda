@@ -292,7 +292,7 @@ instance Set [] where
   isIn (Many _) _ = error "unreachable"
 
 instance Set (Query s) where
-  isIn (One x) = One . InQuery x . compQueryWithFreshScope
+  isIn (One x) = One . InQuery x . snd . compQueryWithFreshScope
   isIn (Many _) = error "unreachable"
 
 (.&&), (.||) :: Col s Bool -> Col s Bool -> Col s Bool

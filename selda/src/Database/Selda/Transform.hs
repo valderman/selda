@@ -65,9 +65,9 @@ keepCols live sql = sql {cols = filtered}
 -- | Build the outermost query from the SQL generation state.
 --   Groups are ignored, as they are only used by 'aggregate'.
 state2sql :: GenState -> SQL
-state2sql (GenState [sql] srs _ _) =
+state2sql (GenState [sql] srs _ _ _) =
   sql {restricts = restricts sql ++ srs}
-state2sql (GenState ss srs _ _) =
+state2sql (GenState ss srs _ _ _) =
   SQL (allCols ss) (Product ss) srs [] [] Nothing False
 
 -- | Get all output columns from a list of SQL ASTs.
