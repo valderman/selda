@@ -9,20 +9,18 @@ import System.Process
 changeLog :: ChangeLog
 changeLog =
   [ Version "0.3.0.0" "TBD"
-    "Migrations, indexes, validation, minor API overhaul, and better generics."
+    "Migrations, indexes, validation, and major API overhaul."
     [ "Support for Stack and GHC 8.4."
-    , "Export ToDyn to allow more general queries."
-    , "Allow nesting product types using the Nested type in generic tables."
-    , "Allow unpacking query results into inductive pairs of generic types."
     , "Precedence fix for selector index (!) operator."
     , "Accept INT and SMALLINT columns in user-created PostgreSQL tables."
     , "Add combinator for turning off foreign key checking."
     , "Rename unsafeRowId/unsafeId to toRowId/rowId."
-    , "Add typed row identifiers for generic tables."
+    , "Add typed row identifiers."
     , "More generic type for sum_."
     , "Table validation against current database."
     , "Basic migration support."
     , "Basic index support."
+    , "Remove ad hoc tables; only generic tables from now on."
     ]
   , Version "0.2.0.0" "2018-04-02"
     "Fixes for inner queries and generic tables."
