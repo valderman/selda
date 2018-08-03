@@ -87,12 +87,12 @@ restrict (Many _) = error "BUG: Bool should never be a product column"
 -- > -- SELECT COUNT(name) AS c, address FROM housing GROUP BY name HAVING c > 1
 -- >
 -- > numPpl = do
--- >   (num_tenants :*: address) <- aggregate $ do
--- >     (_ :*: address) <- select housing
--- >     groupBy address
--- >     return (count address :*: some address)
+-- >   (num_tenants :*: theAddress) <- aggregate $ do
+-- >     h <- select housing
+-- >     theAddress <- groupBy (h ! address)
+-- >     return (count (h ! address) :*: theAddress)
 -- >  restrict (num_tenants .> 1)
--- >  return (num_tenants :*: address)
+-- >  return (num_tenants :*: theAddress)
 aggregate :: (Columns (AggrCols a), Aggregates a)
           => Query (Inner s) a
           -> Query s (AggrCols a)
@@ -164,9 +164,9 @@ someJoin jointype check q = Query $ do
 --   how many people have a pet at home:
 --
 -- > aggregate $ do
--- >   (name :*: pet_name) <- select people
--- >   name' <- groupBy name
--- >   return (name' :*: count(pet_name) .> 0)
+-- >   person <- select people
+-- >   name' <- groupBy (person ! name)
+-- >   return (name' :*: count(person ! pet_name) .> 0)
 groupBy :: SqlType a => Col (Inner s) a -> Query (Inner s) (Aggr (Inner s) a)
 groupBy (One c) = Query $ do
   st <- get
@@ -194,12 +194,12 @@ limit from to q = Query $ do
 --   To get a list of persons sorted primarily on age and secondarily on name:
 --
 -- > peopleInAgeAndNameOrder = do
--- >   (name :*: age) <- select people
--- >   order name ascending
--- >   order age ascending
--- >   return name
+-- >   person <- select people
+-- >   order (person ! name) ascending
+-- >   order (person ! age) ascending
+-- >   return (person ! name)
 --
---   For a table @["Alice" :*: 20, "Bob" :*: 20, "Eve" :*: 18]@, this query
+--   For a table @[("Alice", 20), ("Bob", 20), ("Eve", 18)]@, this query
 --   will always return @["Eve", "Alice", "Bob"]@.
 --
 --   The reason for later orderings taking precedence and not the other way

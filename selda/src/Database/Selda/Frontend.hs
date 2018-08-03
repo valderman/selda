@@ -57,17 +57,21 @@ queryInto tbl q = do
 --
 --   To insert a list of tuples into a table with auto-incrementing primary key:
 --
--- > people :: Table (Int :*: Text :*: Int :*: Maybe Text)
--- > people = table "ppl"
--- >        $   autoPrimary "id"
--- >        :*: required "name"
--- >        :*: required "age"
--- >        :*: optional "pet"
+-- > data Person = Person
+-- >   { id :: ID Person
+-- >   , name :: Text
+-- >   , age :: Int
+-- >   , pet :: Maybe Text
+-- >   } deriving Generic
+-- > instance SqlResult Person
+-- >
+-- > people :: Table Person
+-- > people = table "people" [autoPrimary :- id]
 -- >
 -- > main = withSQLite "my_database.sqlite" $ do
 -- >   insert_ people
--- >     [ def :*: "Link"  :*: 125 :*: Just "horse"
--- >     , def :*: "Zelda" :*: 119 :*: Nothing
+-- >     [ Person def "Link" 125 (Just "horse")
+-- >     , Person def "Zelda" 119 Nothing
 -- >     , ...
 -- >     ]
 --

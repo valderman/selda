@@ -17,55 +17,8 @@
 --   This includes database connection errors, uniqueness constraint errors,
 --   etc.
 --
---   The following example shows off Selda's most basic features -- creating,
---   populating, modifying and querying tables -- and is intended to act as a
---   Hello World-ish quickstart.
---
--- > {-# LANGUAGE TypeOperators, OverloadedStrings, DeriveGeneric #-}
--- > import Data.Text (Text, unpack)
--- > import Database.Selda
--- > import Database.Selda.SQLite
--- >
--- > data Person = Person
--- >   { name :: Text
--- >   , age :: Int
--- >   , pet :: Maybe Text
--- >   } deriving Generic
--- >
--- > people :: Table Person
--- > (people, pName :*: pAge :*: pPet)
--- >   = tableWithSelectors "people" [name :- primary]
--- >
--- > main = withSQLite "people.sqlite" $ do
--- >   createTable people
--- >
--- >   insert_ people
--- >     [ Person "Velvet"    19 Nothing
--- >     , Person "Kobayashi" 23 (Just "dragon")
--- >     , Person "Miyu"      10 Nothing
--- >     ]
--- >
--- >   update_ people
--- >     (\person -> person ! pName .== "Velvet")
--- >     (\person -> person `with` [pPet := just "orthros"])
--- >
--- >   adults <- query $ do
--- >     person <- select people
--- >     restrict (person ! pAge .> 20)
--- >     return (person ! pName :*: person ! pAge)
--- >
--- >   n <- deleteFrom people (\person -> isNull (person ! pPet))
--- >
--- >   liftIO $ do
--- >     putStrLn "The adults in the room are:"
--- >     mapM_ printPerson adults
--- >     putStrLn $ show n ++ " people were deleted for having no pets."
--- >
--- > printPerson :: Text :*: Int -> IO ()
--- > printPerson (name :*: age) = putStrLn $ unpack name ++ ", age " ++ show age
---
---   Please see <http://hackage.haskell.org/package/selda/#readme>
---   for a more comprehensive tutorial.
+--   See <https://selda.link/tutorial> for a tutorial covering the language
+--   basics.
 module Database.Selda
   ( -- * Running queries
     MonadSelda
@@ -204,29 +157,36 @@ instance (TypeError
   defaultValue = error "unreachable"
 #endif
 
+-- | Add the given column to the column pointed to by the given selector.
 (+=) :: (SqlType a, Num (Col s a)) => Selector t a -> Col s a -> Assignment s t
 s += c = s $= (+ c)
 infixl 2 +=
 
+-- | Subtract the given column from the column pointed to by the given selector.
 (-=) :: (SqlType a, Num (Col s a)) => Selector t a -> Col s a -> Assignment s t
 s -= c = s $= (\x -> x - c)
 infixl 2 -=
 
+-- | Multiply the column pointed to by the given selector, by the given column.
 (*=) :: (SqlType a, Num (Col s a)) => Selector t a -> Col s a -> Assignment s t
 s *= c = s $= (* c)
 infixl 2 *=
 
+-- | Logically @OR@ the column pointed to by the given selector with
+--   the given column.
 (||=) :: Selector t Bool -> Col s Bool -> Assignment s t
 s ||= c = s $= (.|| c)
 infixl 2 ||=
 
+-- | Logically @AND@ the column pointed to by the given selector with
+--   the given column.
 (&&=) :: Selector t Bool -> Col s Bool -> Assignment s t
 s &&= c = s $= (.&& c)
 infixl 2 &&=
 
 class The a where
   type TheOnly a
-  -- | Extract the value of a single column row.
+  -- | Extract the value of a row from a singleton table.
   the :: a -> TheOnly a
 
 instance The (Only a) where
@@ -239,6 +199,7 @@ instance The (Col s (Only a)) where
   the (Many _)           = error "BUG: non-singleton Only-column"
   the (One _)            = error "BUG: Only-column with raw expression"
 
+-- | Create a singleton table column from an appropriate value.
 only :: SqlType a => Col s a -> Col s (Only a)
 only (One x)  = Many [Untyped x]
 only (Many _) = error "BUG: SqlType compound column"
@@ -348,13 +309,18 @@ descending = Desc
 -- | Lift a non-nullable column to a nullable one.
 --   Useful for creating expressions over optional columns:
 --
--- > people :: Table (Text :*: Int :*: Maybe Text)
--- > people = table "people" $ required "name" :*: required "age" :*: optional "pet"
+-- > data Person = Person {name :: Text, age :: Int, pet :: Maybe Text}
+-- >   deriving Generic
+-- > instance SqlResult Person
+-- >
+-- > people :: Table Person
+-- > people = table "people" []
+-- > sName :*: sAge :*: sPet = selectors people
 -- >
 -- > peopleWithCats = do
--- >   name :*: _ :*: pet <- select people
--- >   restrict (pet .== just "cat")
--- >   return name
+-- >   person <- select people
+-- >   restrict (person ! sPet .== just "cat")
+-- >   return (name ! sName)
 just :: SqlType a => Col s a -> Col s (Maybe a)
 just = cast
 
@@ -400,7 +366,7 @@ max_ :: SqlOrd a => Col s a -> Aggr s a
 max_ = aggr "MAX"
 
 -- | The smallest value in the given column. Texts are compared lexically.
-min_  :: SqlOrd a => Col s a -> Aggr s a
+min_ :: SqlOrd a => Col s a -> Aggr s a
 min_ = aggr "MIN"
 
 -- | Sum all values in the given column.
