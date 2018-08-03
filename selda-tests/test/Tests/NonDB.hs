@@ -8,17 +8,8 @@ import Utils
 import Tables
 
 noDBTests = test
-  [ "id == fromRel . toRel" ~: fromRelToRelId
-  , "tableFieldMod modifies fields" ~: tfmModifiesFields
+  [ "tableFieldMod modifies fields" ~: tfmModifiesFields
   ]
-
-fromRelToRelId = do
-    assertEqual "toRel . fromRel /= id" peopleItems xs
-    assertEqual "fromRel . toRel /= id" people xs'
-  where
-    people = fromRels peopleItems :: [Person]
-    xs = toRels people :: [Relation Person]
-    xs' = fromRels xs :: [Person]
 
 tfmModifiesFields =
   assertBool "Field names are unchanged from underlying record"

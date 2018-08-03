@@ -54,7 +54,6 @@ mutableTests freshEnv = test
   , "correct boolean representation" ~: freshEnv boolTable
   , "optional foreign keys"          ~: freshEnv optionalFK
   , "custom enum type"               ~: freshEnv customEnum
-  , "table from tuple"               ~: freshEnv genericTupleTable
   , "disable foreign key checks"     ~: freshEnv disableForeignKeys
   , "mod fk violation fails"         ~: freshEnv genModFkViolationFails
   , "mod fk insertion ok"            ~: freshEnv genModFkInsertSucceeds
@@ -76,9 +75,9 @@ autoPrimaryIncrements = do
   k <- insertWithPK comments [(def, Just "Kobayashi", "チョロゴン")]
   k' <- insertWithPK comments [(def, Nothing, "more anonymous spam")]
   [name] <- query $ do
-    id :*: name :*: _ <- select comments
-    restrict (id .== literal k)
-    return name
+    t <- select comments
+    restrict (t!cId .== literal k)
+    return (t!cName)
   assEq "inserted key refers to wrong value" name (Just "Kobayashi")
   let k0 = read (show k) :: Int
       k1 = read (show k') :: Int
@@ -100,13 +99,13 @@ updateUpdates = do
     , (def, Nothing, "more anonymous spam")
     , (def, Nothing, "even more spam")
     ]
-  rows <- update comments (isNull . second)
-                          (\(id :*: _ :*: c) -> (id :*: just "anon" :*: c))
+  rows <- update comments (isNull . (!cName))
+                          (`with` [cName := just "anon"])
   [upd] <- query $ aggregate $ do
-    _ :*: name :*: _ <- select comments
-    restrict (not_ $ isNull name)
-    restrict (name .== just "anon")
-    return (count name)
+    t <- select comments
+    restrict (not_ $ isNull (t!cName))
+    restrict (t!cName .== just "anon")
+    return (count (t!cName))
   assEq "update returns wrong number of updated rows" 3 rows
   assEq "rows were not updated" 3 upd
 
@@ -125,7 +124,7 @@ insertTime = do
       Just d = parseTimeM True defaultTimeLocale sqlDateFormat "2011-11-11"
       Just lt = parseTimeM True defaultTimeLocale sqlTimeFormat "11:11:11.11111"
   insert_ times [("now", t, d, lt)]
-  ["now" :*: t' :*: d' :*: lt'] <- query $ select times
+  [("now", t', d', lt')] <- query $ select times
   assEq "time not properly inserted" (t, d, lt) (t', d', lt')
   dropTable times
   where
@@ -141,9 +140,9 @@ transactionCompletes = do
       , (def, Just "Kobayashi", c2)
       ]
   cs <- query $ do
-    _ :*: name :*: comment <- select comments
-    restrict (name .== just "Kobayashi")
-    return comment
+    t <- select comments
+    restrict (t!cName .== just "Kobayashi")
+    return (t!cComment)
   ass "some inserts were not performed"
       (c1 `elem` cs && c2 `elem` cs && length cs == 2)
   where
@@ -164,9 +163,9 @@ transactionRollsBack = do
       liftIO $ assertFailure "exception didn't propagate"
     Left (SomeException _) -> do
       cs <- query $ do
-        _ :*: name :*: comment <- select comments
-        restrict (name .== just "Kobayashi")
-        return comment
+        t <- select comments
+        restrict (t!cName .== just "Kobayashi")
+        return (t!cComment)
       assEq "commit was not rolled back" [] cs
   where
     c1 = "チョロゴン"
@@ -179,26 +178,26 @@ consistentQueries = do
   assEq "query result changed on its own" a b
   where
     q = do
-      (name :*: age :*: _ :*: cash) <- select people
-      restrict (round_ cash .> age)
-      return name
+      t <- select people
+      restrict (round_ (t!pCash) .> (t!pAge))
+      return (t!pName)
 
 deleteDeletes = do
   setup
   a <- query q
-  deleteFrom_ people (\(name :*: _) -> name .== "Velvet")
+  deleteFrom_ people (\t -> t!pName .== "Velvet")
   b <- query q
   ass "rows not deleted" (a /= b && length b < length a)
   where
     q = do
-      (name :*: age :*: _ :*: cash) <- select people
-      restrict (round_ cash .< age)
-      return name
+      t <- select people
+      restrict (round_ (t!pCash) .< (t!pAge))
+      return (t!pName)
 
 deleteEverything = do
   tryDropTable people
   createTable people
-  insert_ people (fromRels peopleItems)
+  insert_ people peopleItems
   a <- query q
   deleteFrom_ people (const true)
   b <- query q
@@ -206,36 +205,36 @@ deleteEverything = do
   assEq "rows not deleted" [] b
   where
     q = do
-      (name :*: age :*: _ :*: cash) <- select people
-      restrict (round_ cash .> age)
-      return name
+      t <- select people
+      restrict (round_ (t!pCash) .> (t!pAge))
+      return (t!pName)
 
 overrideAutoIncrement = do
   setup
   insert_ comments [(toRowId 123, Nothing, "hello")]
   num <- query $ aggregate $ do
-    id :*: _ <- select comments
-    restrict (id .== literal (toRowId 123))
-    return (count id)
+    t <- select comments
+    restrict (t!cId .== literal (toRowId 123))
+    return (count (t!cId))
   assEq "failed to override auto-incrementing column" [1] num
 
 insertAllDefaults = do
   setup
   pk <- insertWithPK comments [(def, def, def)]
   res <- query $ do
-    comment@(id :*: _) <- select comments
-    restrict (id .== literal pk)
+    comment <- select comments
+    restrict (comment!cId .== literal pk)
     return comment
-  assEq "wrong default values inserted" [pk :*: Nothing :*: ""] res
+  assEq "wrong default values inserted" [(pk, Nothing, "")] res
 
 insertSomeDefaults = do
   setup
   insert_ people [Person "Celes" def (Just "chocobo") def]
   res <- query $ do
-    person@(id :*: n :*: pet :*: c) <- select people
-    restrict (pet .== just "chocobo")
+    person <- select people
+    restrict (person!pPet .== just "chocobo")
     return person
-  assEq "wrong values inserted" ["Celes" :*: 0 :*: Just "chocobo" :*: 0] res
+  assEq "wrong values inserted" [Person "Celes" 0 (Just "chocobo") 0] res
 
 weirdNames = do
   tryDropTable tableWithWeirdNames
@@ -277,7 +276,7 @@ dupeInsertThrowsSeldaError = do
 dupeInsert2ThrowsSeldaError = do
   setup
   insert_ comments [(def, Just "Kobayashi", "チョロゴン")]
-  [ident :*: _] <- query $ limit 0 1 $ select comments
+  [(ident, _, _)] <- query $ limit 0 1 $ select comments
   e <- try $ insert_ comments [(ident, Nothing, "Spam, spam, spaaaaaam!")]
   case e :: Either SeldaError () of
     Left _ -> return ()
@@ -289,7 +288,7 @@ dupeUpdateThrowsSeldaError = do
     [ (def, Just "Kobayashi", "チョロゴン")
     , (def, Just "spammer"  , "some spam")
     ]
-  [ident :*: _] <- query $ limit 0 1 $ select comments
+  [(ident, _, _)] <- query $ limit 0 1 $ select comments
   e <- try $ do
     update_ comments
       (\c -> c ! cName .== just "spammer")
@@ -305,13 +304,13 @@ nulQueries = do
     , (def, Nothing         , "more \0 spam")
     , (def, Nothing         , "even more spam")
     ]
-  rows <- update comments (isNull . second)
-                          (\(id :*: _ :*: c) -> (id :*: just "\0" :*: c))
+  rows <- update comments (isNull . (!cName))
+                          (`with` [cName := just "\0"])
   [upd] <- query $ aggregate $ do
-    _ :*: name :*: _ <- select comments
-    restrict (not_ $ isNull name)
-    restrict (name .== just "\0")
-    return (count name)
+    t <- select comments
+    restrict (not_ $ isNull (t!cName))
+    restrict (t!cName .== just "\0")
+    return (count (t!cName))
   assEq "update returns wrong number of updated rows" 3 rows
   assEq "rows were not updated" 3 upd
 
@@ -368,6 +367,7 @@ data FKAddrs = FKAddrs
   { fkaName :: Text
   , fkaCity :: Text
   } deriving Generic
+instance SqlResult FKAddrs
 
 genModFkViolationFails = do
     setup
@@ -385,10 +385,10 @@ genModFkInsertSucceeds = do
     createTable addressesWithFK
     insert_ addressesWithFK [FKAddrs "Link" "Nowhere"]
     res <- query $ do
-      (aName :*: aCity) <- select addressesWithFK
+      t <- select addressesWithFK
       person <- select people
-      restrict (aName .== "Link" .&& aName .== person ! pName)
-      return (person ! pName :*: aCity)
+      restrict (t!aName .== "Link" .&& t!aName .== person ! pName)
+      return (person!pName :*: t!aCity)
     assEq "wrong state after insert" ["Link" :*: "Nowhere"] res
     dropTable addressesWithFK
   where
@@ -396,6 +396,7 @@ genModFkInsertSucceeds = do
     addressesWithFK = tableFieldMod "addressesWithFK"
                                     [fkaName :- foreignKey people pName]
                                     ("test_" <>)
+    aName :*: aCity = selectors addressesWithFK
 
 multipleFKs = do
     setup
@@ -421,7 +422,7 @@ uniqueViolation = do
       insert_ uniquePeople [("Link", Nothing)]
     r2 <- query $ select uniquePeople
     assEq "inserted rows despite constraint violation" [] r1
-    assEq "row disappeared after violation" ["Link" :*: Nothing] r2
+    assEq "row disappeared after violation" [("Link", Nothing)] r2
     dropTable uniquePeople
   where
     uniquePeople :: Table (Text, Maybe Text)
@@ -432,29 +433,30 @@ insertOrUpdate = do
     tryDropTable counters
     createTable counters
     r1 <- upsert counters
-           (\(c :*: v) -> c .== 0)
-           (\(c :*: v) -> c :*: v+1)
+           (\t -> t!c .== 0)
+           (\t -> t `with` [v += 1])
            [(0, 1)]
     assEq "wrong return value from inserting upsert" (Just invalidRowId) r1
 
     r2 <- upsert counters
-           (\(c :*: v) -> c .== 0)
-           (\(c :*: v) -> c :*: v+1)
+           (\t -> t!c .== 0)
+           (\t -> t `with` [v $= (+1)])
            [(0, 1)]
     assEq "wrong return value from updating upsert" Nothing r2
 
     res <- query $ select counters
-    assEq "wrong value for counter" [0 :*: 2] res
+    assEq "wrong value for counter" [(0, 2)] res
 
     r3 <- upsert counters
-           (\(c :*: v) -> c .== 15)
-           (\(c :*: v) -> c :*: v+1)
+           (\t -> t ! c .== 15)
+           (\t -> t `with` [v := t!v + 1])
            [(15, 1)]
     assEq "wrong return value from second inserting upsert" (Just invalidRowId) r3
     dropTable counters
   where
     counters :: Table (Int, Int)
     counters = table "counters" [fst :- primary]
+    c :*: v = selectors counters
 
 tryInsertDoesntFail = do
     createTable uniquePeople
@@ -463,9 +465,9 @@ tryInsertDoesntFail = do
     res2 <- tryInsert uniquePeople [("Link", Nothing)]
     r2 <- query $ select uniquePeople
     assEq "wrong return value from successful tryInsert" True res1
-    assEq "row not inserted" ["Link" :*: Nothing] r1
+    assEq "row not inserted" [("Link", Nothing)] r1
     assEq "wrong return value from failed tryInsert" False res2
-    assEq "row inserted despite violation" ["Link" :*: Nothing] r2
+    assEq "row inserted despite violation" [("Link", Nothing)] r2
     dropTable uniquePeople
   where
     uniquePeople :: Table (Text, Maybe Text)
@@ -496,16 +498,17 @@ blobColumn = do
     createTable blobs
     n <- insert blobs [("b1", someBlob), ("b2", otherBlob)]
     assEq "wrong number of rows inserted" 2 n
-    [k :*: v] <- query $ do
-      (k :*: v) <- select blobs
-      restrict (k .== "b1")
-      return (k :*: v)
+    [(k, v)] <- query $ do
+      t <- select blobs
+      restrict (t ! ks .== "b1")
+      return t
     assEq "wrong key for blob" "b1" k
     assEq "got wrong blob back" someBlob v
     dropTable blobs
   where
     blobs :: Table (Text, ByteString)
     blobs = table "blobs" []
+    ks :*: vs = selectors blobs
     someBlob = "\0\1\2\3hello!漢字"
     otherBlob = "blah"
 
@@ -514,16 +517,17 @@ lazyBlobColumn = do
     createTable blobs
     n <- insert blobs [("b1", someBlob), ("b2", otherBlob)]
     assEq "wrong number of rows inserted" 2 n
-    [k :*: v] <- query $ do
-      (k :*: v) <- select blobs
-      restrict (k .== "b1")
-      return (k :*: v)
+    [(k, v)] <- query $ do
+      t <- select blobs
+      restrict (t ! ks .== "b1")
+      return t
     assEq "wrong key for blob" "b1" k
     assEq "got wrong blob back" someBlob v
     dropTable blobs
   where
     blobs :: Table (Text, Lazy.ByteString)
     blobs = table "blobs" []
+    ks :*: vs = selectors blobs
     someBlob = "\0\1\2\3hello!漢字"
     otherBlob = "blah"
 
@@ -532,21 +536,21 @@ whenUnless = do
 
     insertUnless people (\t -> t ! pName .== "Lord Buckethead") theBucket
     oneBucket <- query $ select people `suchThat` ((.== "Lord Buckethead") . (! pName))
-    assEq "Lord Buckethead wasn't inserted" theBucket (fromRels oneBucket)
+    assEq "Lord Buckethead wasn't inserted" theBucket (oneBucket)
 
     insertWhen people (\t -> t ! pName .== "Lord Buckethead") theSara
     oneSara <- query $ select people `suchThat` ((.== "Sara") . (! pName))
-    assEq "Sara wasn't inserted" theSara (fromRels oneSara)
+    assEq "Sara wasn't inserted" theSara (oneSara)
 
     insertUnless people (\t -> t ! pName .== "Lord Buckethead")
       [Person "Jessie" 16 Nothing (10^6)]
     noJessie <- query $ select people `suchThat` ((.== "Jessie") . (! pName))
-    assEq "Jessie was wrongly inserted" [] (fromRels noJessie :: [Person])
+    assEq "Jessie was wrongly inserted" [] (noJessie :: [Person])
 
     insertWhen people (\t -> t ! pName .== "Jessie")
       [Person "Lavinia" 16 Nothing (10^8)]
     noLavinia <- query $ select people `suchThat` ((.== "Lavinia") . (! pName))
-    assEq "Lavinia was wrongly inserted" [] (fromRels noLavinia :: [Person])
+    assEq "Lavinia was wrongly inserted" [] (noLavinia :: [Person])
     teardown
   where
     theBucket = [Person "Lord Buckethead" 30 Nothing 0]
@@ -574,25 +578,26 @@ boolTable = do
     tryDropTable tbl
     createTable tbl
     insert tbl [(def, True), (def, False), (def, def)]
-    bs <- query $ second <$> select tbl
+    bs <- query $ (! two) <$> select tbl
     assEq "wrong values inserted into table" [True, False, False] bs
     dropTable tbl
   where
     tbl :: Table (RowID, Bool)
     tbl = table "booltable" [fst :- untypedAutoPrimary]
+    one :*: two = selectors tbl
 
 optionalFK = do
     tryDropTable tbl
     createTable tbl
     pk <- insertWithPK tbl [(def, Nothing)]
     insert tbl [(def, Just pk)]
-    vs <- query $ second <$> select tbl
+    vs <- query $ (! mrid) <$> select tbl
     assEq "wrong value for nullable FK" [Nothing, Just pk] vs
     dropTable tbl
   where
     tbl :: Table (RowID, Maybe RowID)
     tbl = table "booltable" [fst :- untypedAutoPrimary, snd :- foreignKey tbl rid]
-    (rid :*: _) = selectors tbl
+    (rid :*: mrid) = selectors tbl
 
 -- | For genericAutoPrimary.
 data AutoPrimaryUser = AutoPrimaryUser
@@ -618,45 +623,25 @@ customEnum = do
     assEq "wrong # of rows inserted" 4 inserted
 
     res <- query $ do
-      _ :*: foo <- select tbl
-      order foo descending
-      return foo
+      t <- select tbl
+      order (t ! two) descending
+      return (t ! two)
     assEq "wrong pre-delete result list" [C, C, B, A] res
 
-    deleted <- deleteFrom tbl ((.== literal C) . second)
+    deleted <- deleteFrom tbl ((.== literal C) . (! two))
     assEq "wrong # of rows deleted" 2 deleted
 
     res2 <- query $ do
-      _ :*: foo <- select tbl
-      order foo ascending
-      return foo
+      t <- select tbl
+      order (t ! two) ascending
+      return (t ! two)
     assEq "wrong post-delete result list" [A, B] res2
 
     dropTable tbl
   where
     tbl :: Table (RowID, Foo)
     tbl = table "enums" [fst :- untypedAutoPrimary]
-
-genericTupleTable = do
-    tryDropTable tbl
-    tryCreateTable tbl
-    insert tbl [ (0, Nested $ Person "A" 1 Nothing 2)
-               , (1, Nested $ Person "B" 3 (Just "C") 3)]
-    res <- query $ do
-      a <- select tbl
-      order (a ! s_age) descending
-      return a
-    let res' = fromRels res :: [(Int, Nested Person)]
-    assEq "Wrong result query against tuple table." desc_persons (map snd res')
-    dropTable tbl
-  where
-    desc_persons =
-      [ Nested $ Person "B" 3 (Just "C") 3
-      , Nested $ Person "A" 1 Nothing 2
-      ]
-    tbl :: Table (Int, Nested Person)
-    tbl = table "someRandomTuple" [fst :- primary]
-    s_id :*: s_name :*: s_age :*: s_pet :*: s_cash = selectors tbl
+    one :*: two = selectors tbl
 
 disableForeignKeys = do
     -- Run the test twice, to check that FK checking gets turned back on again
@@ -693,17 +678,24 @@ migrationTest test = do
 
 migrationTable1 :: Table (Only Int)
 migrationTable1 = table "table1" [the :- primary]
+mt1_1 = selectors migrationTable1
 
 migrationTable2 :: Table (Text, Int)
 migrationTable2 = table "table1" [fst :- primary]
+mt2_1 :*: mt2_2 = selectors migrationTable2
 
 migrationTable3 :: Table (Only Int)
 migrationTable3 = table "table3" [the :- primary]
+mt3_1 = selectors migrationTable3
 
 steps =
   [ [Migration migrationTable1 migrationTable1 pure]
-  , [Migration migrationTable1 migrationTable2 (\foo -> pure (toString foo :*: foo))]
-  , [Migration migrationTable2 migrationTable3 (\(txt :*: i) -> pure i)]
+  , [Migration migrationTable1 migrationTable2 $ \foo -> pure $ new
+      [ mt2_1 := toString foo
+      , mt2_2 := the foo
+      ]
+    ]
+  , [Migration migrationTable2 migrationTable3 $ \t -> pure (only (t ! mt2_2))]
   , [Migration migrationTable3 migrationTable1 pure]
   ]
 
@@ -711,21 +703,27 @@ migrateIntoSelf = do
   migrate migrationTable1 migrationTable1 id
   res <- query $ do
     x <- select migrationTable1
-    order x ascending
+    order (the x) ascending
     return x
   assEq "migrating into self went wrong" [1,2,3] res
 
 addColumn = do
-  migrate migrationTable1 migrationTable2 $ \foo -> toString foo :*: foo
+  migrate migrationTable1 migrationTable2 $ \foo -> new
+    [ mt2_1 := toString foo
+    , mt2_2 := the foo
+    ]
   res <- query $ do
-    x :*: y <- select migrationTable2
-    order x ascending
-    return (x :*: y)
-  assEq "adding column went wrong" ["1":*:1,"2":*:2,"3":*:3] res
+    t <- select migrationTable2
+    order (t ! mt2_1) ascending
+    return t
+  assEq "adding column went wrong" [("1",1),("2",2),("3",3)] res
 
 dropColumn = do
-  migrate migrationTable1 migrationTable2 $ \foo -> toString foo :*: foo
-  migrate migrationTable2 migrationTable3 $ \(txt :*: i) -> i
+  migrate migrationTable1 migrationTable2 $ \foo -> new
+    [ mt2_1 := toString foo
+    , mt2_2 := the foo
+    ]
+  migrate migrationTable2 migrationTable3 $ \tbl -> only (tbl ! mt2_2)
   assertFail $ query $ select migrationTable2
   res <- query $ do
     x <- select migrationTable3
@@ -756,12 +754,12 @@ migrateAggregate = do
     age <- aggregate $ do
       person <- select people
       return $ min_ (person ! pAge)
-    return $ toString foo :*: age
+    return $ new [mt2_1 := toString foo, mt2_2 := age]
   res <- query $ do
-    x :*: y <- select migrationTable2
-    order y ascending
-    return (x :*: y)
-  assEq "query migration failed" ["1":*:10,"2":*:10,"3":*:10] res
+    t <- select migrationTable2
+    order (t ! mt2_2) ascending
+    return t
+  assEq "query migration failed" [("1",10),("2",10),("3",10)] res
 
 autoMigrateMultiStep = do
   autoMigrate True steps

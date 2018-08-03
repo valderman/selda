@@ -9,6 +9,7 @@ data Person = Person
   , pet  :: Maybe Text
   , cash :: Double
   } deriving (Generic, Show, Ord, Eq)
+instance SqlResult Person
 
 modPeople :: Table Person
 modPeople = tableFieldMod "modpeople" [name :- primary] $ \name ->
@@ -30,21 +31,21 @@ comments = table "comments" [(\(x,_,_) -> x) :- untypedAutoPrimary]
 cId :*: cName :*: cComment = selectors comments
 
 peopleItems =
-  [ "Link"      :*: 125 :*: Just "horse"  :*: 13506
-  , "Velvet"    :*: 19  :*: Nothing       :*: 5.55
-  , "Kobayashi" :*: 23  :*: Just "dragon" :*: 103707.55
-  , "Miyu"      :*: 10  :*: Nothing       :*: (-500)
+  [ Person "Link"      125 (Just "horse")  13506
+  , Person "Velvet"    19  Nothing         5.55
+  , Person "Kobayashi" 23  (Just "dragon") 103707.55
+  , Person "Miyu"      10  Nothing         (-500)
   ]
 
 addressItems =
-  [ "Link"      :*: "Kakariko"
-  , "Kobayashi" :*: "Tokyo"
-  , "Miyu"      :*: "Fuyukishi"
+  [ ("Link"      , "Kakariko")
+  , ("Kobayashi" , "Tokyo")
+  , ("Miyu"      , "Fuyukishi")
   ]
 
 commentItems =
-  [ Just "Link" :*: "Well, excuuuse me, princess!"
-  , Nothing     :*: "Anonymous spam comment"
+  [ (def, Just "Link" , "Well, excuuuse me, princess!")
+  , (def, Nothing     , "Anonymous spam comment")
   ]
 
 setup :: SeldaT IO ()
@@ -53,10 +54,10 @@ setup = do
   createTable modPeople
   createTable addresses
   createTable comments
-  insert_ (modPeople) (fromRels peopleItems)
-  insert_ people (fromRels peopleItems)
-  insert_ addresses (fromRels addressItems)
-  insert_ comments (fromRels (map (def :*:) commentItems))
+  insert_ (modPeople) peopleItems
+  insert_ people peopleItems
+  insert_ addresses addressItems
+  insert_ comments commentItems
 
 teardown :: SeldaT IO ()
 teardown = do
