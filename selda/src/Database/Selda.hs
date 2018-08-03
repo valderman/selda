@@ -308,7 +308,7 @@ infixl 4 `isIn`
 instance Set [] where
   -- TODO: use safe coercions instead of unsafeCoerce
   isIn _ []     = false
-  isIn (One x) xs = One $ InList x (unsafeCoerce xs)
+  isIn (One x) xs = One $ InList x [c | One c <- xs]
   isIn (Many _) _ = error "unreachable"
 
 instance Set (Query s) where
