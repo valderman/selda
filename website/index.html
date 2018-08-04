@@ -77,7 +77,7 @@ data Person = Person
   , age :: Int
   , pet :: Maybe Pet
   } deriving Generic
-instance SqlResult Person
+instance SqlRow Person
 
 people :: Table Person
 people = table "people" [name :- primary]
@@ -85,19 +85,17 @@ people = table "people" [name :- primary]
 
 main = withSQLite "people.sqlite" $ do
   createTable people
-
   insert_ people
     [ Person "Velvet"    19 (Just Dog)
     , Person "Kobayashi" 23 (Just Dragon)
     , Person "Miyu"      10 Nothing
     ]
 
-  adults &lt;- query $ do
+  adultsAndTheirPets &lt;- query $ do
     person &lt;- select people
     restrict (person ! s_age .&gt;= 18)
     return (person ! s_name :*: person ! s_pet)
-
-  liftIO $ print adults
+  liftIO $ print adultsAndTheirPets
         </code></pre>
       </div>
     </div>

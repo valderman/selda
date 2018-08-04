@@ -13,7 +13,7 @@ module Database.Selda.Column
 import Database.Selda.Exp
 import Database.Selda.SQL
 import Database.Selda.SqlType
-import Database.Selda.SqlResult
+import Database.Selda.SqlRow
 import Database.Selda.Types
 import Data.Proxy
 import Data.String
@@ -29,7 +29,7 @@ instance (SqlType a, Columns b) => Columns (Col s a :*: b) where
   toTup []     = error "too few elements to toTup"
   fromTup (One x :*: xs) = Untyped x : fromTup xs
 
-instance (SqlResult a, Columns b) => Columns (Row s a :*: b) where
+instance (SqlRow a, Columns b) => Columns (Row s a :*: b) where
   toTup xs =
     case nestedCols (Proxy :: Proxy a) of
       n -> Many (map (Untyped . Col) (take n xs)) :*: toTup (drop n xs)

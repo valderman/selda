@@ -16,7 +16,7 @@ import Database.Selda.Query.Type
 import Database.Selda.SQL
 import Database.Selda.SQL.Print
 import Database.Selda.SQL.Print.Config
-import Database.Selda.SqlResult
+import Database.Selda.SqlRow
 import Database.Selda.SqlType
 import Database.Selda.Table
 import Database.Selda.Table.Compile
@@ -69,7 +69,7 @@ compileInsert cfg tbl rows =
         (x, xs') -> x : chunk chunksize xs'
 
 -- | Compile an @UPDATE@ query.
-compileUpdate :: forall s a. (Relational a, SqlResult a)
+compileUpdate :: forall s a. (Relational a, SqlRow a)
               => PPConfig
               -> Table a                 -- ^ Table to update.
               -> (Row s a -> Row s a)    -- ^ Update function.
@@ -138,7 +138,7 @@ instance (SqlType a, Result b) => Result (Col s a :*: b) where
   toRes _ = liftM2 (:*:) (fromSql <$> next) (toRes (Proxy :: Proxy b))
   finalCols (a :*: b) = finalCols a ++ finalCols b
 
-instance (SqlResult a, Result b) => Result (Row s a :*: b) where
+instance (SqlRow a, Result b) => Result (Row s a :*: b) where
   type Res (Row s a :*: b) = a :*: Res b
   toRes _ = liftM2 (:*:) nextResult (toRes (Proxy :: Proxy b))
   finalCols (a :*: b) = finalCols a ++ finalCols b
@@ -148,7 +148,7 @@ instance SqlType a => Result (Col s a) where
   toRes _ = fromSql <$> next
   finalCols (One c) = [Some c]
 
-instance SqlResult a => Result (Row s a) where
+instance SqlRow a => Result (Row s a) where
   type Res (Row s a) = a
   toRes _ = nextResult
   finalCols (Many cs) = [Some c | Untyped c <- cs]

@@ -26,7 +26,7 @@ import System.IO.Unsafe
 import Database.Selda.Types
 import Database.Selda.Selectors
 import Database.Selda.SqlType
-import Database.Selda.SqlResult (SqlResult)
+import Database.Selda.SqlRow (SqlRow)
 import Database.Selda.Table.Type
 import Database.Selda.SQL (Param (..))
 import Database.Selda.Exp (Exp (Col, Lit), UntypedCol (..))
@@ -44,7 +44,7 @@ import Data.Monoid
 --   obey those constraints will result in a very confusing type error.
 type Relational a =
   ( Generic a
-  , SqlResult a
+  , SqlRow a
   , GRelation (Rep a)
   , GSelectors a (Rep a)
   )

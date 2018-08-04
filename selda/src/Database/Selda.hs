@@ -31,7 +31,7 @@ module Database.Selda
     -- * Constructing queries
   , Selector, Source, Selected, (!), Assignment ((:=)), with
   , (+=), (-=), (*=), (||=), (&&=), ($=)
-  , SqlType (..), SqlResult (..), SqlEnum (..)
+  , SqlType (..), SqlRow (..), SqlEnum (..)
   , Columns
   , Order (..)
   , (:*:)(..)
@@ -97,7 +97,7 @@ import Database.Selda.Query
 import Database.Selda.Query.Type
 import Database.Selda.Selectors
 import Database.Selda.SQL hiding (distinct)
-import Database.Selda.SqlResult
+import Database.Selda.SqlRow
 import Database.Selda.SqlType
 import Database.Selda.Table
 import Database.Selda.Table.Compile
@@ -144,7 +144,7 @@ newtype Only a = Only a
     , Real
     , IsString
     )
-instance SqlType a => SqlResult (Only a)
+instance SqlType a => SqlRow (Only a)
 
 #if MIN_VERSION_base(4, 9, 0)
 instance (TypeError
@@ -307,7 +307,7 @@ descending = Desc
 --
 -- > data Person = Person {name :: Text, age :: Int, pet :: Maybe Text}
 -- >   deriving Generic
--- > instance SqlResult Person
+-- > instance SqlRow Person
 -- >
 -- > people :: Table Person
 -- > people = table "people" []
