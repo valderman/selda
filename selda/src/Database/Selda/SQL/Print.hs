@@ -218,7 +218,6 @@ ppTypePK t = do
   pure $ Cfg.ppTypePK c t
 
 ppCol :: Exp SQL a -> PP Text
-ppCol (TblCol xs)    = error $ "compiler bug: ppCol saw TblCol: " ++ show xs
 ppCol (Col name)     = pure (fromColName name)
 ppCol (Lit l)        = ppLit l
 ppCol (BinOp op a b) = ppBinOp op a b

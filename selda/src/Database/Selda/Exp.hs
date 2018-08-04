@@ -26,7 +26,6 @@ hideRenaming (Some c)    = Untyped c
 --   SQL queries.
 data Exp sql a where
   Col     :: !ColName -> Exp sql a
-  TblCol  :: ![ColName] -> Exp sql a
   Lit     :: !(Lit a) -> Exp sql a
   BinOp   :: !(BinOp a b) -> !(Exp sql a) -> !(Exp sql a) -> Exp sql b
   UnOp    :: !(UnOp a b) -> !(Exp sql a) -> Exp sql b
@@ -73,7 +72,6 @@ instance Names a => Names [a] where
   allNamesIn = concatMap allNamesIn
 
 instance Names sql => Names (Exp sql a) where
-  allNamesIn (TblCol ns)   = ns
   allNamesIn (Col n)       = [n]
   allNamesIn (Lit _)       = []
   allNamesIn (BinOp _ a b) = allNamesIn a ++ allNamesIn b
