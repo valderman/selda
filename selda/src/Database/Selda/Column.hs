@@ -3,7 +3,7 @@
 -- | Columns and associated utility functions, specialized to 'SQL'.
 module Database.Selda.Column
   ( Columns
-  , Col (..), SomeCol (..), UntypedCol (..)
+  , Row (..), Col (..), SomeCol (..), UntypedCol (..)
   , Exp (..), NulOp (..), UnOp (..), BinOp (..)
   , toTup, fromTup, liftC, liftC2, liftC3
   , allNamesIn
@@ -24,26 +24,33 @@ class Columns a where
   toTup :: [ColName] -> a
   fromTup :: a -> [UntypedCol SQL]
 
-instance (SqlResult a, Columns b) => Columns (Col s a :*: b) where
+instance (SqlType a, Columns b) => Columns (Col s a :*: b) where
+  toTup (x:xs) = One (Col x) :*: toTup xs
+  toTup []     = error "too few elements to toTup"
+  fromTup (One x :*: xs) = Untyped x : fromTup xs
+
+instance (SqlResult a, Columns b) => Columns (Row s a :*: b) where
   toTup xs =
     case nestedCols (Proxy :: Proxy a) of
-      0 -> One (Col (head xs)) :*: toTup (tail xs)
       n -> Many (map (Untyped . Col) (take n xs)) :*: toTup (drop n xs)
-  fromTup (One x :*: xs) = Untyped x : fromTup xs
   fromTup (Many xs :*: xss) = xs ++ fromTup xss
 
 instance Columns (Col s a) where
   toTup [x] = One (Col x)
   toTup []  = error "too few elements to toTup"
-  toTup xs  = Many (map (Untyped . Col) xs)
+  toTup _   = error "too many elements to toTup"
   fromTup (One x) = [Untyped x]
+
+instance Columns (Row s a) where
+  toTup xs = Many (map (Untyped . Col) xs)
   fromTup (Many xs) = xs
 
 -- | A database column. A column is often a literal column table, but can also
 --   be an expression over such a column or a constant expression.
-data Col s a where
-  One :: !(Exp SQL a) -> Col s a
-  Many :: ![UntypedCol SQL] -> Col s a
+newtype Col s a = One (Exp SQL a)
+
+-- | A database row. A row is a collection of one or more columns.
+newtype Row s a = Many [UntypedCol SQL]
 
 -- | A literal expression.
 literal :: SqlType a => a -> Col s a
@@ -58,15 +65,12 @@ liftC3 :: (Exp SQL a -> Exp SQL b -> Exp SQL c -> Exp SQL d)
        -> Col s c
        -> Col s d
 liftC3 f (One a) (One b) (One c) = One (f a b c)
-liftC3 _ _ _ _ = error "Can't use liftC3 with product columns"
 
 liftC2 :: (Exp SQL a -> Exp SQL b -> Exp SQL c) -> Col s a -> Col s b -> Col s c
 liftC2 f (One a) (One b) = One (f a b)
-liftC2 _ _ _ = error "Can't use liftC2 with product columns"
 
 liftC :: (Exp SQL a -> Exp SQL b) -> Col s a -> Col s b
 liftC f (One x) = One (f x)
-liftC _ _ = error "Can't use liftC with product columns"
 
 instance (SqlType a, Num a) => Num (Col s a) where
   fromInteger = literal . fromInteger

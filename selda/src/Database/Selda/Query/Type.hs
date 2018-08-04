@@ -63,7 +63,6 @@ renameAll :: [UntypedCol sql] -> State GenState [SomeCol sql]
 renameAll = fmap concat . mapM rename
 
 -- | Generate a unique name for the given column.
---   Flattens any composite columns.
 rename :: UntypedCol sql -> State GenState [SomeCol sql]
 rename (Untyped col) = do
     n <- freshId

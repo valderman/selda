@@ -18,7 +18,7 @@ import Control.Monad.State.Strict
 import Unsafe.Coerce
 
 -- | Query the given table.
-select :: Relational a => Table a -> Query s (Col s a)
+select :: Relational a => Table a -> Query s (Row s a)
 select (Table name cs _) = Query $ do
   rns <- renameAll $ map colExpr cs
   st <- get
@@ -27,7 +27,7 @@ select (Table name cs _) = Query $ do
 
 -- | Query an ad hoc table of type @a@. Each element in the given list represents
 --   one row in the ad hoc table.
-selectValues :: Relational a => [a] -> Query s (Col s a)
+selectValues :: Relational a => [a] -> Query s (Row s a)
 selectValues [] = Query $ do
   st <- get
   put $ st {sources = sqlFrom [] EmptyTable : sources st}
@@ -68,7 +68,6 @@ restrict (One p) = Query $ do
     wasRenamedIn predicate cs =
       let cs' = [n | Named n _ <- cs]
       in  any (`elem` cs') (colNames [Some predicate])
-restrict (Many _) = error "BUG: Bool should never be a product column"
 
 -- | Execute a query, returning an aggregation of its results.
 --   The query must return an inductive tuple of 'Aggregate' columns.
@@ -172,7 +171,6 @@ groupBy (One c) = Query $ do
   st <- get
   put $ st {groupCols = Some c : groupCols st}
   return (Aggr c)
-groupBy (Many _) = error "BUG: SqlType should never be a product column"
 
 -- | Drop the first @m@ rows, then get at most @n@ of the remaining rows from the
 --   given subquery.
@@ -215,7 +213,6 @@ order (One c) o = Query $ do
     [sql] -> put st {sources = [sql {ordering = (o, Some c) : ordering sql}]}
     ss    -> put st {sources = [sql {ordering = [(o, Some c)]}]}
       where sql = sqlFrom (allCols ss) (Product ss)
-order (Many _) _ = error "BUG: SqlType should never be a product column"
 
 -- | Sort the result rows in random order.
 orderRandom :: Query s ()

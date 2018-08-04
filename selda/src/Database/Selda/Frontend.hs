@@ -39,7 +39,7 @@ query q = do
 --   Returns the number of inserted rows.
 queryInto :: (MonadSelda m, Relational a)
           => Table a
-          -> Query s (Col s a)
+          -> Query s (Row s a)
           -> m Int
 queryInto tbl q = do
     backend <- seldaBackend
@@ -114,8 +114,8 @@ upsert :: ( MonadCatch m
           , Relational a
           )
        => Table a
-       -> (Col s a -> Col s Bool)
-       -> (Col s a -> Col s a)
+       -> (Row s a -> Col s Bool)
+       -> (Row s a -> Row s a)
        -> [a]
        -> m (Maybe RowID)
 upsert tbl check upd rows = transaction $ do
@@ -136,7 +136,7 @@ insertUnless :: ( MonadCatch m
                 , Relational a
                 )
              => Table a
-             -> (Col s a -> Col s Bool)
+             -> (Row s a -> Col s Bool)
              -> [a]
              -> m (Maybe RowID)
 insertUnless tbl check rows = upsert tbl check id rows
@@ -148,7 +148,7 @@ insertWhen :: ( MonadCatch m
               , Relational a
               )
            => Table a
-           -> (Col s a -> Col s Bool)
+           -> (Row s a -> Col s Bool)
            -> [a]
            -> m (Maybe RowID)
 insertWhen tbl check rows = transaction $ do
@@ -182,9 +182,9 @@ insertWithPK t cs = do
 -- | Update the given table using the given update function, for all rows
 --   matching the given predicate. Returns the number of updated rows.
 update :: (MonadSelda m, Relational a)
-       => Table a                                      -- ^ Table to update.
-       -> (Col s a -> Col s Bool)          -- ^ Predicate.
-       -> (Col s a -> Col s a) -- ^ Update function.
+       => Table a                 -- ^ Table to update.
+       -> (Row s a -> Col s Bool) -- ^ Predicate.
+       -> (Row s a -> Row s a)    -- ^ Update function.
        -> m Int
 update tbl check upd = do
   cfg <- ppConfig <$> seldaBackend
@@ -195,8 +195,8 @@ update tbl check upd = do
 -- | Like 'update', but doesn't return the number of updated rows.
 update_ :: (MonadSelda m, Relational a)
        => Table a
-       -> (Col s a -> Col s Bool)
-       -> (Col s a -> Col s a)
+       -> (Row s a -> Col s Bool)
+       -> (Row s a -> Row s a)
        -> m ()
 update_ tbl check upd = void $ update tbl check upd
 
@@ -204,7 +204,7 @@ update_ tbl check upd = void $ update tbl check upd
 --   Returns the number of deleted rows.
 deleteFrom :: (MonadSelda m, Relational a)
            => Table a
-           -> (Col s a -> Col s Bool)
+           -> (Row s a -> Col s Bool)
            -> m Int
 deleteFrom tbl f = do
   cfg <- ppConfig <$> seldaBackend
@@ -215,7 +215,7 @@ deleteFrom tbl f = do
 -- | Like 'deleteFrom', but does not return the number of deleted rows.
 deleteFrom_ :: (MonadSelda m, Relational a)
             => Table a
-            -> (Col s a -> Col s Bool)
+            -> (Row s a -> Col s Bool)
             -> m ()
 deleteFrom_ tbl f = void $ deleteFrom tbl f
 

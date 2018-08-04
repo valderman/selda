@@ -25,7 +25,7 @@ module Database.Selda
   , SeldaError (..), ValidationError
   , SeldaT, SeldaM
   , Relational, Only (..), The (..)
-  , Table, Query, Col, Res, Result
+  , Table, Query, Row, Col, Res, Result
   , query, queryInto
   , transaction, setLocalCache, withoutForeignKeyEnforcement
     -- * Constructing queries
@@ -193,20 +193,18 @@ instance The (Only a) where
   type TheOnly (Only a) = a
   the (Only x) = x
 
-instance The (Col s (Only a)) where
-  type TheOnly (Col s (Only a)) = Col s a
+instance The (Row s (Only a)) where
+  type TheOnly (Row s (Only a)) = Col s a
   the (Many [Untyped x]) = One (unsafeCoerce x)
   the (Many _)           = error "BUG: non-singleton Only-column"
-  the (One _)            = error "BUG: Only-column with raw expression"
 
 -- | Create a singleton table column from an appropriate value.
-only :: SqlType a => Col s a -> Col s (Only a)
+only :: SqlType a => Col s a -> Row s (Only a)
 only (One x)  = Many [Untyped x]
-only (Many _) = error "BUG: SqlType compound column"
 
 -- | Create a new column with the given fields.
 --   Any unassigned fields will contain their default values.
-new :: forall s a. Relational a => [Assignment s a] -> Col s a
+new :: forall s a. Relational a => [Assignment s a] -> Row s a
 new fields = Many (gNew (Proxy :: Proxy (Rep a))) `with` fields
 
 -- | Convenient shorthand for @fmap (! sel) q@.
@@ -218,7 +216,7 @@ new fields = Many (gNew (Proxy :: Proxy (Rep a))) `with` fields
 -- >   return (person ! name)
 from :: (Typeable a, SqlType b)
      => Selector (Source a) b
-     -> Query s (Col s a)
+     -> Query s (Row s a)
      -> Query s (Col s (Selected a b))
 from s q = (! s) <$> q
 infixr 7 `from`
@@ -283,17 +281,15 @@ matchNull nullvalue f x = ifThenElse (isNull x) nullvalue (f (cast x))
 -- | Any container type for which we can check object membership.
 class Set set where
   -- | Is the given column contained in the given set?
-  isIn :: (SqlType a, SqlResult a) => Col s a -> set (Col s a) -> Col s Bool
+  isIn :: SqlType a => Col s a -> set (Col s a) -> Col s Bool
 infixl 4 `isIn`
 
 instance Set [] where
   isIn _ []     = false
   isIn (One x) xs = One $ InList x [c | One c <- xs]
-  isIn (Many _) _ = error "unreachable"
 
 instance Set (Query s) where
   isIn (One x) = One . InQuery x . snd . compQueryWithFreshScope
-  isIn (Many _) = error "unreachable"
 
 (.&&), (.||) :: Col s Bool -> Col s Bool -> Col s Bool
 (.&&) = liftC2 $ BinOp And

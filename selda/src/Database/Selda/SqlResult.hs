@@ -54,10 +54,6 @@ instance (GSqlResult a, GSqlResult b) => GSqlResult (a :*: b) where
 
 
 -- * Various instances
-instance {-# OVERLAPPABLE #-} (Typeable a, SqlType a) => SqlResult a where
-  nextResult = fromSql <$> next
-  nestedCols _ = 0
-
 instance
   ( Typeable (a, b)
   , GSqlResult (Rep (a, b))

@@ -41,7 +41,6 @@ data Inner s
 --   to implement missing backend-specific functionality.
 aggr :: SqlType a => Text -> Col s a -> Aggr s b
 aggr f (One x)  = Aggr (AggrEx f x)
-aggr _ (Many _) = error "BUG: SqlType should never be a product column"
 
 -- | Convert one or more inner column to equivalent columns in the outer query.
 --   @OuterCols (Aggr (Inner s) a :*: Aggr (Inner s) b) = Col s a :*: Col s b@,
@@ -49,12 +48,17 @@ aggr _ (Many _) = error "BUG: SqlType should never be a product column"
 type family OuterCols a where
   OuterCols (Col (Inner s) a :*: b)  = Col s a :*: OuterCols b
   OuterCols (Col (Inner s) a)        = Col s a
+  OuterCols (Row (Inner s) a :*: b)  = Row s a :*: OuterCols b
+  OuterCols (Row (Inner s) a)        = Row s a
 #if MIN_VERSION_base(4, 9, 0)
   OuterCols (Col s a) = TypeError
-    ( 'TL.Text "An inner query can only return columns from its own scope."
+    ( 'TL.Text "An inner query can only return rows and columns from its own scope."
+    )
+  OuterCols (Row s a) = TypeError
+    ( 'TL.Text "An inner query can only return rows and columns from its own scope."
     )
   OuterCols a = TypeError
-    ( 'TL.Text "Only (inductive tuples of) columns can be returned from" ':$$:
+    ( 'TL.Text "Only (inductive tuples of) row and columns can be returned from" ':$$:
       'TL.Text "an inner query."
     )
 #endif
@@ -86,9 +90,14 @@ type family LeftCols a where
   LeftCols (Col (Inner s) a :*: b)         = Col s (Maybe a) :*: LeftCols b
   LeftCols (Col (Inner s) (Maybe a))       = Col s (Maybe a)
   LeftCols (Col (Inner s) a)               = Col s (Maybe a)
+
+  LeftCols (Row (Inner s) (Maybe a) :*: b) = Row s (Maybe a) :*: LeftCols b
+  LeftCols (Row (Inner s) a :*: b)         = Row s (Maybe a) :*: LeftCols b
+  LeftCols (Row (Inner s) (Maybe a))       = Row s (Maybe a)
+  LeftCols (Row (Inner s) a)               = Row s (Maybe a)
 #if MIN_VERSION_base(4, 9, 0)
   LeftCols a = TypeError
-    ( 'TL.Text "Only (inductive tuples of) columns can be returned" ':$$:
+    ( 'TL.Text "Only (inductive tuples of) rows and columns can be returned" ':$$:
       'TL.Text "from a join."
     )
 #endif

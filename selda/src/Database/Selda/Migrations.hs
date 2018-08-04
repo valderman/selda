@@ -25,7 +25,7 @@ data Migration where
   Migration :: (Relational a, Relational b)
             => Table a
             -> Table b
-            -> (Col s a -> Query s (Col s b))
+            -> (Row s a -> Query s (Row s b))
             -> Migration
 
 -- | A migration step is zero or more migrations that need to be performed in
@@ -42,7 +42,7 @@ type MigrationStep = [Migration]
 migrate :: (MonadSelda m, Relational a, Relational b)
         => Table a -- ^ Table to migrate from.
         -> Table b -- ^ Table to migrate to.
-        -> (Col () a -> Col () b)
+        -> (Row () a -> Row () b)
                    -- ^ Mapping from old to new table.
         -> m ()
 migrate t1 t2 upg = migrateM t1 t2 ((pure :: a -> Query () a) . upg)
@@ -52,7 +52,7 @@ migrate t1 t2 upg = migrateM t1 t2 ((pure :: a -> Query () a) . upg)
 migrateM :: (MonadSelda m, Relational a, Relational b)
          => Table a
          -> Table b
-         -> (Col s a -> Query s (Col s b))
+         -> (Row s a -> Query s (Row s b))
          -> m ()
 migrateM t1 t2 upg = migrateAll True [Migration t1 t2 upg]
 
@@ -113,7 +113,7 @@ autoMigrate fks steps = wrap fks $ do
 migrateInternal :: (MonadSelda m, Relational a, Relational b)
                 => Table a
                 -> Table b
-                -> (Col s a -> Query s (Col s b))
+                -> (Row s a -> Query s (Row s b))
                 -> m ()
 migrateInternal t1 t2 upg = do
     validateTable t1

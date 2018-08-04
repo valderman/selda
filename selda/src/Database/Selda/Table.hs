@@ -21,7 +21,7 @@ import Data.Proxy
 import Database.Selda.Types
 import Database.Selda.Selectors
 import Database.Selda.SqlType
-import Database.Selda.Column (Col (..))
+import Database.Selda.Column (Row (..))
 import Database.Selda.Generic
 import Database.Selda.Table.Type
 import Database.Selda.Table.Validation (snub)
@@ -190,5 +190,5 @@ instance ForeignKey a (Maybe a) where
   foreignKey = mkFK
 
 -- | An expression representing the given table.
-tableExpr :: Table a -> Col s a
+tableExpr :: Table a -> Row s a
 tableExpr = Many . map colExpr . tableCols

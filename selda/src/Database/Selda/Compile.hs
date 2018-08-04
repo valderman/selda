@@ -72,8 +72,8 @@ compileInsert cfg tbl rows =
 compileUpdate :: forall s a. (Relational a, SqlResult a)
               => PPConfig
               -> Table a                 -- ^ Table to update.
-              -> (Col s a -> Col s a)    -- ^ Update function.
-              -> (Col s a -> Col s Bool) -- ^ Predicate.
+              -> (Row s a -> Row s a)    -- ^ Update function.
+              -> (Row s a -> Col s Bool) -- ^ Predicate.
               -> (Text, [Param])
 compileUpdate cfg tbl upd check =
     compUpdate cfg (tableName tbl) predicate updated
@@ -87,7 +87,7 @@ compileUpdate cfg tbl upd check =
 compileDelete :: Relational a
               => PPConfig
               -> Table a
-              -> (Col s a -> Col s Bool)
+              -> (Row s a -> Col s Bool)
               -> (Text, [Param])
 compileDelete cfg tbl check = compDelete cfg (tableName tbl) predicate
   where One predicate = check $ toTup $ map colName $ tableCols tbl
@@ -133,13 +133,22 @@ class Typeable (Res r) => Result r where
   -- | Produce a list of all columns present in the result.
   finalCols :: r -> [SomeCol SQL]
 
-instance (SqlResult a, Result b) => Result (Col s a :*: b) where
+instance (SqlType a, Result b) => Result (Col s a :*: b) where
   type Res (Col s a :*: b) = a :*: Res b
+  toRes _ = liftM2 (:*:) (fromSql <$> next) (toRes (Proxy :: Proxy b))
+  finalCols (a :*: b) = finalCols a ++ finalCols b
+
+instance (SqlResult a, Result b) => Result (Row s a :*: b) where
+  type Res (Row s a :*: b) = a :*: Res b
   toRes _ = liftM2 (:*:) nextResult (toRes (Proxy :: Proxy b))
   finalCols (a :*: b) = finalCols a ++ finalCols b
 
-instance SqlResult a => Result (Col s a) where
+instance SqlType a => Result (Col s a) where
   type Res (Col s a) = a
-  toRes _ = nextResult
+  toRes _ = fromSql <$> next
   finalCols (One c) = [Some c]
+
+instance SqlResult a => Result (Row s a) where
+  type Res (Row s a) = a
+  toRes _ = nextResult
   finalCols (Many cs) = [Some c | Untyped c <- cs]
