@@ -12,7 +12,7 @@ data Person = Person
   , pet  :: Maybe Text
   , cash :: Double
   } deriving (Generic, Show, Ord, Eq)
-instance SqlResult Person
+instance SqlRow Person
 
 modPeople :: Table Person
 modPeople = tableFieldMod "modpeople" [name :- primary] $ \name ->

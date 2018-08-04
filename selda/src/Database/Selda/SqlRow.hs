@@ -53,6 +53,17 @@ instance (GSqlRow a, GSqlRow b) => GSqlRow (a :*: b) where
 
 
 -- * Various instances
+instance SqlRow a => SqlRow (Maybe a) where
+  nextResult = do
+      xs <- R get
+      if all isNull (take (nestedCols (Proxy :: Proxy a)) xs)
+        then return Nothing
+        else Just <$> nextResult
+    where
+      isNull SqlNull = True
+      isNull _       = False
+  nestedCols _ = nestedCols (Proxy :: Proxy a)
+
 instance
   ( Typeable (a, b)
   , GSqlRow (Rep (a, b))

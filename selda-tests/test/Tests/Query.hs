@@ -17,10 +17,11 @@ queryTests run = test
   , "filter equal"  ~: run filterEqual
   , "filter not equal"  ~: run filterNotEqual
   , "join-like product" ~: run joinLikeProduct
---  , "simple left join" ~: run simpleLeftJoin
---  , "left join followed by product" ~: run leftJoinThenProduct
+  , "simple left join" ~: run simpleLeftJoin
+  , "row left join" ~: run rowLeftJoin
+  , "left join followed by product" ~: run leftJoinThenProduct
   , "count aggregation" ~: run countAggregate
---  , "aggregate with join and group" ~: run joinGroupAggregate
+  , "aggregate with join and group" ~: run joinGroupAggregate
   , "nested left join" ~: run nestedLeftJoin
   , "order + limit" ~: run orderLimit
   , "limit gives correct number of results" ~: run limitCorrectNumber
@@ -125,6 +126,21 @@ simpleLeftJoin = do
       , "Velvet"    :*: Nothing
       , "Miyu"      :*: Just "Fuyukishi"
       , "Kobayashi" :*: Just "Tokyo"
+      ]
+
+rowLeftJoin = do
+  res <- query $ do
+    name <- pName `from` select people
+    a <- leftJoin (\a -> name .== a!aName)
+                  (select addresses)
+    return (name :*: a)
+  assEq "join-like query gave wrong result" (sort ans) (sort res)
+  where
+    ans =
+      [ "Link"      :*: Just ("Link", "Kakariko")
+      , "Velvet"    :*: Nothing
+      , "Miyu"      :*: Just ("Miyu", "Fuyukishi")
+      , "Kobayashi" :*: Just ("Kobayashi", "Tokyo")
       ]
 
 leftJoinThenProduct = do
@@ -415,7 +431,7 @@ selectDistinct = do
 
 data L = L Text
   deriving (Generic, Show, Eq)
-instance SqlResult L
+instance SqlRow L
 
 selectValuesDistinct = do
   res <- query $ distinct $ selectValues $ replicate 5 (L "Link")

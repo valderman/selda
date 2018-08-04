@@ -370,7 +370,7 @@ data FKAddrs = FKAddrs
   { fkaName :: Text
   , fkaCity :: Text
   } deriving Generic
-instance SqlResult FKAddrs
+instance SqlRow FKAddrs
 
 genModFkViolationFails = do
     setup
