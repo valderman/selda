@@ -8,15 +8,10 @@ module Database.Selda.SqlResult
   ( SqlResult (..), ResultReader
   , runResultReader, next
   ) where
-import Database.Selda.SqlType
 import Control.Monad.State.Strict
-import GHC.Generics
-
+import Database.Selda.SqlType
 import Data.Typeable
-import Data.Time (Day, TimeOfDay, UTCTime)
-import Data.Text (Text)
-import Data.ByteString (ByteString)
-import qualified Data.ByteString.Lazy as BSL
+import GHC.Generics
 
 newtype ResultReader a = R (State [SqlValue] a)
   deriving (Functor, Applicative, Monad)
@@ -59,46 +54,9 @@ instance (GSqlResult a, GSqlResult b) => GSqlResult (a :*: b) where
 
 
 -- * Various instances
-instance {-# OVERLAPPABLE #-} (Typeable a, SqlEnum a, SqlType a) => SqlResult a where
+instance {-# OVERLAPPABLE #-} (Typeable a, SqlType a) => SqlResult a where
   nextResult = fromSql <$> next
   nestedCols _ = 0
-instance SqlResult RowID where
-  nextResult = fromSql <$> next
-  nestedCols _ = 0
-instance Typeable a => SqlResult (ID a) where
-  nextResult = fromSql <$> next
-  nestedCols _ = 0
-instance SqlResult Int where
-  nextResult = fromSql <$> next
-  nestedCols _ = 0
-instance SqlResult Double where
-  nextResult = fromSql <$> next
-  nestedCols _ = 0
-instance SqlResult Text where
-  nextResult = fromSql <$> next
-  nestedCols _ = 0
-instance SqlResult Bool where
-  nextResult = fromSql <$> next
-  nestedCols _ = 0
-instance SqlResult UTCTime where
-  nextResult = fromSql <$> next
-  nestedCols _ = 0
-instance SqlResult Day where
-  nextResult = fromSql <$> next
-  nestedCols _ = 0
-instance SqlResult TimeOfDay where
-  nextResult = fromSql <$> next
-  nestedCols _ = 0
-instance SqlResult ByteString where
-  nextResult = fromSql <$> next
-  nestedCols _ = 0
-instance SqlResult BSL.ByteString where
-  nextResult = fromSql <$> next
-  nestedCols _ = 0
-instance SqlType a => SqlResult (Maybe a) where
-  nextResult = fromSql <$> next
-  nestedCols _ = 0
-
 instance
   ( Typeable (a, b)
   , GSqlResult (Rep (a, b))
