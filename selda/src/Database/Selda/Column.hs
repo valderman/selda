@@ -2,7 +2,7 @@
 {-# LANGUAGE FlexibleInstances, OverloadedStrings, ScopedTypeVariables #-}
 -- | Columns and associated utility functions, specialized to 'SQL'.
 module Database.Selda.Column
-  ( Cols, Columns
+  ( Columns
   , Col (..), SomeCol (..), UntypedCol (..)
   , Exp (..), NulOp (..), UnOp (..), BinOp (..)
   , toTup, fromTup, liftC, liftC2, liftC3
@@ -18,11 +18,6 @@ import Database.Selda.Types
 import Data.Proxy
 import Data.String
 import Data.Text (Text)
-
--- | Convert a tuple of Haskell types to a tuple of column types.
-type family Cols s a where
-  Cols s (a :*: b)      = Col s a :*: Cols s b
-  Cols s a              = Col s a
 
 -- | Any column tuple.
 class Columns a where

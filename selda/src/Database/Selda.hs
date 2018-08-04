@@ -32,7 +32,7 @@ module Database.Selda
   , Selector, Source, Selected, (!), Assignment ((:=)), with
   , (+=), (-=), (*=), (||=), (&&=), ($=)
   , SqlType (..), SqlResult (..), SqlEnum (..)
-  , Cols, Columns
+  , Columns
   , Order (..)
   , (:*:)(..)
   , select, selectValues, from, distinct
