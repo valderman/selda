@@ -1,4 +1,4 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving, MultiParamTypeClasses #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE UndecidableInstances, FlexibleInstances, FlexibleContexts #-}
 {-# LANGUAGE TypeOperators, DefaultSignatures, ScopedTypeVariables, CPP #-}
 #if MIN_VERSION_base(4, 10, 0)
@@ -57,6 +57,7 @@ instance (GSqlResult a, GSqlResult b) => GSqlResult (a :*: b) where
 instance {-# OVERLAPPABLE #-} (Typeable a, SqlType a) => SqlResult a where
   nextResult = fromSql <$> next
   nestedCols _ = 0
+
 instance
   ( Typeable (a, b)
   , GSqlResult (Rep (a, b))
