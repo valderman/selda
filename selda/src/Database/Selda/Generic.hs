@@ -30,6 +30,7 @@ import Database.Selda.SqlResult (SqlResult)
 import Database.Selda.Table.Type
 import Database.Selda.SQL (Param (..))
 import Database.Selda.Exp (Exp (Col, Lit), UntypedCol (..))
+import qualified Database.Selda.Column as C (Col)
 #if !MIN_VERSION_base(4, 11, 0)
 import Data.Monoid
 #endif
@@ -179,6 +180,17 @@ instance
       'TL.:$$:
       'TL.Text "Restrict your table type to a single data constructor."
     )) => GRelation (a G.:+: b) where
+  gParams = error "unreachable"
+  gTblCols = error "unreachable"
+  gMkDummy = error "unreachable"
+  gNew = error "unreachable"
+
+instance {-# OVERLAPS #-}
+  (TL.TypeError
+    ( 'TL.Text "Columns are now allowed to nest other columns."
+      'TL.:$$:
+      'TL.Text "Remove any fields of type 'Col s a' from your table type."
+    )) => GRelation (K1 i (C.Col s a)) where
   gParams = error "unreachable"
   gTblCols = error "unreachable"
   gMkDummy = error "unreachable"
