@@ -64,6 +64,10 @@ $ cabal install selda-postgresql
 
           <h2>By example</h2>
           <pre><code class="language-haskell">
+{-# LANGUAGE DeriveGeneric, OverloadedStrings #-}
+import Database.Selda
+import Database.Selda.SQLite
+
 data Pet = Dog | Horse | Dragon
   deriving (Show, Read, Bounded, Enum)
 instance SqlType Pet
