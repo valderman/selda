@@ -67,17 +67,8 @@ ul.menu {
     padding: 1em;
 }
 
-/* Code blocks */
-pre {
-    padding-left: 0.5em;
-    padding-right: 0.5em;
-    border-radius: 0.5em;
-    line-height: 1.2em;
-    background-color: #f0f0f0;
-}
-
 pre code {
-    padding: 0.5em;
+    font-size: 0.8rem;
     display: block;
 }
 

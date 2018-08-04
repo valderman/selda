@@ -1,14 +1,12 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" type="text/css" href="style.css">
-    <link rel="stylesheet" type="text/css" href="highlight.css">
-    <meta name="description" content="Selda is a monadic SQL library for Haskell. It uses advanced type magic to enable seamless prepared statements, well-scoped, fully general inner queries, automatic in-process caching, and much more.">
-    <script async src="highlight.pack.js"></script>
-    <script>window.onload = function(){hljs.initHighlighting();};</script>
-    <title>Selda: A Haskell SQL Library</title>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="stylesheet" type="text/css" href="style.css">
+        <link rel="stylesheet" type="text/css" href="prism.css">
+        <meta name="description" content="Selda is a monadic SQL library for Haskell. It uses advanced type magic to enable seamless prepared statements, well-scoped, fully general inner queries, automatic in-process caching, and much more.">
+        <script async src="prism.js"></script>
   </head>
   <body>
     <h1>Selda: A Haskell SQL Library</h1>
@@ -45,7 +43,8 @@
           <li>Type-safe queries, inserts, updates and deletes</li>
           <li>Monadic query language with general inner queries</li>
           <li>Seamless prepared statements</li>
-          <li>Upserts, transactions and constraints</li>
+          <li>Upserts, transactions, indexes and constraints</li>
+          <li>Typed migrations</li>
           <li>Minimal dependencies</li>
           <li>In-process caching</li>
           <li>Backends for PostgreSQL and SQLite</li>
@@ -53,38 +52,46 @@
         </ul>
       </div>
       <div class="pane" id="right">
-        <h2>Installation</h2>
-        <pre><code class="widecode shell">
+          <h2>Installation</h2>
+          <pre><code class="widecode">
 $ cabal update
 $ cabal install selda-sqlite selda-postgresql
-          </code><code class="narrowcode shell">
+          </code><code class="narrowcode language-shell">
 $ cabal update
 $ cabal install selda-sqlite
 $ cabal install selda-postgresql
-        </code></pre>
-        
-        <h2>By example</h2>
-        <pre><code class="haskell">
-people :: Table (Text :*: Int :*: Maybe Text)
-people = table "people"
-       $ primary "name"
-     :*: required "age"
-     :*: optional "pet"
-(name :*: age :*: pet) = selectors people
+          </code></pre>
+
+          <h2>By example</h2>
+          <pre><code class="language-haskell">
+data Pet = Dog | Horse | Dragon
+  deriving (Show, Read, Bounded, Enum)
+instance SqlType Pet
+
+data Person = Person
+  { name :: Text
+  , age :: Int
+  , pet :: Maybe Pet
+  } deriving Generic
+instance SqlResult Person
+
+people :: Table Person
+people = table "people" [name :- primary]
+(s_name :*: s_age :*: s_pet) = selectors people
 
 main = withSQLite "people.sqlite" $ do
   createTable people
 
   insert_ people
-    [ "Velvet"    :*: 19 :*: Just "orthros"
-    , "Kobayashi" :*: 23 :*: Just "dragon"
-    , "Miyu"      :*: 10 :*: Nothing
+    [ Person "Velvet"    19 (Just Dog)
+    , Person "Kobayashi" 23 (Just Dragon)
+    , Person "Miyu"      10 Nothing
     ]
 
   adults &lt;- query $ do
     person &lt;- select people
-    restrict (person ! age .&gt; 18)
-    return (person ! name :*: person ! pet)
+    restrict (person ! s_age .&gt;= 18)
+    return (person ! s_name :*: person ! s_pet)
 
   liftIO $ print adults
         </code></pre>
