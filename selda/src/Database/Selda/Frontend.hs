@@ -16,7 +16,7 @@ import Database.Selda.Column
 import Database.Selda.Compile
 import Database.Selda.Generic
 import Database.Selda.Query.Type
-import Database.Selda.SqlType (RowID, invalidRowId, toRowId)
+import Database.Selda.SqlType (ID, invalidId, toId)
 import Database.Selda.Table
 import Database.Selda.Table.Compile
 import Database.Selda.Types (fromTableName)
@@ -117,7 +117,7 @@ upsert :: ( MonadCatch m
        -> (Row s a -> Col s Bool)
        -> (Row s a -> Row s a)
        -> [a]
-       -> m (Maybe RowID)
+       -> m (Maybe (ID a))
 upsert tbl check upd rows = transaction $ do
   updated <- update tbl check upd
   if updated == 0
@@ -138,7 +138,7 @@ insertUnless :: ( MonadCatch m
              => Table a
              -> (Row s a -> Col s Bool)
              -> [a]
-             -> m (Maybe RowID)
+             -> m (Maybe (ID a))
 insertUnless tbl check rows = upsert tbl check id rows
 
 -- | Like 'insertUnless', but performs the insert when at least one row matches
@@ -150,7 +150,7 @@ insertWhen :: ( MonadCatch m
            => Table a
            -> (Row s a -> Col s Bool)
            -> [a]
-           -> m (Maybe RowID)
+           -> m (Maybe (ID a))
 insertWhen tbl check rows = transaction $ do
   matches <- update tbl check id
   if matches > 0
@@ -166,7 +166,7 @@ insert_ t cs = void $ insert t cs
 --   Attempting to run this operation on a table without an auto-incrementing
 --   primary key will always return a row identifier that is guaranteed to not
 --   match any row in any table.
-insertWithPK :: (MonadSelda m, Relational a) => Table a -> [a] -> m RowID
+insertWithPK :: (MonadSelda m, Relational a) => Table a -> [a] -> m (ID a)
 insertWithPK t cs = do
   b <- seldaBackend
   if tableHasAutoPK t
@@ -174,10 +174,10 @@ insertWithPK t cs = do
       res <- liftIO $ do
         mapM (uncurry (runStmtWithPK b)) $ compileInsert (ppConfig b) t cs
       invalidateTable t
-      return $ toRowId (last res)
+      return $ toId (last res)
     else do
       insert_ t cs
-      return invalidRowId
+      return invalidId
 
 -- | Update the given table using the given update function, for all rows
 --   matching the given predicate. Returns the number of updated rows.
