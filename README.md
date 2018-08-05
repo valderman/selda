@@ -42,7 +42,7 @@ backends:
     $ cabal update
     $ cabal install selda selda-sqlite selda-postgresql
 
-Then, read the tutorial.
+Then, read [the tutorial](https://selda.link/tutorial).
 The [API documentation](http://hackage.haskell.org/package/selda) will probably
 also come in handy.
 
