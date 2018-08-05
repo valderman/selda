@@ -60,8 +60,8 @@ instance SqlType Pet
 
 data Person = Person
   { name :: Text
-  , age :: Int
-  , pet :: Maybe Pet
+  , age  :: Int
+  , pet  :: Maybe Pet
   } deriving Generic
 instance SqlRow Person
 

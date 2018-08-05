@@ -62,13 +62,19 @@ allPages =
   , Page "tutorial"
          "."
          "default"
-         "Learn how to build database applications with Selda, the monadic Haskell database library, starting from basics and gradually progressing towards advanced concepts."
+         "Learn how to build database applications with Selda, starting from basics and gradually progressing towards advanced concepts."
          False
 
   , Page "ch1-example-explained"
          "tutorial"
          "default"
-         "Learn how to create a simple database application with Selda, the monadic Haskell database library."
+         "Learn how to create a simple database application with Selda."
+         False
+
+  , Page "ch2-destructive-operations"
+         "tutorial"
+         "default"
+         "Learn how to update, delete and modify table rows with Selda."
          False
   ]
 

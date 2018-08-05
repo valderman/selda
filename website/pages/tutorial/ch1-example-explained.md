@@ -209,8 +209,8 @@ instance SqlType Pet
 
 data Person = Person
   { name :: Text
-  , age :: Int
-  , pet :: Maybe Pet
+  , age  :: Int
+  , pet  :: Maybe Pet
   } deriving Generic
 instance SqlRow Person
 
@@ -232,4 +232,7 @@ main = withSQLite "people.sqlite" $ do
     return (person ! s_name :*: person ! s_pet)
   liftIO $ print adultsAndTheirPets
 ```
+
+**Next:** [Chapter 2: Destructive Operations](tutorial/ch2-destructive-operations)
+
 </div>
