@@ -14,23 +14,14 @@ import Text.Mustache
 
 import BaseUrl (baseUrl)
 
-title :: Text
-title = "Haskell, software development, Japanese and other stuff"
+tagline :: Text
+tagline = "A Haskell SQL Library"
 
-metaDesc :: Text
-metaDesc = "Haskell, software development, Japanese and other stuff."
+tutorialTagline :: Text
+tutorialTagline = "The Tutorial of Selda | " <> tagline
 
 metaAuthor :: Text
 metaAuthor = "Anton Ekblad"
-
-heading :: Text
-heading = "Anton Ekblad"
-
-underHeading :: Text
-underHeading = "Computer Scientist • Software Developer"
-
-toplinks :: [Link]
-toplinks = []
 
 
 -- Implementation details from here on
@@ -44,7 +35,8 @@ data Link = Link
 (|>) = Link
 
 data Page = Page
-  { pageFileName :: FilePath
+  { pageTitle :: Text
+  , pageFileName :: FilePath
   , pageSubdirectory :: FilePath
   , pageTemplate :: FilePath
   , pageDescription :: Text
@@ -53,31 +45,36 @@ data Page = Page
 
 allPages :: [Page]
 allPages =
-  [ Page ""
+  [ Page ("Selda: " <> tagline)
+         ""
          "."
          "default"
          "Selda is a monadic SQL library for Haskell. It uses advanced type magic to enable seamless prepared statements, well-scoped, fully general inner queries, automatic in-process caching, and much more."
          True
 
-  , Page "tutorial"
+  , Page ("The Tutorial of Selda | " <> tagline)
+         "tutorial"
          "."
          "default"
          "Learn how to build database applications with Selda, starting from basics and gradually progressing towards advanced concepts."
          False
 
-  , Page "ch1-example-explained"
+  , Page ("Chapter 1: An Example, Explained | " <> tutorialTagline)
+         "ch1-example-explained"
          "tutorial"
          "default"
          "Learn how to create a simple database application with Selda."
          False
 
-  , Page "ch2-destructive-operations"
+  , Page ("Chapter 1: Destructive Operations | " <> tutorialTagline)
+         "ch2-destructive-operations"
          "tutorial"
          "default"
          "Learn how to update, delete and modify table rows with Selda."
          False
 
-  , Page "ch3-advanced-queries"
+  , Page ("Chapter 3: Advanced Queries | " <> tutorialTagline)
+         "ch3-advanced-queries"
          "tutorial"
          "default"
          "Master database queries using Selda."
@@ -93,12 +90,9 @@ loadPage page = do
   let render = toStrict . renderHtml . markdown def . fromStrict
       ctx = PageCtx
         { siteContent = render content
-        , siteToplinks = toplinks
-        , siteTitle = title
+        , siteTitle = pageTitle page
         , siteDescription = pageDescription page
         , siteAuthor = metaAuthor
-        , siteHeading = heading
-        , siteUnderHeading = underHeading
         , siteBaseUrl = baseUrl
         , siteBigLogo = pageBigLogo page
         }
@@ -109,12 +103,9 @@ loadPage page = do
 
 data PageCtx = PageCtx
   { siteContent :: Text
-  , siteToplinks :: [Link]
   , siteTitle :: Text
   , siteDescription :: Text
   , siteAuthor :: Text
-  , siteHeading :: Text
-  , siteUnderHeading :: Text
   , siteBaseUrl :: Text
   , siteBigLogo :: Bool
   }
@@ -127,9 +118,6 @@ instance ToMustache PageCtx where
     [ "description" ~> siteDescription ctx
     , "author" ~> siteAuthor ctx
     , "title" ~> siteTitle ctx
-    , "heading" ~> siteHeading ctx
-    , "underheading" ~> siteUnderHeading ctx
-    , "toplinks" ~> siteToplinks ctx
     , "content" ~> siteContent ctx
     , "base" ~> siteBaseUrl ctx
     , "biglogo" ~> siteBigLogo ctx
