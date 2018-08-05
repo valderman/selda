@@ -92,7 +92,7 @@ insert t cs = do
 --
 --   Like 'insert', if even one of the inserted rows would cause a constraint
 --   violation, the whole insert operation fails.
-tryInsert :: (MonadCatch m, MonadSelda m, Relational a) => Table a -> [a] -> m Bool
+tryInsert :: (MonadSelda m, Relational a) => Table a -> [a] -> m Bool
 tryInsert tbl row = do
   mres <- try $ insert tbl row
   case mres of
@@ -109,8 +109,7 @@ tryInsert tbl row = do
 --
 --   Note that this may perform two separate queries: one update, potentially
 --   followed by one insert.
-upsert :: ( MonadCatch m
-          , MonadSelda m
+upsert :: ( MonadSelda m
           , Relational a
           )
        => Table a
@@ -131,8 +130,7 @@ upsert tbl check upd rows = transaction $ do
 --   If called on a table which doesn't have an auto-incrementing primary key,
 --   @Just id@ is always returned on successful insert, where @id@ is a row
 --   identifier guaranteed to not match any row in any table.
-insertUnless :: ( MonadCatch m
-                , MonadSelda m
+insertUnless :: ( MonadSelda m
                 , Relational a
                 )
              => Table a
@@ -143,8 +141,7 @@ insertUnless tbl check rows = upsert tbl check id rows
 
 -- | Like 'insertUnless', but performs the insert when at least one row matches
 --   the predicate.
-insertWhen :: ( MonadCatch m
-              , MonadSelda m
+insertWhen :: ( MonadSelda m
               , Relational a
               )
            => Table a
