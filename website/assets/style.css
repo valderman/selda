@@ -20,6 +20,10 @@ body {
     text-decoration: none;
 }
 
+.biglink a:hover {
+    background-color: #202020;
+}
+
 /* Logo and headings */
 h1 {
     text-align: center;
