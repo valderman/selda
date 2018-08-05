@@ -6,15 +6,15 @@ As Selda uses a lot of fancy type magic to achieve a safe yet flexible
 programming model, figuring out how to use it from type signatures alone
 can be hard. While the types keep queries nice and safe, the type errors
 when something goes wrong can be a bit daunting.
-Therefore it's especially important to get an intuition for how the language
-works.
 
 This tutorial aims to give the reader a thorough intuition of how Selda works
 and why, to make those type errors more manageable and to help the reader avoid
 making them in the first place.
 
-The tutorial is structured around a series of progressively more advanced
-example programs, which are dissected and discussed in depth, concept by concept.
+This tutorial assumes that the reader is already familiar with
+relational databases and can write and understand simple SQL queries.
+It is structured around a series of progressively more advanced Selda examples,
+which are dissected and discussed in depth, concept by concept.
 
 </div>
 
