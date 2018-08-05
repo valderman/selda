@@ -75,8 +75,8 @@ createFailsOnDuplicate = createTable people >> assertFail (createTable people)
 
 autoPrimaryIncrements = do
   setup
-  k <- insertWithPK comments [(def, Just "Kobayashi", "チョロゴン")]
-  k' <- insertWithPK comments [(def, Nothing, "more anonymous spam")]
+  k <- untyped <$> insertWithPK comments [(def, Just "Kobayashi", "チョロゴン")]
+  k' <- untyped <$> insertWithPK comments [(def, Nothing, "more anonymous spam")]
   [name] <- query $ do
     t <- select comments
     restrict (t!cId .== literal k)
@@ -223,7 +223,7 @@ overrideAutoIncrement = do
 
 insertAllDefaults = do
   setup
-  pk <- insertWithPK comments [(def, def, def)]
+  pk <- untyped <$> insertWithPK comments [(def, def, def)]
   res <- query $ do
     comment <- select comments
     restrict (comment!cId .== literal pk)
@@ -435,13 +435,13 @@ uniqueViolation = do
 insertOrUpdate = do
     tryDropTable counters
     createTable counters
-    r1 <- upsert counters
+    r1 <- fmap untyped <$> upsert counters
            (\t -> t!c .== 0)
            (\t -> t `with` [v += 1])
            [(0, 1)]
     assEq "wrong return value from inserting upsert" (Just invalidRowId) r1
 
-    r2 <- upsert counters
+    r2 <- fmap untyped <$> upsert counters
            (\t -> t!c .== 0)
            (\t -> t `with` [v $= (+1)])
            [(0, 1)]
@@ -450,7 +450,7 @@ insertOrUpdate = do
     res <- query $ select counters
     assEq "wrong value for counter" [(0, 2)] res
 
-    r3 <- upsert counters
+    r3 <- fmap untyped <$> upsert counters
            (\t -> t ! c .== 15)
            (\t -> t `with` [v := t!v + 1])
            [(15, 1)]
@@ -592,7 +592,7 @@ boolTable = do
 optionalFK = do
     tryDropTable tbl
     createTable tbl
-    pk <- insertWithPK tbl [(def, Nothing)]
+    pk <- untyped <$> insertWithPK tbl [(def, Nothing)]
     insert tbl [(def, Just pk)]
     vs <- query $ (! mrid) <$> select tbl
     assEq "wrong value for nullable FK" [Nothing, Just pk] vs
@@ -657,7 +657,7 @@ disableForeignKeys = do
       tryDropTable tbl1
       createTable tbl1
       createTable tbl2
-      pk <- insertWithPK tbl1 [Only def]
+      pk <- untyped <$> insertWithPK tbl1 [Only def]
       insert tbl2 [(def, pk)]
       assertFail $ dropTable tbl1
       withoutForeignKeyEnforcement $ dropTable tbl1 >> dropTable tbl2
