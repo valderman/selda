@@ -1,17 +1,15 @@
-# Chapter 1: An Example, Explained
+<div class="pane" id="left">
 
-As Selda uses a lot of fancy type magic to achieve a safe yet flexible
-programming model, figuring out how to use it from type signatures alone
-can be hard. While the types keep queries nice and safe, the type errors
-when something goes wrong can be a bit daunting.
-Therefore it's especially important to get an intuition for how the language
-works.
+## Chapter 1: An Example, Explained
 
-To start building this intuition, let's dissect the example from
-the [front page](/) of the website, and use it to illustrate the core concepts
+To start learning the basics of Selda, let's dissect the example from
+the front page of the website, and use it to illustrate the core concepts
 of the Selda library.
 
-```
+After reading this chapter, you will be able to define and create tables,
+insert new rows, and perform simple queries against those tables.
+
+```language-haskell
 {-# LANGUAGE DeriveGeneric, OverloadedStrings #-}
 import Database.Selda
 import Database.Selda.SQLite
@@ -27,15 +25,15 @@ is important since Selda uses generics heavily to map Haskell types to database
 tables. `OverloadedStrings` is not strictly required, but highly recommended
 to reduce boilerplate when working with `Text` fields.
 
-```
+```language-haskell
 data Pet = Dog | Horse | Dragon
   deriving (Show, Read, Bounded, Enum)
 instance SqlType Pet
 ```
 
 Here, we declare a `Pet` *enumeration type*, to represent the various types
-of pets one might have. Selda is able to map enumeration types - any type
-implementing `Enum` and `Bounded` - if we just add an `SqlType` instance
+of pets one might have. Selda is able to map enumeration types &mdash; any type
+implementing `Enum` and `Bounded` &mdash; if we just add an `SqlType` instance
 for it. In this case, we also derive `Show` and `Read` which automatically
 gives us the appropriate conversions between our `Pet` type and its database
 representation.
@@ -44,7 +42,7 @@ The `SqlType` type class denotes types which are representable as a single
 database column. These types include various numeric types, `Text`,
 date and time types, etc.
 
-```
+```language-haskell
 data Person = Person
   { name :: Text
   , age :: Int
@@ -54,13 +52,13 @@ instance SqlRow Person
 ```
 
 Now it's time to create a data type to describe our table.
-Any product type - a type with a single data constructor - where all fields
+Any product type &mdash; a type with a single data constructor &mdash; where all fields
 are instances of `SqlType` can be used for tables and as results from queries
 if they implement the `SqlRow` type class.
 By deriving `Generic` for our type, we can use the default `SqlRow` instance.
 In fact, you should never need to implement `SqlRow` yourself.
 
-```
+```language-haskell
 people :: Table Person
 people = table "people" [name :- primary]
 ```
@@ -74,21 +72,21 @@ The record selectors of the table type are used to specify these attributes.
 In our case, we want to specify the `name` fields as the primary key of our
 table.
 
-```
+```language-haskell
 (s_name :*: s_age :*: s_pet) = selectors people
 ```
 
 To access the columns of a table within queries, we need to declare the
 *selectors* of the table: essentially a Selda-specific complement to
 the type's normal Haskell record selectors.
-The `selectors` function returns an *inductive tuple* - one or more values
-separated by the `:*:` data constructor - or all selectors corresponding
+The `selectors` function returns an *inductive tuple* &mdash; one or more values
+separated by the `:*:` data constructor &mdash; or all selectors corresponding
 to its given type.
 
 In our example, the `people` table has three columns since it maps to the
 `People` type, so `selectors people` will give us back three selectors.
 
-```
+```language-haskell
 main = withSQLite "people.sqlite" $ do
   ...
 ```
@@ -98,12 +96,12 @@ In our example, we use the SQLite database and specify `people.sqlite` as the
 file in which our database will be stored.
 
 Selda computations are written in some monad which implements the
-`MonadSelda` type class. For most Selda programs - including our example - the
+`MonadSelda` type class. For most Selda programs &mdash; including our example &mdash; the
 built-in `SeldaM` monad is just fine.
 Unless you really want to, you'll never need to bother with implementing
 a Selda monad of your own.
 
-```
+```language-haskell
 createTable people
 insert_ people
   [ Person "Velvet"    19 (Just Dog)
@@ -120,7 +118,7 @@ Once we've created our table, we use `insert_` to insert three rows into
 our newly created table. Each row is represented by a plani Haskell value of
 the table's type.
 
-```
+```language-haskell
 adultsAndTheirPets <- query $ do
   ...
 ```
@@ -138,7 +136,7 @@ as it lets us reconcile the differences in scoping between SQL and Haskell
 in a safe and (more or less) elegant way.
 
 
-```
+```language-haskell
 person <- select people
 ```
 
@@ -146,7 +144,7 @@ The `select` function is used to draw data rows from a table.
 In this example `person` has the type `Row s Person`, and represents a single
 row from the `people` table.
 
-```
+```language-haskell
 restrict (person ! s_age .>= 18)
 ```
 
@@ -157,7 +155,7 @@ arbitrarily used in expressions.
 In this example, we use the `restrict` function (roughly equivalent
 to SQL `WHERE`) to filter out all persons who have a `s_age` lower than 18.
 
-```
+```language-haskell
 return (person ! s_name :*: person ! s_pet)
 ```
 
@@ -178,7 +176,7 @@ From this we can deduce that the query has type
 `Query s (Col s Text :*: Col s (Maybe Text))`, meaning that the type returned
 back to Haskell land will be `[Text :*: Maybe Text]`.
 
-```
+```language-haskell
 liftIO $ print adultsAndTheirPets
 ```
 
@@ -190,6 +188,48 @@ into the computation.
 Since Miyu is the only person in the table who is under the age of 18,
 the result set, when printed, should look like this:
 
-```
+```language-haskell
 ["Velvet" :*: Just Dog,"Kobayashi" :*: Just Dragon]
 ```
+
+</div>
+
+<div class="pane fixed" id="right">
+
+### The example
+
+```language-haskell
+{-# LANGUAGE DeriveGeneric, OverloadedStrings #-}
+import Database.Selda
+import Database.Selda.SQLite
+
+data Pet = Dog | Horse | Dragon
+  deriving (Show, Read, Bounded, Enum)
+instance SqlType Pet
+
+data Person = Person
+  { name :: Text
+  , age :: Int
+  , pet :: Maybe Pet
+  } deriving Generic
+instance SqlRow Person
+
+people :: Table Person
+people = table "people" [name :- primary]
+(s_name :*: s_age :*: s_pet) = selectors people
+
+main = withSQLite "people.sqlite" $ do
+  createTable people
+  insert_ people
+    [ Person "Velvet"    19 (Just Dog)
+    , Person "Kobayashi" 23 (Just Dragon)
+    , Person "Miyu"      10 Nothing
+    ]
+
+  adultsAndTheirPets <- query $ do
+    person <- select people
+    restrict (person ! s_age .>= 18)
+    return (person ! s_name :*: person ! s_pet)
+  liftIO $ print adultsAndTheirPets
+```
+</div>
