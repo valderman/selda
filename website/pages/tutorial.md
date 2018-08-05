@@ -34,12 +34,12 @@ which are dissected and discussed in depth, concept by concept.
 3. [Advanced Queries](tutorial/ch3-advanced-queries).
    Covers ad hoc creation of rows from within queries, and other misc.
    neat query tricks.
-4. [Joins and Aggregates](tutorial/ch4-inner-queries).
+4. **Joins and Aggregates** (*TBD*).
    Covers the various types of joins and aggregate queries supported by Selda.
-5. [Constraints and Indexes](tutorial/ch5-constraints-and-indexes).
+5. **Constraints and Indexes** (*TBD*).
    Covers more advanced schema definitions, including foreign keys, indexes,
    and other constraints.
-6. [Migrations and Prepared Statements](tutorial/ch6-migrations-and-prepared-statements).
+6. **Migrations and Prepared Statements** (*TBD*).
    Covers how to migrate database tables from one schema to another, and how to improve
    performance through prepared statements.
 

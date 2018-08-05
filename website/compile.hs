@@ -76,6 +76,12 @@ allPages =
          "default"
          "Learn how to update, delete and modify table rows with Selda."
          False
+
+  , Page "ch3-advanced-queries"
+         "tutorial"
+         "default"
+         "Master database queries using Selda."
+         False
   ]
 
 loadPage :: Page -> IO (PageCtx, Template)
