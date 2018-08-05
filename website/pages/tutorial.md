@@ -1,6 +1,6 @@
 <div class="pane" id="left">
 
-## Tutorial
+## The Tutorial of Selda
 
 As Selda uses a lot of fancy type magic to achieve a safe yet flexible
 programming model, figuring out how to use it from type signatures alone
@@ -15,6 +15,10 @@ This tutorial assumes that the reader is already familiar with
 relational databases and can write and understand simple SQL queries.
 It is structured around a series of progressively more advanced Selda examples,
 which are dissected and discussed in depth, concept by concept.
+
+<span class="biglink">
+<a title="Squadala, we're off!" href="tutorial/ch1-example-explained">Get started!</a>
+</span>
 
 </div>
 
@@ -36,7 +40,7 @@ which are dissected and discussed in depth, concept by concept.
    Covers more advanced schema definitions, including foreign keys, indexes,
    and other constraints.
 6. [Migrations and Prepared Statements](tutorial/ch6-migrations-and-prepared-statements).
-   Covers how to migrate database schemas between versions, and how to improve
+   Covers how to migrate database tables from one schema to another, and how to improve
    performance through prepared statements.
 
 </div>
