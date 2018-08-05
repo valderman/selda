@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, RecordWildCards #-}
 module Main where
 import Control.Monad
 import Data.Aeson (Value (..))
@@ -33,7 +33,6 @@ toplinks :: [Link]
 toplinks = []
 
 
-
 -- Implementation details from here on
 
 data Link = Link
@@ -54,14 +53,14 @@ data Page = Page
 
 allPages :: [Page]
 allPages =
-  [ Page "index"
+  [ Page ""
          "."
          "default"
          "Selda is a monadic SQL library for Haskell. It uses advanced type magic to enable seamless prepared statements, well-scoped, fully general inner queries, automatic in-process caching, and much more."
          True
 
-  , Page "index"
-         "tutorial"
+  , Page "tutorial"
+         "."
          "default"
          "Learn how to build database applications with Selda, the monadic Haskell database library, starting from basics and gradually progressing towards advanced concepts."
          False
@@ -76,8 +75,9 @@ allPages =
 loadPage :: Page -> IO (PageCtx, Template)
 loadPage page = do
   let templateFile = "templates" </> pageTemplate page <.> "html"
+      pageFile = "pages" </> pageSubdirectory page </> maybeIndex (pageFileName page) <.> "md"
   Right template <- localAutomaticCompile templateFile
-  content <- pack <$> readFile ("pages" </> pageSubdirectory page </> pageFileName page <.> "md")
+  content <- pack <$> readFile pageFile
   let render = toStrict . renderHtml . markdown def . fromStrict
       ctx = PageCtx
         { siteContent = render content
@@ -91,6 +91,9 @@ loadPage page = do
         , siteBigLogo = pageBigLogo page
         }
   return (ctx, template)
+  where
+    maybeIndex "" = "index"
+    maybeIndex f  = f
 
 data PageCtx = PageCtx
   { siteContent :: Text
@@ -129,16 +132,35 @@ copyFilesIn from to = do
 writePage :: Page -> IO ()
 writePage page = do
   (ctx, template) <- loadPage page
-  createDirectoryIfMissing True ("_site" </> pageSubdirectory page)
   let content = substitute template ctx
-      outFile = "_site" </> pageSubdirectory page </> pageFileName page <.> "html"
+      path = pageSubdirectory page </> pageFileName page
+      outFile = siteDirectory </> path </> "index.html"
+  createDirectoryIfMissing True (siteDirectory </> path)
   writeFile outFile (unpack content)
+  addToSiteMap page
+
+addToSiteMap :: Page -> IO ()
+addToSiteMap Page{..} = do
+    appendFile sitemapFile (pageUrl <> "\n")
+  where
+    base = unpack baseUrl
+    subdir
+      | pageSubdirectory == "." = ""
+      | otherwise               = pageSubdirectory
+    pageUrl = base </> subdir </> pageFileName
+      
+
+sitemapFile :: FilePath
+sitemapFile = siteDirectory </> "sitemap.txt"
+
+siteDirectory :: FilePath
+siteDirectory = "_site"
 
 main :: IO ()
 main = do
-  Right template <- localAutomaticCompile "templates/default.html"
-  exists <- doesDirectoryExist "_site"
-  when exists $ removeDirectoryRecursive "_site"
-  createDirectoryIfMissing True "_site"
-  copyFilesIn "assets" "_site"
+  dirExists <- doesDirectoryExist siteDirectory
+  when dirExists $ removeDirectoryRecursive siteDirectory
+  createDirectoryIfMissing True siteDirectory
+
+  copyFilesIn "assets" siteDirectory
   mapM_ writePage allPages
