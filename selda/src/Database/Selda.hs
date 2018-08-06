@@ -47,8 +47,9 @@ module Database.Selda
   , (.==), (./=), (.>), (.<), (.>=), (.<=), like
   , (.&&), (.||), not_
   , literal, int, float, text, true, false, null_
-  , roundTo, length_, isNull, ifThenElse, matchNull
+  , roundTo, length_, isNull, ifThenElse, ifNull, matchNull
   , new, only
+  , Mappable (..)
     -- * Converting between column types
   , round_, just, fromBool, fromInt, toString
     -- * Inner queries
@@ -278,6 +279,29 @@ matchNull :: (SqlType a, SqlType b)
           -> Col s b
 matchNull nullvalue f x = ifThenElse (isNull x) nullvalue (f (cast x))
 
+-- | If the second value is Nothing, return the first value. Otherwise return
+--   the second value.
+ifNull :: SqlType a => Col s a -> Col s (Maybe a) -> Col s a
+ifNull = flip (fun2 "IFNULL")
+
+-- | Any container type which can be mapped over.
+--   Sort of like 'Functor', if you squint a bit.
+class Mappable f where
+  type Container f a
+  (.<$>) :: (SqlType a, SqlType b)
+         => (Col s a -> Col s b)
+         -> f s (Container f a)
+         -> f s (Container f b)
+infixl 4 .<$>
+
+instance Mappable Aggr where
+  type Container Aggr a = a
+  (.<$>) = liftAggr
+
+instance Mappable Col where
+  type Container Col a = Maybe a
+  f .<$> mx = cast (f (cast mx))
+
 -- | Any container type for which we can check object membership.
 class Set set where
   -- | Is the given column contained in the given set?
@@ -354,20 +378,20 @@ count :: SqlType a => Col s a -> Aggr s Int
 count = aggr "COUNT"
 
 -- | The average of all values in the given column.
-avg :: (SqlType a, Num a) => Col s a -> Aggr s a
+avg :: (SqlType a, Num a) => Col s a -> Aggr s (Maybe a)
 avg = aggr "AVG"
 
 -- | The greatest value in the given column. Texts are compared lexically.
-max_ :: SqlOrd a => Col s a -> Aggr s a
+max_ :: SqlOrd a => Col s a -> Aggr s (Maybe a)
 max_ = aggr "MAX"
 
 -- | The smallest value in the given column. Texts are compared lexically.
-min_ :: SqlOrd a => Col s a -> Aggr s a
+min_ :: SqlOrd a => Col s a -> Aggr s (Maybe a)
 min_ = aggr "MIN"
 
 -- | Sum all values in the given column.
 sum_ :: forall a b s. (SqlType a, SqlType b, Num a, Num b) => Col s a -> Aggr s b
-sum_ = castAggr . aggr "SUM"
+sum_ = liftAggr (ifNull (0::Col s b) . cast) . aggr "SUM"
 
 -- | Round a value to the nearest integer. Equivalent to @roundTo 0@.
 round_ :: forall s a. (SqlType a, Num a) => Col s Double -> Col s a

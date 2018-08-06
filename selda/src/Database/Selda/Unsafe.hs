@@ -23,7 +23,7 @@ cast = liftC $ Cast (sqlType (Proxy :: Proxy b))
 -- | Cast an aggregate to another type, using whichever coercion semantics
 --   are used by the underlying SQL implementation.
 castAggr :: forall s a b. SqlType b => Aggr s a -> Aggr s b
-castAggr = liftAggr $ Cast (sqlType (Proxy :: Proxy b))
+castAggr = liftAggr cast
 
 -- | A unary operation. Note that the provided function name is spliced
 --   directly into the resulting SQL query. Thus, this function should ONLY

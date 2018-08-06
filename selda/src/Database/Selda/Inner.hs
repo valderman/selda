@@ -19,8 +19,10 @@ import GHC.TypeLits as TL
 --   converted into a non-aggregate column.
 newtype Aggr s a = Aggr {unAggr :: Exp SQL a}
 
-liftAggr :: (Exp SQL a -> Exp SQL b) -> Aggr s a -> Aggr s b
-liftAggr f = Aggr . f . unAggr
+-- | Lift a function over columns to aggregates.
+liftAggr :: (Col s a -> Col s b) -> Aggr s a -> Aggr s b
+liftAggr f = Aggr . unOne . f . One . unAggr
+  where unOne (One x) = x
 
 -- | Denotes an inner query.
 --   For aggregation, treating sequencing as the cartesian product of queries

@@ -81,27 +81,10 @@ instance (SqlType a, Num a) => Num (Col s a) where
   abs = liftC $ UnOp Abs
   signum = liftC $ UnOp Sgn
 
-instance {-# OVERLAPPING #-} (SqlType a, Num a) => Num (Col s (Maybe a)) where
-  fromInteger = literal . Just . fromInteger
-  (+) = liftC2 $ BinOp Add
-  (-) = liftC2 $ BinOp Sub
-  (*) = liftC2 $ BinOp Mul
-  negate = liftC $ UnOp Neg
-  abs = liftC $ UnOp Abs
-  signum = liftC $ UnOp Sgn
-
 instance Fractional (Col s Double) where
   fromRational = literal . fromRational
   (/) = liftC2 $ BinOp Div
 
-instance Fractional (Col s (Maybe Double)) where
-  fromRational = literal . Just . fromRational
-  (/) = liftC2 $ BinOp Div
-
 instance Fractional (Col s Int) where
   fromRational = literal . (truncate :: Double -> Int) . fromRational
-  (/) = liftC2 $ BinOp Div
-
-instance Fractional (Col s (Maybe Int)) where
-  fromRational = literal . Just . (truncate :: Double -> Int) . fromRational
   (/) = liftC2 $ BinOp Div

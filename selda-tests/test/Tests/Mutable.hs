@@ -761,7 +761,7 @@ migrateAggregate = do
   migrateM migrationTable1 migrationTable2 $ \foo -> do
     age <- aggregate $ do
       person <- select people
-      return $ min_ (person ! pAge)
+      return $ ifNull 0 .<$> min_ (person ! pAge)
     return $ new [mt2_1 := toString (the foo), mt2_2 := age]
   res <- query $ do
     t <- select migrationTable2

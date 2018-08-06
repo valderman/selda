@@ -46,6 +46,8 @@ queryTests run = test
   , "matchNull" ~: run simpleMatchNull
   , "ifThenElse" ~: run simpleIfThenElse
   , "validateTable validates" ~: run validateTableValidates
+  , "aggregate empty table" ~: run aggregateEmptyTable
+  , "empty singleton values" ~: run selectValuesEmptySingletonTable
   , "teardown succeeds" ~: run teardown
   ]
 
@@ -209,7 +211,7 @@ limitCorrectNumber = do
   assEq ("wrong number of results from limit") 4 (length res)
 
 aggregateWithDoubles = do
-  [res] <- query $ aggregate $ do
+  [Just res] <- query $ aggregate $ do
     cash <- pCash `from` select people
     return (avg cash)
   assEq "got wrong result" ans res
@@ -458,3 +460,31 @@ validateTableValidates = do
     bad :: Table (RowID, RowID)
     bad = table "bad" [one :- primary, two :- primary]
     one :*: two = selectors bad
+
+aggregateEmptyTable = do
+    [res] <- query $ do
+      aggregate $ count <$> s_fst `from` selectValues ([] :: [(Int, Int)])
+    assEq "count of empty table not 0" (0::Int) res
+
+    [res] <- query $ do
+      aggregate $ sum_ <$> s_fst `from` selectValues ([] :: [(Int, Int)])
+    (res :: Int) `seq` return ()
+    assEq "sum of empty table not 0" (0::Int) res
+
+    [res] <- query $ do
+      aggregate $ avg <$> s_fst `from` selectValues ([] :: [(Int, Int)])
+    assEq "average of empty table not Nothing" (Nothing::Maybe Int) res
+
+    [res] <- query $ do
+      aggregate $ min_ <$> s_fst `from` selectValues ([] :: [(Int, Int)])
+    assEq "min of empty table not Nothing" (Nothing::Maybe Int) res
+
+    [res] <- query $ do
+      aggregate $ max_ <$> s_fst `from` selectValues ([] :: [(Int, Int)])
+    assEq "max of empty table not Nothing" (Nothing::Maybe Int) res
+  where
+    s_fst = unsafeSelector 0 :: Selector (Int, Int) Int
+
+selectValuesEmptySingletonTable = do
+  [res] <- query $ aggregate $ count <$> the <$> selectValues ([] :: [Only Int])
+  assEq "non-zero count when selecting from empty values" 0 res
