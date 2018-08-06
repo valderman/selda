@@ -15,14 +15,14 @@ data Person = Person
 instance SqlRow Person
 
 modPeople :: Table Person
-modPeople = tableFieldMod "modpeople" [name :- primary] $ \name ->
+modPeople = tableFieldMod "modpeople" [pName :- primary] $ \name ->
   "mod_" <> name
 
 people :: Table Person
 people = table "people"
-  [ name :- primary
-  , name :- index
-  , cash :- indexUsing HashIndex
+  [ pName :- primary
+  , pName :- index
+  , pCash :- indexUsing HashIndex
   ]
 pName :*: pAge :*: pPet :*: pCash = selectors people
 
@@ -30,7 +30,7 @@ addresses :: Table (Text, Text)
 (addresses, aName :*: aCity) = tableWithSelectors "addresses" []
 
 comments :: Table (RowID, Maybe Text, Text)
-comments = table "comments" [(\(x,_,_) -> x) :- untypedAutoPrimary]
+comments = table "comments" [cId :- untypedAutoPrimary]
 cId :*: cName :*: cComment = selectors comments
 
 peopleItems =

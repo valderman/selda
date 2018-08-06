@@ -157,7 +157,7 @@ data Home = Home
 instance SqlRow Home
 
 people :: Table Person
-people = table "people" [pid :- autoPrimary]
+people = table "people" [s_id :- autoPrimary]
 (s_id :*: s_name :*: s_age :*: s_pet) = selectors people
 
 homes :: Table Home

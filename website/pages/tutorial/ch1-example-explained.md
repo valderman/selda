@@ -60,14 +60,15 @@ In fact, you should never need to implement `SqlRow` yourself.
 
 ```language-haskell
 people :: Table Person
-people = table "people" [name :- primary]
+people = table "people" [s_name :- primary]
 ```
 
 Once we have the `Person` type and its `SqlRow` instance, building a table
 from it is easy.
 The `table` function accepts a table name, and a list of column attributes where
 things like indexes, foreign keys and other constraints can be declared.
-The record selectors of the table type are used to specify these attributes.
+Selectors of the table &mdash; explained in detail in the next paragraph &mdash;
+are used to specify these attributes.
 
 In our case, we want to specify the `name` fields as the primary key of our
 table.
@@ -215,7 +216,7 @@ data Person = Person
 instance SqlRow Person
 
 people :: Table Person
-people = table "people" [name :- primary]
+people = table "people" [s_name :- primary]
 (s_name :*: s_age :*: s_pet) = selectors people
 
 main = withSQLite "people.sqlite" $ do

@@ -6,7 +6,7 @@
 -- | Generics utilities.
 module Database.Selda.Generic
   ( Relational, Generic
-  , tblCols, mkDummy, identify, params, def, gNew
+  , tblCols, params, def, gNew
   ) where
 import Control.Monad.State
 import Data.Dynamic
@@ -20,7 +20,6 @@ import qualified GHC.Generics as G ((:*:)(..), Selector)
 import qualified GHC.TypeLits as TL
 import qualified GHC.Generics as G ((:+:)(..))
 #endif
-import Unsafe.Coerce
 import Control.Exception (Exception (..), try, throw)
 import System.IO.Unsafe
 import Database.Selda.Types
@@ -48,18 +47,6 @@ type Relational a =
   , GRelation (Rep a)
   , GSelectors a (Rep a)
   )
-
--- | A dummy of some type. Encapsulated to avoid improper use, since all of
---   its fields are 'unsafeCoerce'd ints.
-newtype Dummy a = Dummy a
-
--- | Create a dummy of the given type.
-mkDummy :: (Generic a, GRelation (Rep a)) => Dummy a
-mkDummy = Dummy $ to $ evalState gMkDummy 0
-
--- | Get the selector identifier of the given selector for the given dummy.
-identify :: Dummy a -> (a -> b) -> Int
-identify (Dummy d) f = unsafeCoerce $ f d
 
 -- | Extract all insert parameters from a generic value.
 params :: Relational a => a -> [Either Param Param]
@@ -99,17 +86,12 @@ class GRelation f where
            -> (Int -> Maybe ColName -> ColName)
            -> State Int [ColInfo]
 
-  -- | Create a dummy value where all fields are replaced by @unsafeCoerce@'d
-  --   ints. See 'mkDummy' and 'identify' for more information.
-  gMkDummy :: State Int (f a)
-
   -- | Create a new value with all default fields.
   gNew :: Proxy f -> [UntypedCol sql]
 
 instance {-# OVERLAPPABLE #-} GRelation a => GRelation (M1 t c a) where
   gParams (M1 x) = gParams x
   gTblCols _ = gTblCols (Proxy :: Proxy a)
-  gMkDummy = M1 <$> gMkDummy
   gNew _ = gNew (Proxy :: Proxy a)
 
 instance {-# OVERLAPPING #-} (G.Selector c, GRelation a) =>
@@ -121,7 +103,6 @@ instance {-# OVERLAPPING #-} (G.Selector c, GRelation a) =>
         case selName ((M1 undefined) :: M1 S c a b) of
           "" -> Nothing
           s  -> Just (mkColName $ pack s)
-  gMkDummy = M1 <$> gMkDummy
   gNew _ = gNew (Proxy :: Proxy a)
 
 instance (Typeable a, SqlType a) => GRelation (K1 i a) where
@@ -151,11 +132,6 @@ instance (Typeable a, SqlType a) => GRelation (K1 i a) where
         | typeRepTyCon (typeRep (Proxy :: Proxy a)) == maybeTyCon = [Optional]
         | otherwise                                               = [Required]
 
-  gMkDummy = do
-    n <- get
-    put (n+1)
-    return $ unsafeCoerce n
-
   gNew _ = [Untyped (Lit (defaultValue :: Lit a))]
 
 instance (GRelation a, GRelation b) => GRelation (a G.:*: b) where
@@ -167,10 +143,6 @@ instance (GRelation a, GRelation b) => GRelation (a G.:*: b) where
     where
       a = Proxy :: Proxy a
       b = Proxy :: Proxy b
-  gMkDummy = do
-    a <- gMkDummy :: State Int (a x)
-    b <- gMkDummy :: State Int (b x)
-    return (a G.:*: b)
   gNew _ = gNew (Proxy :: Proxy a) ++ gNew (Proxy :: Proxy b)
 
 #if MIN_VERSION_base(4, 9, 0)
@@ -182,7 +154,6 @@ instance
     )) => GRelation (a G.:+: b) where
   gParams = error "unreachable"
   gTblCols = error "unreachable"
-  gMkDummy = error "unreachable"
   gNew = error "unreachable"
 
 instance {-# OVERLAPS #-}
@@ -193,6 +164,5 @@ instance {-# OVERLAPS #-}
     )) => GRelation (K1 i (C.Col s a)) where
   gParams = error "unreachable"
   gTblCols = error "unreachable"
-  gMkDummy = error "unreachable"
   gNew = error "unreachable"
 #endif

@@ -66,7 +66,7 @@ data Person = Person
 instance SqlRow Person
 
 people :: Table Person
-people = table "people" [name :- primary]
+people = table "people" [s_name :- primary]
 (s_name :*: s_age :*: s_pet) = selectors people
 
 main = withSQLite "people.sqlite" $ do

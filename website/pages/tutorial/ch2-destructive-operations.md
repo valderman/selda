@@ -34,7 +34,7 @@ column attribute, specifying that `pid` is an *auto-incrementing* primary key.
 
 ```language-haskell
 people :: Table Person
-people = table "people" [pid :- autoPrimary]
+people = table "people" [s_id :- autoPrimary]
 ```
 
 With these simple changes, we can now use the somewhat magical `def` value when
@@ -233,7 +233,7 @@ data Person = Person
 instance SqlRow Person
 
 people :: Table Person
-people = table "people" [pid :- autoPrimary]
+people = table "people" [s_id :- autoPrimary]
 (s_id :*: s_name :*: s_age :*: s_pet) = selectors people
 ```
 

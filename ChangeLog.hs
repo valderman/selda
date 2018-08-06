@@ -8,7 +8,10 @@ import System.Process
 
 changeLog :: ChangeLog
 changeLog =
-  [ Version "0.3.0.0" "2018-08-05"
+  [ Version "0.3.1.0" "2018-08-06"
+    "Minor API fix when defining table attributes."
+    [ "Minor API fix when defining table attributes." ]
+  , Version "0.3.0.0" "2018-08-05"
     "Migrations, indexes, validation, and major API overhaul."
     [ "Support for Stack and GHC 8.4."
     , "Precedence fix for selector index (!) operator."

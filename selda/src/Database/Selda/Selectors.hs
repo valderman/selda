@@ -5,9 +5,10 @@
 module Database.Selda.Selectors
   ( Assignment ((:=)), Selected, Selector, Source, Selectors, GSelectors
   , (!), with, ($=)
-  , selectorsFor, selectorIndex
+  , selectorsFor, selectorIndex, unsafeSelector
   ) where
 import Control.Monad.State.Strict
+import Database.Selda.SqlRow (SqlRow)
 import Database.Selda.SqlType
 import Database.Selda.Types
 import Database.Selda.Column
@@ -29,6 +30,13 @@ type family Selected a b where
 type family Source a where
   Source (Maybe a) = a
   Source a         = a
+
+-- | A selector indicating the nth (zero-based) column of a table.
+--
+--   Will cause errors in queries during compilation, execution, or both,
+--   unless handled with extreme care. You really shouldn't use it at all.
+unsafeSelector :: SqlRow a => Int -> Selector a b
+unsafeSelector = Selector
 
 -- | Extract the given column from the given row.
 --   Extracting a value from a nullable column will yield a nullable value.

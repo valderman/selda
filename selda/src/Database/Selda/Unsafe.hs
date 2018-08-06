@@ -6,9 +6,11 @@ module Database.Selda.Unsafe
   , aggr
   , cast
   , castAggr
+  , unsafeSelector
   ) where
 import Database.Selda.Column
 import Database.Selda.Inner (Aggr, aggr, liftAggr)
+import Database.Selda.Selectors (unsafeSelector)
 import Database.Selda.SqlType
 import Data.Text (Text)
 import Data.Proxy

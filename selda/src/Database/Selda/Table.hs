@@ -30,7 +30,7 @@ import Database.Selda.Table.Validation (snub)
 --   Essentially a pair or a record selector over the type @a@ and a column
 --   attribute.
 data Attr a where
-  (:-) :: (a -> b) -> Attribute a b -> Attr a
+  (:-) :: Selector a b -> Attribute a b -> Attr a
 
 -- | Generate a table from the given table name and list of column attributes.
 --   All @Maybe@ fields in the table's type will be represented by nullable
@@ -90,19 +90,18 @@ tableFieldMod tn attrs fieldMod = Table
   , tableHasAutoPK = apk
   }
   where
-    dummy = mkDummy
     cols = zipWith addAttrs [0..] (tblCols (Proxy :: Proxy a) fieldMod)
     apk = or [AutoIncrement `elem` as | _ :- Attribute as <- attrs]
     addAttrs n ci = ci
       { colAttrs = colAttrs ci ++ concat
           [ as
-          | f :- Attribute as <- attrs
-          , identify dummy f == n
+          | sel :- Attribute as <- attrs
+          , selectorIndex sel == n
           ]
       , colFKs = colFKs ci ++
           [ thefk
-          | f :- ForeignKey thefk <- attrs
-          , identify dummy f == n
+          | sel :- ForeignKey thefk <- attrs
+          , selectorIndex sel == n
           ]
       }
 

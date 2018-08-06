@@ -456,4 +456,5 @@ validateTableValidates = do
     assertFail $ validateTable bad
   where
     bad :: Table (RowID, RowID)
-    bad = table "bad" [fst :- primary, snd :- primary]
+    bad = table "bad" [one :- primary, two :- primary]
+    one :*: two = selectors bad

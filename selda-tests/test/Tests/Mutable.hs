@@ -273,8 +273,8 @@ dupeInsertThrowsSeldaError = do
   dropTable comments'
   where
     comments' :: Table (Int, Maybe Text, Text)
-    comments' = table "comments" [(\(x,_,_) -> x) :- primary]
-    cId :*: cName :*: cComment = selectors comments
+    comments' = table "comments" [cId :- primary]
+    cId :*: cName :*: cComment = selectors comments'
 
 dupeInsert2ThrowsSeldaError = do
   setup
@@ -364,7 +364,8 @@ fkViolationFails = do
     dropTable addressesWithFK
   where
     addressesWithFK :: Table (Text, Text)
-    addressesWithFK = table "addressesWithFK" [fst :- foreignKey people pName]
+    addressesWithFK = table "addressesWithFK" [one :- foreignKey people pName]
+    one :*: two = selectors addressesWithFK
 
 data FKAddrs = FKAddrs
   { fkaName :: Text
@@ -380,8 +381,9 @@ genModFkViolationFails = do
   where
     addressesWithFK :: Table FKAddrs
     addressesWithFK = tableFieldMod "addressesWithFK"
-                                    [fkaName :- foreignKey people pName]
+                                    [aName :- foreignKey people pName]
                                     ("test_" <>)
+    aName :*: aCity = selectors addressesWithFK
 
 genModFkInsertSucceeds = do
     setup
@@ -397,7 +399,7 @@ genModFkInsertSucceeds = do
   where
     addressesWithFK :: Table FKAddrs
     addressesWithFK = tableFieldMod "addressesWithFK"
-                                    [fkaName :- foreignKey people pName]
+                                    [aName :- foreignKey people pName]
                                     ("test_" <>)
     aName :*: aCity = selectors addressesWithFK
 
@@ -409,9 +411,10 @@ multipleFKs = do
   where
     addressesWithFK :: Table (Text, Text)
     addressesWithFK = table "addressesWithFK"
-      [ fst :- foreignKey people pName
-      , fst :- foreignKey people pName
+      [ one :- foreignKey people pName
+      , two :- foreignKey people pName
       ]
+    one :*: two = selectors addressesWithFK
 
 uniqueViolation = do
     createTable uniquePeople
@@ -430,7 +433,7 @@ uniqueViolation = do
   where
     uniquePeople :: Table (Text, Maybe Text)
     (uniquePeople, upName :*: upPet) =
-          tableWithSelectors "uniquePeople" [fst :- unique]
+          tableWithSelectors "uniquePeople" [upName :- unique]
 
 insertOrUpdate = do
     tryDropTable counters
@@ -458,7 +461,7 @@ insertOrUpdate = do
     dropTable counters
   where
     counters :: Table (Int, Int)
-    counters = table "counters" [fst :- primary]
+    counters = table "counters" [c :- primary]
     c :*: v = selectors counters
 
 tryInsertDoesntFail = do
@@ -475,7 +478,7 @@ tryInsertDoesntFail = do
   where
     uniquePeople :: Table (Text, Maybe Text)
     (uniquePeople, upName :*: upPet) =
-      tableWithSelectors "uniquePeople" [fst :- unique]
+      tableWithSelectors "uniquePeople" [upName :- unique]
 
 isInList = do
   setup
@@ -586,7 +589,7 @@ boolTable = do
     dropTable tbl
   where
     tbl :: Table (RowID, Bool)
-    tbl = table "booltable" [fst :- untypedAutoPrimary]
+    tbl = table "booltable" [one :- untypedAutoPrimary]
     one :*: two = selectors tbl
 
 optionalFK = do
@@ -599,7 +602,7 @@ optionalFK = do
     dropTable tbl
   where
     tbl :: Table (RowID, Maybe RowID)
-    tbl = table "booltable" [fst :- untypedAutoPrimary, snd :- foreignKey tbl rid]
+    tbl = table "booltable" [rid :- untypedAutoPrimary, mrid :- foreignKey tbl rid]
     (rid :*: mrid) = selectors tbl
 
 -- | For genericAutoPrimary.
@@ -644,7 +647,7 @@ customEnum = do
     dropTable tbl
   where
     tbl :: Table (RowID, Foo)
-    tbl = table "enums" [fst :- untypedAutoPrimary]
+    tbl = table "enums" [one :- untypedAutoPrimary]
     one :*: two = selectors tbl
 
 disableForeignKeys = do
@@ -665,11 +668,12 @@ disableForeignKeys = do
       tryDropTable tbl1
 
     tbl1 :: Table (Only RowID)
-    tbl1 = table "table1" [the :- untypedAutoPrimary]
+    tbl1 = table "table1" [id1 :- untypedAutoPrimary]
     id1 = selectors tbl1
 
     tbl2 :: Table (RowID, RowID)
-    tbl2 = table "table2" [fst :- untypedAutoPrimary, snd :- foreignKey tbl1 id1]
+    tbl2 = table "table2" [s_fst :- untypedAutoPrimary, s_snd :- foreignKey tbl1 id1]
+    s_fst :*: s_snd = selectors tbl2
 
 migrationTest test = do
     tryDropTable migrationTable1
@@ -681,15 +685,15 @@ migrationTest test = do
     tryDropTable migrationTable3
 
 migrationTable1 :: Table (Only Int)
-migrationTable1 = table "table1" [the :- primary]
+migrationTable1 = table "table1" [mt1_1 :- primary]
 mt1_1 = selectors migrationTable1
 
 migrationTable2 :: Table (Text, Int)
-migrationTable2 = table "table1" [fst :- primary]
+migrationTable2 = table "table1" [mt2_1 :- primary]
 mt2_1 :*: mt2_2 = selectors migrationTable2
 
 migrationTable3 :: Table (Only Int)
-migrationTable3 = table "table3" [the :- primary]
+migrationTable3 = table "table3" [mt3_1 :- primary]
 mt3_1 = selectors migrationTable3
 
 steps =

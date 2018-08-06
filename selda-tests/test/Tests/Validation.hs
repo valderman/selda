@@ -6,6 +6,7 @@ import Control.Monad.Catch
 import Data.List hiding (groupBy, insert)
 import Data.Time
 import Database.Selda
+import Database.Selda.Unsafe
 import Database.Selda.Validation
 import Database.Selda.Backend
 import Test.HUnit
@@ -69,9 +70,15 @@ duplicatePKsFail = do
     _                -> liftIO $ assertFailure "ValidationError not thrown"
   where
     dupes1 :: Table (Int, Text)
-    dupes1 = table "duplicate" [fst :- primary, snd :- primary]
+    dupes1 = table "duplicate"
+      [ unsafeSelector 0 :- primary
+      , unsafeSelector 1 :- primary
+      ]
     dupes2 :: Table (RowID, Text)
-    dupes2 = table "duplicate" [fst :- untypedAutoPrimary, snd :- primary]
+    dupes2 = table "duplicate"
+      [ unsafeSelector 0 :- untypedAutoPrimary
+      , unsafeSelector 1 :- primary
+      ]
 
 nonUniqueFKFails = do
     res <- try (createTable addressesWithFK) :: SeldaM (Either ValidationError ())
@@ -80,8 +87,10 @@ nonUniqueFKFails = do
       Right _ -> liftIO $ assertFailure "ValidationError not thrown"
   where
     addressesWithFK :: Table (Text, Text)
-    addressesWithFK =
-      table "addressesWithFK" [fst :- foreignKey comments cComment]
+    addressesWithFK = table "addressesWithFK"
+      [ (unsafeSelector 0 :: Selector (Text, Text) Text)
+          :- foreignKey comments cComment
+      ]
 
 nonPrimaryUniqueFK = do
     createTable uniquePeople
@@ -91,10 +100,12 @@ nonPrimaryUniqueFK = do
   where
     uniquePeople :: Table (Text, Maybe Text)
     (uniquePeople, upName :*: upPet) =
-      tableWithSelectors "uniquePeople" [fst :- unique]
+      tableWithSelectors "uniquePeople" [upName :- unique]
     addressesWithFK :: Table (Text, Text)
-    addressesWithFK =
-      table "addressesWithFK" [fst :- foreignKey uniquePeople upName]
+    addressesWithFK = table "addressesWithFK"
+      [ (unsafeSelector 0 :: Selector (Text, Text) Text)
+          :- foreignKey uniquePeople upName
+      ]
 
 nullableUnique = do
     createTable uniquePeople
@@ -102,9 +113,15 @@ nullableUnique = do
   where
     uniquePeople :: Table (Text, Maybe Text)
     (uniquePeople, upName :*: upPet) =
-      tableWithSelectors "uniquePeople" [fst :- unique, snd :- unique]
+      tableWithSelectors "uniquePeople"
+        [ upName :- unique
+        , upPet :- unique
+        ]
     addressesWithFK :: Table (Text, Text)
-    addressesWithFK = table "addressesWithFK" [fst :- foreignKey uniquePeople upName]
+    addressesWithFK = table "addressesWithFK"
+      [ (unsafeSelector 0 :: Selector (Text, Text) Text)
+          :- foreignKey uniquePeople upName
+      ]
 
 validateWrongTable = do
     assertFail $ validateTable badPeople1
@@ -124,53 +141,54 @@ validateWrongTable = do
 
     badPeople1 :: Table (Text, Int, Text, Double)
     badPeople1 = tableFieldMod "people"
-      [ (\(_,_,x,_) -> x) :- index
-      , (\(_,_,_,x) -> x) :- indexUsing HashIndex
+      [ unsafeSelector 3 :- index
+      , unsafeSelector 4 :- indexUsing HashIndex
       ] peopleFieldNames
 
     badPeople2 :: Table (Text, Bool, Maybe Text, Double)
     badPeople2 = table "people"
-      [ (\(_,_,x,_) -> x) :- index
-      , (\(_,_,_,x) -> x) :- indexUsing HashIndex
+      [ unsafeSelector 3 :- index
+      , unsafeSelector 4 :- indexUsing HashIndex
       ]
 
     badPeople3 :: Table (Text, Int, Maybe Text)
     badPeople3 = table "people"
-      [ (\(_,_,x) -> x) :- index
+      [ unsafeSelector 2 :- index
       ]
 
     badPeople4 :: Table (Text, Int, Maybe Text, Double, Int)
     badPeople4 = table "people"
-      [ (\(_,_,x,_,_) -> x) :- index
-      , (\(_,_,_,x,_) -> x) :- indexUsing HashIndex
+      [ unsafeSelector 2 :- index
+      , unsafeSelector 3 :- indexUsing HashIndex
       ]
 
     badIxPeople1 :: Table (Text, Int, Maybe Text, Double)
     badIxPeople1 = table "people"
-      [ (\(_,_,_,x) -> x) :- indexUsing HashIndex
+      [ unsafeSelector 3 :- indexUsing HashIndex
       ]
 
     badIxPeople2 :: Table (Text, Int, Maybe Text, Double)
     badIxPeople2 = table "people"
-      [ (\(_,_,x,_) -> x) :- index
+      [ unsafeSelector 2 :- index
       ]
 
     badIxPeople3 :: Table (Text, Int, Maybe Text, Double)
     badIxPeople3 = table "people"
-      [ (\(x,_,_,_) -> x) :- index
-      , (\(_,_,x,_) -> x) :- index
-      , (\(_,_,_,x) -> x) :- indexUsing HashIndex
+      [ unsafeSelector 0 :- index
+      , unsafeSelector 2 :- index
+      , unsafeSelector 3 :- indexUsing HashIndex
       ]
 
     badIxPeople4 :: Table (Text, Int, Maybe Text, Double)
     badIxPeople4 = table "people"
-      [ (\(_,x,_,_) -> x) :- index
-      , (\(_,_,x,_) -> x) :- indexUsing HashIndex
-      , (\(_,_,_,x) -> x) :- indexUsing HashIndex
+      [ unsafeSelector 1 :- index
+      , unsafeSelector 2 :- indexUsing HashIndex
+      , unsafeSelector 3 :- indexUsing HashIndex
       ]
 
 validateNonexistentTable = do
     assertFail $ validateTable nonsense
   where
     nonsense :: Table (Only Int)
-    nonsense = table "I don't exist" [the :- primary]
+    nonsense = table "I don't exist" [one :- primary]
+    one = selectors nonsense
