@@ -8,7 +8,13 @@ import System.Process
 
 changeLog :: ChangeLog
 changeLog =
-  [ Version "0.3.1.0" "2018-08-06"
+  [ Version "0.3.2.0" "TBD"
+    "Minor API improvements and bug fixes."
+    [ "Some aggregates are now nullable."
+    , "sum_ on an empty table doesn't crash anymore."
+    , "Aggregating over an empty selectValues doesn't crash anymore."
+    ]
+  , Version "0.3.1.0" "2018-08-06"
     "Minor API fix when defining table attributes."
     [ "Minor API fix when defining table attributes." ]
   , Version "0.3.0.0" "2018-08-05"
