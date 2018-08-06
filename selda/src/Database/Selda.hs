@@ -282,7 +282,7 @@ matchNull nullvalue f x = ifThenElse (isNull x) nullvalue (f (cast x))
 -- | If the second value is Nothing, return the first value. Otherwise return
 --   the second value.
 ifNull :: SqlType a => Col s a -> Col s (Maybe a) -> Col s a
-ifNull = flip (fun2 "IFNULL")
+ifNull nullvalue x = ifThenElse (isNull x) nullvalue (cast x)
 
 -- | Any container type which can be mapped over.
 --   Sort of like 'Functor', if you squint a bit.
