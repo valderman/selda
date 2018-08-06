@@ -39,7 +39,7 @@ data Attr a where
 --   For example:
 --
 -- > data Person = Person
--- >   { id   :: Int
+-- >   { id   :: ID Person
 -- >   , name :: Text
 -- >   , age  :: Int
 -- >   , pet  :: Maybe Text
@@ -47,13 +47,13 @@ data Attr a where
 -- >   deriving Generic
 -- >
 -- > people :: Table Person
--- > people = table "people" [name :- autoPrimary]
+-- > people = table "people" [pId :- autoPrimary]
+-- > pId :*: pName :*: pAge :*: pPet = selectors people
 --
---   This example will create a table with the column types
---   @Int :*: Text :*: Int :*: Maybe Text@, where the first field is
---   an auto-incrementing primary key.
+--   This will result in a table of @Person@s, with an auto-incrementing primary
+--   key.
 --
---   If the given type is not a record type, the column names will be
+--   If the given type does not have record selectors, the column names will be
 --   @col_1@, @col_2@, etc.
 table :: forall a. Relational a
          => TableName
@@ -112,14 +112,12 @@ tidy ci = ci {colAttrs = snub $ colAttrs ci}
 -- | A pair of the table with the given name and columns, and all its selectors.
 --   For example:
 --
--- > tbl :: Table (Int :*: Text)
+-- > tbl :: Table (Int, Text)
 -- > (tbl, tblBar :*: tblBaz)
--- >   =  tableWithSelectors "foo"
--- >   $  required "bar"
--- >   :*: required "baz"
+-- >   =  tableWithSelectors "foo" []
 -- >
 -- > q :: Query s Text
--- > q = tblBaz <$> select tbl
+-- > q = tblBaz `from` select tbl
 tableWithSelectors :: forall a. Relational a
                    => TableName
                    -> [Attr a]
@@ -133,12 +131,14 @@ tableWithSelectors name cs = (t, s)
 --   Selectors can be used to access the fields of a query result tuple, avoiding
 --   the need to pattern match on the entire tuple.
 --
--- > tbl :: Table (Int :*: Text)
--- > tbl = table "foo" $ required "bar" :*: required "baz"
+-- > tbl :: Table (Int, Text)
+-- > tbl = table "foo" []
 -- > (tblBar :*: tblBaz) = selectors tbl
 -- >
 -- > q :: Query s Text
--- > q = tblBaz <$> select tbl
+-- > q = do
+-- >   row <- select tbl
+-- >   return (row ! tblBaz)
 selectors :: forall a. Relational a => Table a -> Selectors a
 selectors _ = selectorsFor (Proxy :: Proxy a)
 
