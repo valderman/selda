@@ -11,12 +11,13 @@ import Database.Selda.Generic
 import Database.Selda.Inner
 import Database.Selda.Query.Type
 import Database.Selda.SQL as SQL
-import Database.Selda.SqlType (SqlType)
+import Database.Selda.SqlType (SqlType, Lit (LNull), SqlTypeRep (..))
 import Database.Selda.SqlRow (SqlRow (nestedCols))
 import Database.Selda.Table
 import Database.Selda.Transform
 import Control.Monad.State.Strict
 import Data.Proxy
+import GHC.Generics (Rep)
 import Unsafe.Coerce
 
 -- | Query the given table.
@@ -33,7 +34,7 @@ selectValues :: forall s a. Relational a => [a] -> Query s (Row s a)
 selectValues [] = Query $ do
   st <- get
   put $ st {sources = sqlFrom [] EmptyTable : sources st}
-  return $ Many (replicate (nestedCols (Proxy::Proxy a)) (Untyped $ Col "NULL"))
+  return $ Many (gNew (Proxy :: Proxy (Rep a)))
 selectValues (row:rows) = Query $ do
     names <- mapM (const freshName) firstrow
     let rns = [Named n (Col n) | n <- names]

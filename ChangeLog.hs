@@ -8,7 +8,7 @@ import System.Process
 
 changeLog :: ChangeLog
 changeLog =
-  [ Version "0.3.2.0" "TBD"
+  [ Version "0.3.2.0" "2018-08-07"
     "Minor API improvements and bug fixes."
     [ "Some aggregates are now nullable."
     , "sum_ on an empty table doesn't crash anymore."
