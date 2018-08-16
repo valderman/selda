@@ -27,6 +27,7 @@ type family SelType' (a :: * -> *) (b :: *) (name :: Symbol) :: * where
   SelType' (a :*: b) c name  = SelType' a (SelType' b c name) name
   SelType' a b name          = b
 
+-- | The type of the @name@ field, in the record type @t@.
 type family FieldType (name :: Symbol) (t :: *) :: * where
   FieldType name t = SelType' (Rep t) (NoSuchSelector t name) name
 
