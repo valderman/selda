@@ -45,11 +45,13 @@ source-repository head
 library
   exposed-modules:
     Database.Selda
-    Database.Selda.FieldSelectors
     Database.Selda.Backend
     Database.Selda.Migrations
     Database.Selda.Unsafe
     Database.Selda.Validation
+  if impl(ghc >= 7.11)
+    exposed-modules:
+      Database.Selda.FieldSelectors
   other-modules:
     Database.Selda.Backend.Internal
     Database.Selda.Caching
