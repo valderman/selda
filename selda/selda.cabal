@@ -45,6 +45,7 @@ source-repository head
 library
   exposed-modules:
     Database.Selda
+    Database.Selda.FieldSelectors
     Database.Selda.Backend
     Database.Selda.Migrations
     Database.Selda.Unsafe
