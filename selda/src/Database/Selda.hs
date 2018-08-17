@@ -28,9 +28,8 @@ module Database.Selda
   , Table, Query, Row, Col, Res, Result
   , query, queryInto
   , transaction, setLocalCache, withoutForeignKeyEnforcement
+
     -- * Constructing queries
-  , Selector, Source, Selected, (!), Assignment ((:=)), with
-  , (+=), (-=), (*=), (||=), (&&=), ($=)
   , SqlType (..), SqlRow (..), SqlEnum (..)
   , Columns
   , Order (..)
@@ -40,6 +39,15 @@ module Database.Selda
   , order, ascending, descending
   , orderRandom
   , inner, suchThat
+
+    -- * Working with selectors
+  , Selector, Source, Selected
+#if MIN_VERSION_base(4, 9, 0)
+  , HasField, FieldType, field
+#endif
+  , (!), Assignment ((:=)), with
+  , (+=), (-=), (*=), (||=), (&&=), ($=)
+
     -- * Expressions over columns
   , Set (..)
   , ID, invalidId, isInvalidId, untyped, toId
@@ -50,20 +58,25 @@ module Database.Selda
   , roundTo, length_, isNull, ifThenElse, ifNull, matchNull
   , new, only
   , Mappable (..)
+
     -- * Converting between column types
   , round_, just, fromBool, fromInt, toString
+
     -- * Inner queries
   , Aggr, Aggregates, OuterCols, AggrCols, LeftCols, Inner, SqlOrd
   , innerJoin, leftJoin
   , aggregate, groupBy
   , count, avg, sum_, max_, min_
+
     -- * Modifying tables
   , insert, insert_, insertWithPK, tryInsert, insertUnless, insertWhen, def
   , update, update_, upsert
   , deleteFrom, deleteFrom_
+
     -- * Prepared statements
   , Preparable, Prepare
   , prepared
+
     -- * Defining schemas
   , Generic
   , TableName, ColName, Attr (..), Attribute
@@ -71,17 +84,21 @@ module Database.Selda
   , table, tableFieldMod, tableWithSelectors, selectors
   , primary, autoPrimary, untypedAutoPrimary, unique
   , IndexMethod (..), index, indexUsing
+
     -- * Creating and dropping tables
   , createTable, tryCreateTable
   , dropTable, tryDropTable
+
     -- * Compiling and inspecting queries
   , OnError (..)
   , compile
   , compileCreateTable, compileDropTable
   , compileInsert, compileUpdate
+
     -- * Tuple convenience functions
   , Tup, Head
   , first, second, third, fourth, fifth, sixth, seventh, eighth, ninth, tenth
+
     -- * Useful re-exports
   , MonadIO, liftIO
   , Text, Day, TimeOfDay, UTCTime
@@ -114,6 +131,7 @@ import GHC.Generics (Rep)
 import Unsafe.Coerce
 
 #if MIN_VERSION_base(4, 9, 0)
+import Database.Selda.FieldSelectors
 import GHC.TypeLits as TL
 #endif
 

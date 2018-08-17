@@ -2,6 +2,7 @@
 {-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables, AllowAmbiguousTypes, TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances, ConstraintKinds, UndecidableSuperClasses #-}
+{-# LANGUAGE TypeApplications #-}
 -- | Create Selda selectors from plain record field selectors.
 --   Requires the @TypeApplications@ and @DataKinds@ language extensions
 --   to be even remotely useful.
@@ -17,35 +18,36 @@ import GHC.Generics
 import GHC.TypeLits
 
 -- | Get the next nested type.
-type family NextConType (f :: * -> *) :: * where
-  NextConType (M1 c i f) = NextConType f
-  NextConType (K1 i a)   = a
+type family GetFieldType (f :: * -> *) :: * where
+  GetFieldType (M1 c i f) = GetFieldType f
+  GetFieldType (K1 i a)   = a
 
-type family SelType' (a :: * -> *) (b :: *) (name :: Symbol) :: * where
-  SelType' (M1 S ('MetaSel ('Just name) su ss ds) f) b name = NextConType f
-  SelType' (M1 c i a) b name = SelType' a b name
-  SelType' (a :*: b) c name  = SelType' a (SelType' b c name) name
-  SelType' a b name          = b
+-- | Get the type of the field @name@ from the generic representation @a@,
+--   returning the default value @b@ if the field does not exist.
+type family GFieldType (a :: * -> *) (b :: *) (name :: Symbol) :: * where
+  GFieldType (M1 S ('MetaSel ('Just name) su ss ds) f) b name = GetFieldType f
+  GFieldType (M1 c i a) b name = GFieldType a b name
+  GFieldType (a :*: b) c name  = GFieldType a (GFieldType b c name) name
+  GFieldType a b name          = b
 
 -- | The type of the @name@ field, in the record type @t@.
-type family FieldType (name :: Symbol) (t :: *) :: * where
-  FieldType name t = SelType' (Rep t) (NoSuchSelector t name) name
+type FieldType name t = GFieldType (Rep t) (NoSuchSelector t name) name
 
 type family NonError (t :: k) :: Constraint where
   NonError (NoSuchSelector t s) = TypeError
     ( 'Text "Row type '" ':<>: 'ShowType t ':<>:
       'Text "' has no selector " ':<>: 'ShowType s ':<>: 'Text "."
     )
-  NonError t                 = ()
+  NonError t = ()
 
 -- | Internal representation of the "no such selector" error message.
 data NoSuchSelector (t :: *) (s :: Symbol)
 
 -- | Any table type @t@, which has a field named @name@.
-class (GRSel name (Rep t), NonError (FieldType name t)) =>
+class (Generic t, GRSel name (Rep t), NonError (FieldType name t)) =>
   HasField (name :: Symbol) t
 
-instance (GRSel name (Rep t), NonError (FieldType name t)) =>
+instance (Generic t, GRSel name (Rep t), NonError (FieldType name t)) =>
   HasField (name :: Symbol) t
 
 -- | Create a selector from a record selector and a type application.
@@ -68,21 +70,21 @@ field :: forall name t.
        (Relational t, HasField name t)
     => S.Selector t (FieldType name t)
 field =
-  case gSel (Proxy :: Proxy (Rep t)) (Proxy :: Proxy name) 0 of
+  case gSel @name @(Rep t) 0 of
     Left n -> unsafeSelector n
     _      -> error "unreachable"
 
 class GRSel (s :: Symbol) (f :: * -> *) where
-  gSel :: Proxy f -> Proxy s -> Int -> Either Int Int
+  gSel :: Int -> Either Int Int
 
 instance GRSel name (M1 S ('MetaSel ('Just name) su ss ds) f) where
-  gSel _ _ n = Left n
+  gSel = Left
 
 instance {-# OVERLAPPABLE #-} GRSel name f => GRSel name (M1 i s f) where
-  gSel _ = gSel (Proxy :: Proxy f)
+  gSel = gSel @name @f
 
 instance (GRSel name a, GRSel name b) => GRSel name (a :*: b) where
-  gSel _ p n = gSel (Proxy :: Proxy a) p n >>= gSel (Proxy :: Proxy b) p . succ
+  gSel n = gSel @name @a n >>= gSel @name @b . succ
 
 instance GRSel name (K1 i a) where
-  gSel _ _ n = pure n
+  gSel = Right

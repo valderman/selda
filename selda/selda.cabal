@@ -49,9 +49,6 @@ library
     Database.Selda.Migrations
     Database.Selda.Unsafe
     Database.Selda.Validation
-  if impl(ghc >= 7.11)
-    exposed-modules:
-      Database.Selda.FieldSelectors
   other-modules:
     Database.Selda.Backend.Internal
     Database.Selda.Caching
@@ -76,6 +73,9 @@ library
     Database.Selda.Table.Validation
     Database.Selda.Transform
     Database.Selda.Types
+  if impl(ghc >= 7.11)
+    other-modules:
+      Database.Selda.FieldSelectors
   other-extensions:
     OverloadedStrings
     GADTs
