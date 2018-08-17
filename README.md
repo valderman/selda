@@ -145,4 +145,3 @@ Features that would be nice to have but are not yet implemented.
 * Streaming
 * MySQL/MariaDB backend.
 * MSSQL backend.
-* Automatically sanity check changelog, versions and date before release.

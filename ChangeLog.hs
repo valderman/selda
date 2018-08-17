@@ -1,14 +1,20 @@
 -- | More structured changelog, for easy release automation.
 module Main where
 import Control.Monad (when)
+import Data.Time
 import System.Environment
 import System.Exit
 import System.FilePath
 import System.Process
+import Text.Read
 
 changeLog :: ChangeLog
 changeLog =
-  [ Version "0.3.2.0" "2018-08-07"
+  [ Version "0.3.3.0" "TBD"
+    "Ad hoc selectors on GHC 8.0 and up."
+    [ "Ad hoc selectors using DataKinds and TypeApplications."
+    ]
+  , Version "0.3.2.0" "2018-08-07"
     "Minor API improvements and bug fixes."
     [ "Some aggregates are now nullable."
     , "sum_ on an empty table doesn't crash anymore."
@@ -174,8 +180,8 @@ changeLog =
   ]
 
 data Version = Version
-  { vVersion :: String
-  , vDate    :: String
+  { vVersion :: String -- ^ X.Y.Z.W
+  , vDate    :: String -- ^ YYYY-MM-DD
   , vSummary :: String
   , vChanges :: [String]
   }
@@ -224,10 +230,82 @@ tagCurrentVersion ch = callProcess "git" flags
 writeChangelogMD :: String -> FilePath -> ChangeLog -> IO ()
 writeChangelogMD pkgname dir = writeFile (dir </> "ChangeLog.md") . toMD pkgname
 
+-- | Get the latest entry in the changelog.
+latestEntry :: ChangeLog -> Version
+latestEntry = head
+
+-- | Get the release date from the latest entry in the changelog.
+latestReleaseDate :: ChangeLog -> String
+latestReleaseDate = vDate . latestEntry
+
+-- | Get the version number from the latest entry in the changelog.
+latestVersion :: ChangeLog -> String
+latestVersion = vVersion . latestEntry
+
+-- | Does the given string contain a valid release date?
+validReleaseDate :: String -> Bool
+validReleaseDate date = and
+    [ validate (\y -> y >= 2017 && y <  2100) year
+    , validate (\m -> m >= 1    && m <= 12) month
+    , validate (\d -> d >= 1    && d <= 31) day
+    ]
+  where
+    year  = take 4 date
+    month = take 2 $ drop 5 date
+    day   = drop 8 date
+
+-- | Is the given string a valid version number?
+validVersion :: String -> Bool
+validVersion version =
+    all (validate (\x -> x >= 0 && x <= 99)) parts && length parts == 4
+  where
+    parts = words $ map undot version
+    undot '.' = ' '
+    undot c   = c
+
+-- | Returns @True@ if the given string is readable at the given type, and the
+--   resulting value fulfills the given predicate.
+validate :: Read a => (a -> Bool) -> String -> Bool
+validate p s =
+  case readMaybe s of
+    Just x -> p x
+    _      -> False
+
+-- | Ensure that the changelog is valid for release.
+validateChangeLog :: ChangeLog -> IO ()
+validateChangeLog changelog = do
+    let date = latestReleaseDate changeLog
+        version = latestVersion changeLog
+
+    when (not $ validReleaseDate date) $ do
+      putStrLn ("Invalid release date: " ++ date)
+      exitFailure
+
+    when (not $ validVersion version) $ do
+      putStrLn ("Invalid version: " ++ version)
+      exitFailure
+
+    today <- utctDay <$> getCurrentTime
+    when (show today /= date) $ do
+      putStrLn ("Release date does not match today's date.")
+      exitFailure
+
+    when (null $ vSummary $ latestEntry changeLog) $ do
+      putStrLn ("Changelog has no summary.")
+      exitFailure
+
+    when (null $ vChanges $ latestEntry changeLog) $ do
+      putStrLn ("Changelog has no list of changes.")
+      exitFailure
+
 main = do
   args <- getArgs
   when (null args || any (not . (`elem` ["tag", "md"])) args) $ do
     putStrLn "usage: runghc ChangeLog.hs tag|md"
     exitFailure
-  when ("tag" `elem` args) $ tagCurrentVersion changeLog
-  when ("md" `elem` args) $ writeChangelogMD "Selda" "selda" changeLog
+  validateChangeLog changeLog
+
+  when ("tag" `elem` args) $ do
+    tagCurrentVersion changeLog
+  when ("md" `elem` args) $ do
+    writeChangelogMD "Selda" "selda" changeLog
