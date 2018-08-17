@@ -9,6 +9,8 @@ cabal.sandbox.config
 /selda/README.md
 /selda/ChangeLog.md
 /selda/*.yaml
+/website/BaseUrl.hs
+/website/_site
 /*/LICENSE
 result*
 *.sqlite
