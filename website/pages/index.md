@@ -51,6 +51,7 @@ $ cabal install selda-postgresql
 
 ```language-haskell
 {-# LANGUAGE DeriveGeneric, OverloadedStrings #-}
+{-# LANGUAGE DataKinds, TypeApplications #-}
 import Database.Selda
 import Database.Selda.SQLite
 
@@ -66,8 +67,7 @@ data Person = Person
 instance SqlRow Person
 
 people :: Table Person
-people = table "people" [s_name :- primary]
-(s_name :*: s_age :*: s_pet) = selectors people
+people = table "people" [field @"name" :- primary]
 
 main = withSQLite "people.sqlite" $ do
   createTable people
@@ -79,8 +79,8 @@ main = withSQLite "people.sqlite" $ do
 
   adultsAndTheirPets <- query $ do
     person <- select people
-    restrict (person ! s_age .>= 18)
-    return (person ! s_name :*: person ! s_pet)
+    restrict (person ! field @"age" .>= 18)
+    return (person ! field @"name" :*: person ! field @"pet")
   liftIO $ print adultsAndTheirPets
 ```
 </div>

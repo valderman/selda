@@ -34,7 +34,7 @@ column attribute, specifying that `pid` is an *auto-incrementing* primary key.
 
 ```language-haskell
 people :: Table Person
-people = table "people" [s_id :- autoPrimary]
+people = table "people" [field @"pid" :- autoPrimary]
 ```
 
 With these simple changes, we can now use the somewhat magical `def` value when
@@ -111,8 +111,8 @@ a pet, and decide to give every pet-less person a dog:
 petsForEveryone :: SeldaM Int
 petsForEveryone = do
   update people
-         (\person -> isNull (person ! s_pet))
-         (\person -> person `with` [s_pet := just (literal Dog)])
+         (\person -> isNull (person ! field @"pet"))
+         (\person -> person `with` [field @"pet" := just (literal Dog)])
 ```
 
 Here we see the use of `with` for the first time.
@@ -128,7 +128,7 @@ values:
 ```language-haskell
 ageEveryone :: SeldaM Int
 ageEveryone = do
-  update people (const true) (\person -> person `with` [s_age += 1])
+  update people (const true) (\person -> person `with` [field @"age" += 1])
 ```
 
 As expected, this function will increment everyone's age by one.
@@ -161,8 +161,8 @@ name if none exists, we would do the following:
 horseForMiyu :: SeldaM ()
 horseForMiyu = do
   result <- upsert people
-                   (\person -> person ! s_name .== "Miyu")
-                   (\person -> person `with` [s_pet := just (literal Horse)])
+                   (\person -> person ! field @"name" .== "Miyu")
+                   (\person -> person `with` [field @"pet" := just (literal Horse)])
                    [Person def Miyu 10 Nothing]
   case result of
     Just id -> liftIO $ putStrLn ("person inserted with id " ++ show id)
@@ -201,7 +201,7 @@ table (they've probably gotten eaten already anyway):
 ```language-haskell
 deleteDragonOwners :: SeldaM Int
 deleteDragonOwners = do
-  deleteFrom persons (\person -> person ! s_pet .== just (literal Dragon))
+  deleteFrom persons (\person -> person ! field @"pet" .== just (literal Dragon))
 ```
 ```language-haskell
 > withSQLite "database.sqlite" deleteDragonOwners
@@ -233,8 +233,7 @@ data Person = Person
 instance SqlRow Person
 
 people :: Table Person
-people = table "people" [s_id :- autoPrimary]
-(s_id :*: s_name :*: s_age :*: s_pet) = selectors people
+people = table "people" [field @"id" :- autoPrimary]
 ```
 
 ### The Data

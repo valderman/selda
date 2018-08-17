@@ -11,6 +11,7 @@ insert new rows, and perform simple queries against those tables.
 
 ```language-haskell
 {-# LANGUAGE DeriveGeneric, OverloadedStrings #-}
+{-# LANGUAGE DataKinds, TypeApplications #-}
 import Database.Selda
 import Database.Selda.SQLite
 ```
@@ -24,6 +25,8 @@ The `DeriveGeneric` extension lets us derive the `Generic` type class, which
 is important since Selda uses generics heavily to map Haskell types to database
 tables. `OverloadedStrings` is not strictly required, but highly recommended
 to reduce boilerplate when working with `Text` fields.
+`DataKinds` and `TypeApplications` are used to specify *table selectors*, which
+will be explained in greater detail [a few paragraphs down](#selectors).
 
 ```language-haskell
 data Pet = Dog | Horse | Dragon
@@ -60,32 +63,31 @@ In fact, you should never need to implement `SqlRow` yourself.
 
 ```language-haskell
 people :: Table Person
-people = table "people" [s_name :- primary]
+people = table "people" [field @"name" :- primary]
 ```
 
+<a id="selectors"></a>
 Once we have the `Person` type and its `SqlRow` instance, building a table
 from it is easy.
 The `table` function accepts a table name, and a list of column attributes where
 things like indexes, foreign keys and other constraints can be declared.
-Selectors of the table &mdash; explained in detail in the next paragraph &mdash;
-are used to specify these attributes.
-
-In our case, we want to specify the `name` fields as the primary key of our
+Such attributes are specified by linking *selectors* of the table
+&mdash; such as `field @"name"` in this example &mdash; to various attribute
+definitions.
+In our example, we want to specify the `name` fields as the primary key of our
 table.
 
-```language-haskell
-(s_name :*: s_age :*: s_pet) = selectors people
-```
+Field selectors work by passing the *name* of a plain Haskell record selector
+to the `field` function *as a type*, which performs some type-level magic to
+ensure that the selector is valid for the row we want to use it on.
 
-To access the columns of a table within queries, we need to declare the
-*selectors* of the table: essentially a Selda-specific complement to
-the type's normal Haskell record selectors.
-The `selectors` function returns an *inductive tuple* &mdash; one or more values
-separated by the `:*:` data constructor &mdash; or all selectors corresponding
-to its given type.
+If the line noise of writing out selectors as `field @"nameOfTheField"`
+bothers you, there also exists a handy function `selectors`, which generates
+all selectors for some table in one go.
+In fact, since the `field @...` syntax requires the presence of an actual
+record selector, using `selectors` is the *only* way to define selectors for
+non-record types, such as `(Int, Int)` or `data Foo = Foo Text Bool Double`.
 
-In our example, the `people` table has three columns since it maps to the
-`People` type, so `selectors people` will give us back three selectors.
 
 ```language-haskell
 main = withSQLite "people.sqlite" $ do
@@ -146,7 +148,7 @@ In this example `person` has the type `Row s Person`, and represents a single
 row from the `people` table.
 
 ```language-haskell
-restrict (person ! s_age .>= 18)
+restrict (person ! field @"age" .>= 18)
 ```
 
 The columns of a row can be accessed using the table's selectors.
@@ -154,14 +156,16 @@ The syntax for this is `row ! selector`. The column thus obtained can then be
 arbitrarily used in expressions.
 
 In this example, we use the `restrict` function (roughly equivalent
-to SQL `WHERE`) to filter out all persons who have a `s_age` lower than 18.
+to SQL `WHERE`) to filter out all persons who have an `age` lower than 18.
 
 ```language-haskell
-return (person ! s_name :*: person ! s_pet)
+return (person ! field @"name" :*: person ! field @"pet")
 ```
 
 Once we're done fetching rows and filtering, we can return any number of rows
-or columns, grouped together as an inductive tuple.
+or columns, grouped together as an *inductive tuple* &mdash;
+one or more values separated by the `:*:` data constructor.
+
 Whatever we return from a query will, upon execution, be converted to
 the corresponding Haskell type and returned from the `query` call we just
 returned from.
@@ -171,8 +175,8 @@ to a single result row. For instance, a query of type `Query s (Row s Person)`
 will return `[Person]` when executed, and a query of
 type `Query s (Row s Person :*: Col s Int)` will return `[Person :*: Int]`.
 
-In this particular example, the `s_name` field of the person table has type
-`Text` and the `s_pet` field has type `Maybe Text`.
+In this particular example, the `name` field of the person table has type
+`Text` and the `pet` field has type `Maybe Text`.
 From this we can deduce that the query has type
 `Query s (Col s Text :*: Col s (Maybe Text))`, meaning that the type returned
 back to Haskell land will be `[Text :*: Maybe Text]`.
@@ -201,6 +205,7 @@ the result set, when printed, should look like this:
 
 ```language-haskell
 {-# LANGUAGE DeriveGeneric, OverloadedStrings #-}
+{-# LANGUAGE DataKinds, TypeApplications #-}
 import Database.Selda
 import Database.Selda.SQLite
 
@@ -216,8 +221,7 @@ data Person = Person
 instance SqlRow Person
 
 people :: Table Person
-people = table "people" [s_name :- primary]
-(s_name :*: s_age :*: s_pet) = selectors people
+people = table "people" [field @"name" :- primary]
 
 main = withSQLite "people.sqlite" $ do
   createTable people
@@ -229,8 +233,8 @@ main = withSQLite "people.sqlite" $ do
 
   adultsAndTheirPets <- query $ do
     person <- select people
-    restrict (person ! s_age .>= 18)
-    return (person ! s_name :*: person ! s_pet)
+    restrict (person ! field @"age" .>= 18)
+    return (person ! field @"name" :*: person ! field @"pet")
   liftIO $ print adultsAndTheirPets
 ```
 

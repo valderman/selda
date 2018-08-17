@@ -25,7 +25,7 @@ peopleWithHomes :: Query s (Row s Person :*: Row s Home)
 peopleWithHomes = do
   person <- select people
   home <- select homes
-  restrict (person ! s_name .== home ! s_ownerName)
+  restrict (person ! field @"name" .== home ! field @"ownerName")
   return (person :*: home)
 ```
 
@@ -62,12 +62,12 @@ particular value is contained in some other result set.
 homelessPeople :: Query s (Row s Person)
 homelessPeople = do
   person <- select people
-  restrict (not_ $ (person ! s_name) `isIn` (s_ownerName `from` select homes))
+  restrict (not_ $ (person ! field @"name") `isIn` (field @"ownerName" `from` select homes))
   return person
 ```
 
 The set of home owners is produced by the query
-``s_ownerName `from` select homes``.
+``@field "ownerName" `from` select homes``.
 The `from` function is a convenient shorthand for extracting a single column
 from a query, and is defined as `from s q = fmap (!s) q`.
 
@@ -83,7 +83,7 @@ We can accomplish this by using the `new` function.
 personsFromHomes :: Query s (Row s Person)
 personsFromHomes = do
   home <- select homes
-  return $ new [s_name := home ! s_ownerName]
+  return $ new [field @"name" := home ! field @"ownerName"]
 ```
 
 `new` takes a list of updates &mdash; as seen
@@ -109,12 +109,12 @@ a cheap home in Tokyo to any homeless persons in the `people` table.
 homesForEveryone :: SeldaM Int
 homesForEveryone = queryInto homes $ do
   person <- select people
-  restrict (not_ $ (person ! s_name) `isIn` (s_ownerName `from` select homes))
+  restrict (not_ $ (person ! field @"name") `isIn` (field @"ownerName" `from` select homes))
 
   return $ new
-    [ s_ownerName := person ! s_names
-    , s_city := "Tokyo"
-    , s_rent := 50000
+    [ field @"ownerName" := person ! field @"names"
+    , field @"city" := "Tokyo"
+    , field @"rent" := 50000
     ]
 ```
 
@@ -157,12 +157,10 @@ data Home = Home
 instance SqlRow Home
 
 people :: Table Person
-people = table "people" [s_id :- autoPrimary]
-(s_id :*: s_name :*: s_age :*: s_pet) = selectors people
+people = table "people" [field @"pid" :- autoPrimary]
 
 homes :: Table Home
 homes = table "homes" []
-(s_ownerName :*: s_city :*: s_rent) = selectors homes
 ```
 
 <!-- **Next:** [Chapter 4: Joins and Aggregates](tutorial/ch4-joins-and-aggregates)<br> --!>
