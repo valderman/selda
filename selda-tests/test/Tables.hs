@@ -1,4 +1,7 @@
 {-# LANGUAGE OverloadedStrings, TypeOperators, DeriveGeneric, CPP #-}
+#if MIN_VERSION_base(4, 9, 0)
+{-# LANGUAGE TypeApplications, DataKinds, FlexibleContexts #-}
+#endif
 -- | Tables for reuse by most tests, and functions for their setup and teardown.
 module Tables where
 import Database.Selda
@@ -24,7 +27,15 @@ people = table "people"
   , pName :- index
   , pCash :- indexUsing HashIndex
   ]
+#if MIN_VERSION_base(4, 9, 0)
+pName = field @"name" :: Selector Person Text
+pAge :: HasField "age" t => Selector t (FieldType "age" t)
+pAge  = field @"age"
+pPet  = field @"pet"  :: Selector Person (Maybe Text)
+pCash = field @"cash" :: HasField "cash" t => Selector t (FieldType "cash" t)
+#else
 pName :*: pAge :*: pPet :*: pCash = selectors people
+#endif
 
 addresses :: Table (Text, Text)
 (addresses, aName :*: aCity) = tableWithSelectors "addresses" []

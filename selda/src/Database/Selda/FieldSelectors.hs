@@ -44,10 +44,10 @@ type family NonError (t :: k) :: Constraint where
 data NoSuchSelector (t :: *) (s :: Symbol)
 
 -- | Any table type @t@, which has a field named @name@.
-class (Generic t, GRSel name (Rep t), NonError (FieldType name t)) =>
+class (Relational t, GRSel name (Rep t), NonError (FieldType name t)) =>
   HasField (name :: Symbol) t
 
-instance (Generic t, GRSel name (Rep t), NonError (FieldType name t)) =>
+instance (Relational t, GRSel name (Rep t), NonError (FieldType name t)) =>
   HasField (name :: Symbol) t
 
 -- | Create a selector from a record selector and a type application.
