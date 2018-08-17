@@ -300,11 +300,12 @@ validateChangeLog changelog = do
 
 main = do
   args <- getArgs
-  when (null args || any (not . (`elem` ["tag", "md"])) args) $ do
-    putStrLn "usage: runghc ChangeLog.hs tag|md"
+  when (null args || any (not . (`elem` ["tag", "md", "validate"])) args) $ do
+    putStrLn "usage: runghc ChangeLog.hs tag|md|validate"
     exitFailure
-  validateChangeLog changeLog
 
+  when ("validate" `elem` args) $ do
+    validateChangeLog changeLog
   when ("tag" `elem` args) $ do
     tagCurrentVersion changeLog
   when ("md" `elem` args) $ do
