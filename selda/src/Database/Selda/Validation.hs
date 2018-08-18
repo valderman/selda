@@ -26,7 +26,7 @@ isCompatibleWith a b         = a == b
 --   database.
 --   Throws a 'ValidationError' if the schema does not validate, or if
 --   inconsistencies were found.
-validateTable :: MonadSelda m => Table a -> m ()
+validateTable :: (MonadSelda m, MonadThrow m) => Table a -> m ()
 validateTable t = do
   validateSchema t
   diffs <- diffTable t

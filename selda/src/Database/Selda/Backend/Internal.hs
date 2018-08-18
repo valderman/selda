@@ -1,4 +1,4 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, DefaultSignatures #-}
 -- | Internal backend API.
 module Database.Selda.Backend.Internal
   ( StmtID, BackendID (..)
@@ -218,7 +218,7 @@ data SeldaState = SeldaState
 --   'wrapTransaction' flush the entire cache and disable caching when
 --   invoked. If you want to use Selda's built-in caching mechanism, you will
 --   need to implement these operations yourself.
-class (MonadIO m, MonadMask m) => MonadSelda m where
+class MonadIO m => MonadSelda m where
   -- | Get the connection in use by the computation.
   seldaConnection :: m SeldaConnection
 
@@ -245,6 +245,7 @@ class (MonadIO m, MonadMask m) => MonadSelda m where
                   -> m () -- ^ Signal transaction rollback to SQL backend.
                   -> m a  -- ^ Transaction to perform.
                   -> m a
+  default wrapTransaction :: MonadMask m => m () -> m () -> m a -> m a
   wrapTransaction commit rollback act = do
     bracketOnError (pure ())
                    (const rollback)

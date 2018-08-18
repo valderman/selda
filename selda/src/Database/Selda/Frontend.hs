@@ -92,7 +92,7 @@ insert t cs = do
 --
 --   Like 'insert', if even one of the inserted rows would cause a constraint
 --   violation, the whole insert operation fails.
-tryInsert :: (MonadSelda m, Relational a) => Table a -> [a] -> m Bool
+tryInsert :: (MonadSelda m, MonadCatch m, Relational a) => Table a -> [a] -> m Bool
 tryInsert tbl row = do
   mres <- try $ insert tbl row
   case mres of
@@ -241,7 +241,7 @@ tryDropTable = withInval $ void . flip exec [] . compileDropTable Ignore
 --   will be rolled back and the exception re-thrown, even if the exception
 --   is caught and handled within the transaction.
 transaction :: MonadSelda m => m a -> m a
-transaction m =
+transaction m = do
   wrapTransaction (void $ exec "COMMIT" []) (void $ exec "ROLLBACK" []) $ do
     exec "BEGIN TRANSACTION" [] *> m
 
@@ -253,7 +253,7 @@ transaction m =
 --   Use with extreme caution, preferably only for migrations.
 --
 --   On the PostgreSQL backend, at least PostgreSQL 9.6 is required.
-withoutForeignKeyEnforcement :: MonadSelda m => m a -> m a
+withoutForeignKeyEnforcement :: (MonadSelda m, MonadMask m) => m a -> m a
 withoutForeignKeyEnforcement m = do
   b <- seldaBackend
   bracket_ (liftIO $ disableForeignKeys b True)
@@ -309,4 +309,8 @@ withInval f t = do
 exec :: MonadSelda m => Text -> [Param] -> m Int
 exec q ps = do
   backend <- seldaBackend
-  fmap fst . liftIO $ runStmt backend q ps
+  liftIO $ execIO backend q ps
+
+-- | Like 'exec', but in 'IO'.
+execIO :: SeldaBackend -> Text -> [Param] -> IO Int
+execIO backend q ps = fmap fst $ runStmt backend q ps

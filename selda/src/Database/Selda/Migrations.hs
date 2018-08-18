@@ -39,7 +39,7 @@ type MigrationStep = [Migration]
 --
 --   The migration is performed as a migration, ensuring that either the entire
 --   migration passes, or none of it does.
-migrate :: (MonadSelda m, Relational a, Relational b)
+migrate :: (MonadSelda m, MonadMask m, Relational a, Relational b)
         => Table a -- ^ Table to migrate from.
         -> Table b -- ^ Table to migrate to.
         -> (Row () a -> Row () b)
@@ -49,20 +49,20 @@ migrate t1 t2 upg = migrateM t1 t2 ((pure :: a -> Query () a) . upg)
 
 -- | Like 'migrate', but allows the column upgrade to access
 --   the entire database.
-migrateM :: (MonadSelda m, Relational a, Relational b)
+migrateM :: (MonadSelda m, MonadMask m, Relational a, Relational b)
          => Table a
          -> Table b
          -> (Row s a -> Query s (Row s b))
          -> m ()
 migrateM t1 t2 upg = migrateAll True [Migration t1 t2 upg]
 
-wrap :: MonadSelda m => Bool -> m a -> m a
+wrap :: (MonadSelda m, MonadMask m) => Bool -> m a -> m a
 wrap enforceFKs
   | enforceFKs = transaction
   | otherwise  = withoutForeignKeyEnforcement
 
 -- | Perform all given migrations as a single transaction.
-migrateAll :: MonadSelda m
+migrateAll :: (MonadSelda m, MonadMask m)
            => Bool -- ^ Enforce foreign keys during migration?
            -> MigrationStep -- ^ Migration step to perform.
            -> m ()
@@ -82,7 +82,7 @@ migrateAll fks =
 --   indexed columns are not taken into account. Two columns @c1@ and @c2@ are
 --   considered to be identical if @c1@ is indexed with index method @foo@ and
 --   @c2@ is indexed with index method @bar@.
-autoMigrate :: MonadSelda m
+autoMigrate :: (MonadSelda m, MonadMask m)
             => Bool -- ^ Enforce foreign keys during migration?
             -> [MigrationStep] -- ^ Migration steps to perform.
             -> m ()
@@ -110,7 +110,7 @@ autoMigrate fks steps = wrap fks $ do
 -- | Workhorse for migration.
 --   Is NOT performed as a transaction, so exported functions need to
 --   properly wrap calls this function.
-migrateInternal :: (MonadSelda m, Relational a, Relational b)
+migrateInternal :: (MonadSelda m, MonadThrow m, Relational a, Relational b)
                 => Table a
                 -> Table b
                 -> (Row s a -> Query s (Row s b))
