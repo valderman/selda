@@ -100,9 +100,10 @@ module Database.Selda
   , first, second, third, fourth, fifth, sixth, seventh, eighth, ninth, tenth
 
     -- * Useful re-exports
-  , MonadIO, liftIO
+  , MonadIO, MonadMask, liftIO
   , Text, Day, TimeOfDay, UTCTime
   ) where
+import Control.Monad.Catch (MonadMask)
 import Data.Typeable (Typeable)
 import Database.Selda.Backend
 import Database.Selda.Column
