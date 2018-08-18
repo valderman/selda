@@ -1,6 +1,6 @@
 {-# LANGUAGE GADTs, OverloadedStrings, ScopedTypeVariables, FlexibleInstances #-}
 {-# LANGUAGE UndecidableInstances, DefaultSignatures #-}
--- | Types representable in Selda's subset of SQL.
+-- | Types representable as columns in Selda's subset of SQL.
 module Database.Selda.SqlType
   ( SqlType (..), SqlEnum (..)
   , Lit (..), RowID, ID (..), SqlValue (..), SqlTypeRep (..)

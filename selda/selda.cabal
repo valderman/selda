@@ -47,6 +47,7 @@ library
     Database.Selda
     Database.Selda.Backend
     Database.Selda.Migrations
+    Database.Selda.SqlType
     Database.Selda.Unsafe
     Database.Selda.Validation
   other-modules:
@@ -66,7 +67,6 @@ library
     Database.Selda.SQL.Print
     Database.Selda.SQL.Print.Config
     Database.Selda.SqlRow
-    Database.Selda.SqlType
     Database.Selda.Table
     Database.Selda.Table.Compile
     Database.Selda.Table.Type

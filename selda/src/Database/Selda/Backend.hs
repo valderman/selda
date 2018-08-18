@@ -3,22 +3,23 @@
 module Database.Selda.Backend
   ( MonadSelda (..), SeldaT, SeldaM, SeldaError (..)
   , StmtID, BackendID (..), QueryRunner, SeldaBackend (..), SeldaConnection
-  , SqlType (..), SqlValue (..), SqlTypeRep (..)
+  , SqlValue (..)
   , IndexMethod (..)
-  , Param (..), Lit (..), ColAttr (..)
+  , Param (..), ColAttr (..)
   , PPConfig (..), defPPConfig
   , TableName, ColName, ColumnInfo (..)
   , columnInfo, fromColInfo
   , mkTableName, mkColName, fromTableName, fromColName, rawTableName
   , newConnection, allStmts, seldaBackend
   , runSeldaT, seldaClose
-  , sqlDateTimeFormat, sqlDateFormat, sqlTimeFormat
+  , module SqlType
   ) where
 import Control.Monad
 import Control.Monad.Catch
 import Control.Monad.IO.Class
 import Data.IORef
 import Database.Selda.Backend.Internal
+import Database.Selda.SqlType as SqlType
 import Database.Selda.Table (IndexMethod (..))
 import Database.Selda.Types
 
