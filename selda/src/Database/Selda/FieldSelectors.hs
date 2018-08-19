@@ -3,6 +3,7 @@
 {-# LANGUAGE ScopedTypeVariables, AllowAmbiguousTypes, TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances, ConstraintKinds, UndecidableSuperClasses #-}
 {-# LANGUAGE TypeApplications #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 -- | Create Selda selectors from plain record field selectors.
 --   Requires the @TypeApplications@ and @DataKinds@ language extensions
 --   to be even remotely useful.
@@ -16,6 +17,7 @@ import Data.Proxy
 import Data.Kind (Constraint)
 import GHC.Generics
 import GHC.TypeLits
+import GHC.OverloadedLabels
 
 -- | Get the next nested type.
 type family GetFieldType (f :: * -> *) :: * where
@@ -49,6 +51,10 @@ class (Relational t, GRSel name (Rep t), NonError (FieldType name t)) =>
 
 instance (Relational t, GRSel name (Rep t), NonError (FieldType name t)) =>
   HasField (name :: Symbol) t
+
+instance (Relational t, HasField name t, FieldType name t ~ a) =>
+         IsLabel name (S.Selector t a) where
+  fromLabel = field @name @t
 
 -- | Create a selector from a record selector and a type application.
 --
