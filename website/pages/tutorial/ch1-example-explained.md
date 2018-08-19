@@ -10,8 +10,7 @@ After reading this chapter, you will be able to define and create tables,
 insert new rows, and perform simple queries against those tables.
 
 ```language-haskell
-{-# LANGUAGE DeriveGeneric, OverloadedStrings #-}
-{-# LANGUAGE DataKinds, TypeApplications #-}
+{-# LANGUAGE DeriveGeneric, OverloadedStrings, OverloadedLabels #-}
 import Database.Selda
 import Database.Selda.SQLite
 ```
@@ -25,7 +24,7 @@ The `DeriveGeneric` extension lets us derive the `Generic` type class, which
 is important since Selda uses generics heavily to map Haskell types to database
 tables. `OverloadedStrings` is not strictly required, but highly recommended
 to reduce boilerplate when working with `Text` fields.
-`DataKinds` and `TypeApplications` are used to specify *table selectors*, which
+`OverloadedLabels` is used to specify *field selectors*, which
 will be explained in greater detail [a few paragraphs down](#selectors).
 
 ```language-haskell
@@ -63,7 +62,7 @@ In fact, you should never need to implement `SqlRow` yourself.
 
 ```language-haskell
 people :: Table Person
-people = table "people" [field @"name" :- primary]
+people = table "people" [#name :- primary]
 ```
 
 <a id="selectors"></a>
@@ -72,19 +71,21 @@ from it is easy.
 The `table` function accepts a table name, and a list of column attributes where
 things like indexes, foreign keys and other constraints can be declared.
 Such attributes are specified by linking *selectors* of the table
-&mdash; such as `field @"name"` in this example &mdash; to various attribute
+&mdash; such as `#name` in this example &mdash; to various attribute
 definitions.
-In our example, we want to specify the `name` fields as the primary key of our
+In our example, we want to specify the `name` field as the primary key of our
 table.
 
-Field selectors work by passing the *name* of a plain Haskell record selector
-to the `field` function *as a type*, which performs some type-level magic to
+Field selectors work by passing the *name* of a plain Haskell record selector,
+using the `OverloadedLabels` extension, to the `field` function *as a type*,
+which then performs some type-level magic to
 ensure that the selector is valid for the row we want to use it on.
+If this makes your head spin, don't worry; the only thing you need to remember
+about field selectors is `#-sign + record selector = field selector`.
 
-If the line noise of writing out selectors as `field @"nameOfTheField"`
-bothers you, there also exists a handy function `selectors`, which generates
+There also exists a handy function `selectors`, which generates
 all selectors for some table in one go.
-In fact, since the `field @...` syntax requires the presence of an actual
+In fact, since the `#...` syntax requires the presence of an actual
 record selector, using `selectors` is the *only* way to define selectors for
 non-record types, such as `(Int, Int)` or `data Foo = Foo Text Bool Double`.
 
@@ -204,8 +205,7 @@ the result set, when printed, should look like this:
 ### The example
 
 ```language-haskell
-{-# LANGUAGE DeriveGeneric, OverloadedStrings #-}
-{-# LANGUAGE DataKinds, TypeApplications #-}
+{-# LANGUAGE DeriveGeneric, OverloadedStrings, OverloadedLabels #-}
 import Database.Selda
 import Database.Selda.SQLite
 
@@ -221,7 +221,7 @@ data Person = Person
 instance SqlRow Person
 
 people :: Table Person
-people = table "people" [field @"name" :- primary]
+people = table "people" [#name :- primary]
 
 main = withSQLite "people.sqlite" $ do
   createTable people
@@ -233,8 +233,8 @@ main = withSQLite "people.sqlite" $ do
 
   adultsAndTheirPets <- query $ do
     person <- select people
-    restrict (person ! field @"age" .>= 18)
-    return (person ! field @"name" :*: person ! field @"pet")
+    restrict (person ! #age .>= 18)
+    return (person ! #name :*: person ! #pet)
   liftIO $ print adultsAndTheirPets
 ```
 

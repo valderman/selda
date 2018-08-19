@@ -25,7 +25,7 @@ peopleWithHomes :: Query s (Row s Person :*: Row s Home)
 peopleWithHomes = do
   person <- select people
   home <- select homes
-  restrict (person ! field @"name" .== home ! field @"ownerName")
+  restrict (person ! #name .== home ! #ownerName)
   return (person :*: home)
 ```
 
@@ -62,12 +62,12 @@ particular value is contained in some other result set.
 homelessPeople :: Query s (Row s Person)
 homelessPeople = do
   person <- select people
-  restrict (not_ $ (person ! field @"name") `isIn` (field @"ownerName" `from` select homes))
+  restrict (not_ $ (person ! #name) `isIn` (#ownerName `from` select homes))
   return person
 ```
 
 The set of home owners is produced by the query
-``@field "ownerName" `from` select homes``.
+``#ownerName `from` select homes``.
 The `from` function is a convenient shorthand for extracting a single column
 from a query, and is defined as `from s q = fmap (!s) q`.
 
@@ -83,7 +83,7 @@ We can accomplish this by using the `new` function.
 personsFromHomes :: Query s (Row s Person)
 personsFromHomes = do
   home <- select homes
-  return $ new [field @"name" := home ! field @"ownerName"]
+  return $ new [#name := home ! #ownerName]
 ```
 
 `new` takes a list of updates &mdash; as seen
@@ -109,12 +109,12 @@ a cheap home in Tokyo to any homeless persons in the `people` table.
 homesForEveryone :: SeldaM Int
 homesForEveryone = queryInto homes $ do
   person <- select people
-  restrict (not_ $ (person ! field @"name") `isIn` (field @"ownerName" `from` select homes))
+  restrict (not_ $ (person ! #name) `isIn` (#ownerName `from` select homes))
 
   return $ new
-    [ field @"ownerName" := person ! field @"names"
-    , field @"city" := "Tokyo"
-    , field @"rent" := 50000
+    [ #ownerName := person ! #names
+    , #city := "Tokyo"
+    , #rent := 50000
     ]
 ```
 
@@ -157,7 +157,7 @@ data Home = Home
 instance SqlRow Home
 
 people :: Table Person
-people = table "people" [field @"pid" :- autoPrimary]
+people = table "people" [#pid :- autoPrimary]
 
 homes :: Table Home
 homes = table "homes" []
