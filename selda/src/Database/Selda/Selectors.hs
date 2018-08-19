@@ -3,8 +3,8 @@
 {-# LANGUAGE FlexibleContexts, RankNTypes, AllowAmbiguousTypes, GADTs #-}
 {-# LANGUAGE DeriveGeneric, CPP #-}
 module Database.Selda.Selectors
-  ( Assignment ((:=)), Selected, Selector, Source, Selectors, GSelectors
-  , (!), with, ($=)
+  ( Assignment ((:=)), Selector, Coalesce, Selectors, GSelectors
+  , (!), (?), with, ($=)
   , selectorsFor, selectorIndex, unsafeSelector
   ) where
 import Control.Monad.State.Strict
@@ -18,18 +18,10 @@ import GHC.Generics hiding (Selector, (:*:))
 import qualified GHC.Generics as G
 import Unsafe.Coerce
 
--- | The result of a '(!)' operation.
---   If either the source row, the column to extract,
---   or both, is nullable, the result is also nullable.
-type family Selected a b where
-  Selected (Maybe a) (Maybe b) = Maybe b
-  Selected (Maybe a) b         = Maybe b
-  Selected a         b         = b
-
--- | The source type of a '(!)' operation.
-type family Source a where
-  Source (Maybe a) = a
-  Source a         = a
+-- | Coalesce nested nullable column into a single level of nesting.
+type family Coalesce a where
+  Coalesce (Maybe (Maybe a)) = Coalesce (Maybe a)
+  Coalesce a                 = a
 
 -- | A selector indicating the nth (zero-based) column of a table.
 --
@@ -39,10 +31,17 @@ unsafeSelector :: SqlRow a => Int -> Selector a b
 unsafeSelector = Selector
 
 -- | Extract the given column from the given row.
---   Extracting a value from a nullable column will yield a nullable value.
---   In other words, this operator is null-coalescing.
-(!) :: SqlType b => Row s a -> Selector (Source a) b -> Col s (Selected a b)
+(!) :: SqlType a => Row s t -> Selector t a -> Col s a
 (Many xs) ! (Selector i) = case xs !! i of Untyped x -> One (unsafeCoerce x)
+infixl 9 !
+
+-- | Extract the given column from the given nullable row.
+--   Nullable rows usually result from left joins.
+--   If a nullable column is extracted from a nullable row, the resulting
+--   nested @Maybe@s will be squashed into a single level of nesting.
+(?) :: SqlType a => Row s (Maybe t) -> Selector t a -> Col s (Coalesce (Maybe a))
+Many xs ? Selector i = case xs !! i of Untyped x -> One (unsafeCoerce x)
+infixl 9 ?
 
 upd :: Row s a -> Assignment s a -> Row s a
 upd (Many xs) (Selector i := (One x')) =

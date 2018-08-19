@@ -120,7 +120,7 @@ simpleLeftJoin = do
     name <- pName `from` select people
     a <- leftJoin (\a -> name .== a!aName)
                   (select addresses)
-    return (name :*: a!aCity)
+    return (name :*: a?aCity)
   assEq "join-like query gave wrong result" (sort ans) (sort res)
   where
     ans =
@@ -152,7 +152,7 @@ leftJoinThenProduct = do
                   (select addresses)
     c <- select comments
     restrict (c!cName .== just name)
-    return (name :*: a!aCity :*: c!cComment)
+    return (name :*: a?aCity :*: c!cComment)
   assEq "join + product gave wrong result" ans res
   where
     linkComment = head [c | (_, n, c) <- commentItems, n == Just "Link"]
@@ -172,7 +172,7 @@ joinGroupAggregate = do
     a <- leftJoin (\a -> p!pName .== a!aName)
                   (select addresses)
     nopet <- groupBy (isNull (p!pPet))
-    return (nopet :*: count (a!aCity))
+    return (nopet :*: count (a?aCity))
   assEq "wrong number of cities per pet owneship status" ans (sort res)
   where
     -- There are pet owners in Tokyo and Kakariko, there is no pet owner in

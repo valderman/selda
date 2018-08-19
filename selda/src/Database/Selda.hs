@@ -41,11 +41,11 @@ module Database.Selda
   , inner, suchThat
 
     -- * Working with selectors
-  , Selector, Source, Selected
+  , Selector, Coalesce
 #if MIN_VERSION_base(4, 9, 0)
   , HasField, FieldType, IsLabel
 #endif
-  , (!), Assignment ((:=)), with
+  , (!), (?), Assignment ((:=)), with
   , (+=), (-=), (*=), (||=), (&&=), ($=)
 
     -- * Expressions over columns
@@ -234,10 +234,10 @@ new fields = Many (gNew (Proxy :: Proxy (Rep a))) `with` fields
 -- > q2 = do
 -- >   person <- select people
 -- >   return (person ! name)
-from :: (Typeable a, SqlType b)
-     => Selector (Source a) b
-     -> Query s (Row s a)
-     -> Query s (Col s (Selected a b))
+from :: (Typeable t, SqlType a)
+     => Selector t a
+     -> Query s (Row s t)
+     -> Query s (Col s a)
 from s q = (! s) <$> q
 infixr 7 `from`
 
