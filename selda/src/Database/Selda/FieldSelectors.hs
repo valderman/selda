@@ -9,6 +9,7 @@
 module Database.Selda.FieldSelectors (FieldType, HasField, IsLabel) where
 import Database.Selda.Generic (Relational)
 import Database.Selda.Selectors as S
+import Database.Selda.SqlType (SqlType)
 import Data.Proxy
 import Data.Kind (Constraint)
 import GHC.Generics
@@ -42,10 +43,16 @@ type family NonError (t :: k) :: Constraint where
 data NoSuchSelector (t :: *) (s :: Symbol)
 
 -- | Any table type @t@, which has a field named @name@.
-class (Relational t, GRSel name (Rep t), NonError (FieldType name t)) =>
+class ( Relational t
+      , SqlType (FieldType name t)
+      , GRSel name (Rep t)
+      , NonError (FieldType name t)) =>
   HasField (name :: Symbol) t
 
-instance (Relational t, GRSel name (Rep t), NonError (FieldType name t)) =>
+instance ( Relational t
+         , SqlType (FieldType name t)
+         , GRSel name (Rep t)
+         , NonError (FieldType name t)) =>
   HasField (name :: Symbol) t
 
 instance (Relational t, HasField name t, FieldType name t ~ a) =>
