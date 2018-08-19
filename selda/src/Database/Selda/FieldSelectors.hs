@@ -5,12 +5,8 @@
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 -- | Create Selda selectors from plain record field selectors.
---   Requires the @TypeApplications@ and @DataKinds@ language extensions
---   to be even remotely useful.
-module Database.Selda.FieldSelectors
-  ( FieldType, HasField
-  , field
-  ) where
+--   Requires the @OverloadedLabels@ language extension.
+module Database.Selda.FieldSelectors (FieldType, HasField, IsLabel) where
 import Database.Selda.Generic (Relational)
 import Database.Selda.Selectors as S
 import Data.Proxy

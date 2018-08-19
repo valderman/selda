@@ -43,7 +43,7 @@ module Database.Selda
     -- * Working with selectors
   , Selector, Source, Selected
 #if MIN_VERSION_base(4, 9, 0)
-  , HasField, FieldType, field
+  , HasField, FieldType, IsLabel
 #endif
   , (!), Assignment ((:=)), with
   , (+=), (-=), (*=), (||=), (&&=), ($=)
