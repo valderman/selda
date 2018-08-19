@@ -2,7 +2,7 @@
 {-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables, AllowAmbiguousTypes, TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances, ConstraintKinds, UndecidableSuperClasses #-}
-{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeApplications, CPP #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 -- | Create Selda selectors from plain record field selectors.
 --   Requires the @OverloadedLabels@ language extension.
@@ -50,7 +50,11 @@ instance (Relational t, GRSel name (Rep t), NonError (FieldType name t)) =>
 
 instance (Relational t, HasField name t, FieldType name t ~ a) =>
          IsLabel name (S.Selector t a) where
+#if MIN_VERSION_base(4, 10, 0)
   fromLabel = field @name @t
+#else
+  fromLabel _ = field @name @t
+#endif
 
 -- | Create a selector from a record selector and a type application.
 --
