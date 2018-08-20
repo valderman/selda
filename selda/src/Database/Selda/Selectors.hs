@@ -1,21 +1,14 @@
-{-# LANGUAGE ScopedTypeVariables, TypeFamilies, MultiParamTypeClasses #-}
-{-# LANGUAGE TypeOperators, UndecidableInstances, FlexibleInstances #-}
-{-# LANGUAGE FlexibleContexts, RankNTypes, AllowAmbiguousTypes, GADTs #-}
-{-# LANGUAGE DeriveGeneric, CPP #-}
+{-# LANGUAGE TypeFamilies, GADTs, CPP #-}
 module Database.Selda.Selectors
-  ( Assignment ((:=)), Selector, Coalesce, Selectors, GSelectors
+  ( Assignment ((:=)), Selector, Coalesce
   , (!), (?), with, ($=)
-  , selectorsFor, selectorIndex, unsafeSelector
+  , selectorIndex, unsafeSelector
   ) where
-import Control.Monad.State.Strict
 import Database.Selda.SqlRow (SqlRow)
 import Database.Selda.SqlType
 import Database.Selda.Types
 import Database.Selda.Column
 import Data.List (foldl')
-import Data.Proxy
-import GHC.Generics hiding (Selector, (:*:))
-import qualified GHC.Generics as G
 import Unsafe.Coerce
 
 -- | Coalesce nested nullable column into a single level of nesting.
@@ -27,7 +20,7 @@ type family Coalesce a where
 --
 --   Will cause errors in queries during compilation, execution, or both,
 --   unless handled with extreme care. You really shouldn't use it at all.
-unsafeSelector :: SqlRow a => Int -> Selector a b
+unsafeSelector :: (SqlRow a, SqlType b) => Int -> Selector a b
 unsafeSelector = Selector
 
 -- | Extract the given column from the given row.
@@ -83,41 +76,3 @@ with = foldl' upd
 --   'with' functions to get and set values on rows, or to specify
 --   foreign keys.
 newtype Selector t a = Selector {selectorIndex :: Int}
-
--- | Generate selectors for the given type.
-selectorsFor :: forall r. GSelectors r (Rep r) => Proxy r -> Selectors r
-selectorsFor = flip evalState 0 . mkSel (Proxy :: Proxy (Rep r))
-
--- | An inductive tuple of selectors for the given relation.
-type Selectors r = Sels r (Rep r)
-
-type family Sels t f where
-  Sels t ((a G.:*: b) G.:*: c) = Sels t (a G.:*: (b G.:*: c))
-  Sels t (a G.:*: b)           = Sels t a :*: Sels t b
-  Sels t (M1 x y f)            = Sels t f
-  Sels t (K1 i a)              = Selector t a
-
--- | Any table type that can have selectors generated.
-class GSelectors t (f :: * -> *) where
-  mkSel :: Proxy f -> Proxy t -> State Int (Sels t f)
-
-instance SqlType a => GSelectors t (K1 i a) where
-  mkSel _ _ = Selector <$> state (\n -> (n, n+1))
-
-instance (GSelectors t f, Sels t f ~ Sels t (M1 x y f)) =>
-         GSelectors t (M1 x y f) where
-  mkSel _ = mkSel (Proxy :: Proxy f)
-
-instance GSelectors t (a G.:*: (b G.:*: c)) =>
-         GSelectors t ((a G.:*: b) G.:*: c) where
-  mkSel _ = mkSel (Proxy :: Proxy (a G.:*: (b G.:*: c)))
-
-instance {-# OVERLAPPABLE #-}
-  ( GSelectors t a
-  , GSelectors t b
-  , Sels t (a G.:*: b) ~ (Sels t a :*: Sels t b)
-  ) => GSelectors t (a G.:*: b) where
-    mkSel _ p = do
-      x <- mkSel (Proxy :: Proxy a) p
-      xs <- mkSel (Proxy :: Proxy b) p
-      return (x :*: xs)

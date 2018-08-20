@@ -6,7 +6,9 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 -- | Create Selda selectors from plain record field selectors.
 --   Requires the @OverloadedLabels@ language extension.
-module Database.Selda.FieldSelectors (FieldType, HasField, IsLabel) where
+module Database.Selda.Selectors.FieldSelectors
+  (FieldType, HasField, IsLabel
+  ) where
 import Database.Selda.Generic (Relational)
 import Database.Selda.Selectors as S
 import Database.Selda.SqlType (SqlType)

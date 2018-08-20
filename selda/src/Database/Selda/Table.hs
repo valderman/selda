@@ -7,7 +7,7 @@ module Database.Selda.Table
   ( Attr (..), Table (..), Attribute
   , ColInfo (..), ColAttr (..), IndexMethod (..)
   , ForeignKey (..)
-  , table, tableFieldMod, tableWithSelectors, selectors
+  , table, tableFieldMod -- , tableWithSelectors, selectors
   , primary, autoPrimary, untypedAutoPrimary, unique
   , index, indexUsing
   , tableExpr
@@ -108,39 +108,6 @@ tableFieldMod tn attrs fieldMod = Table
 -- | Remove duplicate attributes.
 tidy :: ColInfo -> ColInfo
 tidy ci = ci {colAttrs = snub $ colAttrs ci}
-
--- | A pair of the table with the given name and columns, and all its selectors.
---   For example:
---
--- > tbl :: Table (Int, Text)
--- > (tbl, tblBar :*: tblBaz)
--- >   =  tableWithSelectors "foo" []
--- >
--- > q :: Query s Text
--- > q = tblBaz `from` select tbl
-tableWithSelectors :: forall a. Relational a
-                   => TableName
-                   -> [Attr a]
-                   -> (Table a, Selectors a)
-tableWithSelectors name cs = (t, s)
-  where
-    t = table name cs
-    s = selectors t
-
--- | Generate selector functions for the given table.
---   Selectors can be used to access the fields of a query result tuple, avoiding
---   the need to pattern match on the entire tuple.
---
--- > tbl :: Table (Int, Text)
--- > tbl = table "foo" []
--- > (tblBar :*: tblBaz) = selectors tbl
--- >
--- > q :: Query s Text
--- > q = do
--- >   row <- select tbl
--- >   return (row ! tblBaz)
-selectors :: forall a. Relational a => Table a -> Selectors a
-selectors _ = selectorsFor (Proxy :: Proxy a)
 
 -- | Some attribute that may be set on a column of type @c@, in a table of
 --   type @t@.

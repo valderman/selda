@@ -80,7 +80,7 @@ module Database.Selda
     -- * Defining schemas
   , Generic
   , TableName, ColName, Attr (..), Attribute
-  , Selectors, ForeignKey (..)
+  , Selectors, GSelectors, ForeignKey (..)
   , table, tableFieldMod, tableWithSelectors, selectors
   , primary, autoPrimary, untypedAutoPrimary, unique
   , IndexMethod (..), index, indexUsing
@@ -115,6 +115,7 @@ import Database.Selda.Prepared
 import Database.Selda.Query
 import Database.Selda.Query.Type
 import Database.Selda.Selectors
+import Database.Selda.Selectors.MakeSelectors
 import Database.Selda.SQL hiding (distinct)
 import Database.Selda.SqlRow
 import Database.Selda.SqlType
@@ -132,7 +133,7 @@ import GHC.Generics (Rep)
 import Unsafe.Coerce
 
 #if MIN_VERSION_base(4, 9, 0)
-import Database.Selda.FieldSelectors
+import Database.Selda.Selectors.FieldSelectors
 import GHC.TypeLits as TL
 #endif
 

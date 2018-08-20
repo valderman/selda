@@ -62,6 +62,12 @@ duplicateColsFail = do
     dupes :: Table (Int, Text)
     dupes = tableFieldMod "duplicate" [] (const "blah")
 
+sel_fst :: (SqlType a, SqlType b) => Selector (a, b) a
+sel_fst = unsafeSelector 0
+
+sel_snd :: (SqlType a, SqlType b) => Selector (a, b) b
+sel_snd = unsafeSelector 1
+
 duplicatePKsFail = do
   e1 <- try (createTable dupes1) :: SeldaM (Either ValidationError ())
   e2 <- try (createTable dupes2) :: SeldaM (Either ValidationError ())
@@ -71,13 +77,13 @@ duplicatePKsFail = do
   where
     dupes1 :: Table (Int, Text)
     dupes1 = table "duplicate"
-      [ unsafeSelector 0 :- primary
-      , unsafeSelector 1 :- primary
+      [ sel_fst :- primary
+      , sel_snd :- primary
       ]
     dupes2 :: Table (RowID, Text)
     dupes2 = table "duplicate"
-      [ unsafeSelector 0 :- untypedAutoPrimary
-      , unsafeSelector 1 :- primary
+      [ sel_fst :- untypedAutoPrimary
+      , sel_snd :- primary
       ]
 
 nonUniqueFKFails = do
@@ -88,8 +94,7 @@ nonUniqueFKFails = do
   where
     addressesWithFK :: Table (Text, Text)
     addressesWithFK = table "addressesWithFK"
-      [ (unsafeSelector 0 :: Selector (Text, Text) Text)
-          :- foreignKey comments cComment
+      [ sel_fst :- foreignKey comments cComment
       ]
 
 nonPrimaryUniqueFK = do
@@ -103,8 +108,7 @@ nonPrimaryUniqueFK = do
       tableWithSelectors "uniquePeople" [upName :- unique]
     addressesWithFK :: Table (Text, Text)
     addressesWithFK = table "addressesWithFK"
-      [ (unsafeSelector 0 :: Selector (Text, Text) Text)
-          :- foreignKey uniquePeople upName
+      [ sel_fst :- foreignKey uniquePeople upName
       ]
 
 nullableUnique = do
@@ -119,8 +123,7 @@ nullableUnique = do
         ]
     addressesWithFK :: Table (Text, Text)
     addressesWithFK = table "addressesWithFK"
-      [ (unsafeSelector 0 :: Selector (Text, Text) Text)
-          :- foreignKey uniquePeople upName
+      [ sel_fst :- foreignKey uniquePeople upName
       ]
 
 validateWrongTable = do
@@ -141,49 +144,51 @@ validateWrongTable = do
 
     badPeople1 :: Table (Text, Int, Text, Double)
     badPeople1 = tableFieldMod "people"
-      [ unsafeSelector 3 :- index
-      , unsafeSelector 4 :- indexUsing HashIndex
+      [ (unsafeSelector 0 :: Selector (Text, Int, Text, Double) Text)
+          :- index
+      , (unsafeSelector 3 :: Selector (Text, Int, Text, Double) Double)
+          :- indexUsing HashIndex
       ] peopleFieldNames
 
     badPeople2 :: Table (Text, Bool, Maybe Text, Double)
     badPeople2 = table "people"
-      [ unsafeSelector 3 :- index
-      , unsafeSelector 4 :- indexUsing HashIndex
+      [ (unsafeSelector 0 :: Selector (Text, Bool, Maybe Text, Double) Text) :- index
+      , (unsafeSelector 3 :: Selector (Text, Bool, Maybe Text, Double) Double) :- indexUsing HashIndex
       ]
 
     badPeople3 :: Table (Text, Int, Maybe Text)
     badPeople3 = table "people"
-      [ unsafeSelector 2 :- index
+      [ (unsafeSelector 0 :: Selector (Text, Int, Maybe Text) Text) :- index
       ]
 
     badPeople4 :: Table (Text, Int, Maybe Text, Double, Int)
     badPeople4 = table "people"
-      [ unsafeSelector 2 :- index
-      , unsafeSelector 3 :- indexUsing HashIndex
+      [ (unsafeSelector 0 :: Selector (Text, Int, Maybe Text, Double, Int) Text) :- index
+      , (unsafeSelector 3 :: Selector (Text, Int, Maybe Text, Double, Int) Double) :- indexUsing HashIndex
       ]
 
     badIxPeople1 :: Table (Text, Int, Maybe Text, Double)
     badIxPeople1 = table "people"
-      [ unsafeSelector 3 :- indexUsing HashIndex
+      [ (unsafeSelector 3 :: Selector (Text, Int, Maybe Text, Double) Double) :- indexUsing HashIndex
       ]
 
     badIxPeople2 :: Table (Text, Int, Maybe Text, Double)
     badIxPeople2 = table "people"
-      [ unsafeSelector 2 :- index
+      [ (unsafeSelector 2 :: Selector (Text, Int, Maybe Text, Double) (Maybe Text)) :- index
       ]
 
     badIxPeople3 :: Table (Text, Int, Maybe Text, Double)
     badIxPeople3 = table "people"
-      [ unsafeSelector 0 :- index
-      , unsafeSelector 2 :- index
-      , unsafeSelector 3 :- indexUsing HashIndex
+      [ (unsafeSelector 0 :: Selector (Text, Int, Maybe Text, Double) Text) :- index
+      , (unsafeSelector 2 :: Selector (Text, Int, Maybe Text, Double) (Maybe Text)) :- index
+      , (unsafeSelector 3 :: Selector (Text, Int, Maybe Text, Double) Double) :- indexUsing HashIndex
       ]
 
     badIxPeople4 :: Table (Text, Int, Maybe Text, Double)
     badIxPeople4 = table "people"
-      [ unsafeSelector 1 :- index
-      , unsafeSelector 2 :- indexUsing HashIndex
-      , unsafeSelector 3 :- indexUsing HashIndex
+      [ (unsafeSelector 1 :: Selector (Text, Int, Maybe Text, Double) Int) :- index
+      , (unsafeSelector 2 :: Selector (Text, Int, Maybe Text, Double) (Maybe Text)) :- indexUsing HashIndex
+      , (unsafeSelector 3 :: Selector (Text, Int, Maybe Text, Double) Double) :- indexUsing HashIndex
       ]
 
 validateNonexistentTable = do

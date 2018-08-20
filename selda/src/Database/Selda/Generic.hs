@@ -23,7 +23,7 @@ import qualified GHC.Generics as G ((:+:)(..))
 import Control.Exception (Exception (..), try, throw)
 import System.IO.Unsafe
 import Database.Selda.Types
-import Database.Selda.Selectors
+-- import Database.Selda.Selectors
 import Database.Selda.SqlType
 import Database.Selda.SqlRow (SqlRow)
 import Database.Selda.Table.Type
@@ -45,7 +45,6 @@ type Relational a =
   ( Generic a
   , SqlRow a
   , GRelation (Rep a)
-  , GSelectors a (Rep a)
   )
 
 -- | Extract all insert parameters from a generic value.

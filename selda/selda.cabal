@@ -63,6 +63,7 @@ library
     Database.Selda.Query
     Database.Selda.Query.Type
     Database.Selda.Selectors
+    Database.Selda.Selectors.MakeSelectors
     Database.Selda.SQL
     Database.Selda.SQL.Print
     Database.Selda.SQL.Print.Config
@@ -75,7 +76,7 @@ library
     Database.Selda.Types
   if impl(ghc >= 7.11)
     other-modules:
-      Database.Selda.FieldSelectors
+      Database.Selda.Selectors.FieldSelectors
   other-extensions:
     OverloadedStrings
     GADTs
