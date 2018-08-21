@@ -3,9 +3,9 @@
 -- | Types representable as columns in Selda's subset of SQL.
 module Database.Selda.SqlType
   ( SqlType (..), SqlEnum (..)
-  , Lit (..), RowID, ID (..), SqlValue (..), SqlTypeRep (..)
+  , Lit (..), RowID, ID, SqlValue (..), SqlTypeRep (..)
   , invalidRowId, isInvalidRowId, toRowId, fromRowId
-  , toId, invalidId, isInvalidId
+  , fromId, toId, invalidId, isInvalidId, untyped
   , compLit, litType
   , sqlDateTimeFormat, sqlDateFormat, sqlTimeFormat
   ) where
@@ -216,6 +216,11 @@ instance Show (ID a) where
 --   Use with caution, preferably only when reading user input.
 toId :: Int -> ID a
 toId = ID . toRowId
+
+-- | Create a typed row identifier from an integer.
+--   Use with caution, preferably only when reading user input.
+fromId :: ID a -> Int
+fromId (ID i) = fromRowId i
 
 -- | A typed row identifier which is guaranteed to not match any row in any
 --   table.
