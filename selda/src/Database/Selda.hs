@@ -54,7 +54,7 @@ module Database.Selda
   , RowID, invalidRowId, isInvalidRowId, fromRowId, toRowId
   , (.==), (./=), (.>), (.<), (.>=), (.<=), like
   , (.&&), (.||), not_
-  , literal, int, float, text, true, false, null_
+  , literal, is, int, float, text, true, false, null_
   , roundTo, length_, isNull, ifThenElse, ifNull, matchNull
   , new, only
   , Mappable (..)
@@ -363,6 +363,11 @@ descending = Desc
 -- >   return (name ! sName)
 just :: SqlType a => Col s a -> Col s (Maybe a)
 just = cast
+
+-- | Returns 'true' if the given field in the given row is equal to the given
+--   literal.
+is :: (SqlType c, SqlType c) => Selector r c -> c -> Row s r -> Col s Bool
+is s x r = r ! s .== literal x
 
 -- | SQL NULL, at any type you like.
 null_ :: SqlType a => Col s (Maybe a)
