@@ -11,8 +11,7 @@ import Database.Selda.Generic
 import Database.Selda.Inner
 import Database.Selda.Query.Type
 import Database.Selda.SQL as SQL
-import Database.Selda.SqlType (SqlType, Lit (LNull), SqlTypeRep (..))
-import Database.Selda.SqlRow (SqlRow (nestedCols))
+import Database.Selda.SqlType (SqlType)
 import Database.Selda.Table
 import Database.Selda.Transform
 import Control.Monad.State.Strict

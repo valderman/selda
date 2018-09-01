@@ -6,7 +6,6 @@ module Database.Selda.Selectors
   ) where
 import Database.Selda.SqlRow (SqlRow)
 import Database.Selda.SqlType
-import Database.Selda.Types
 import Database.Selda.Column
 import Data.List (foldl')
 import Unsafe.Coerce

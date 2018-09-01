@@ -12,7 +12,6 @@ module Database.Selda.Selectors.FieldSelectors
 import Database.Selda.Generic (Relational)
 import Database.Selda.Selectors as S
 import Database.Selda.SqlType (SqlType)
-import Data.Proxy
 import Data.Kind (Constraint)
 import GHC.Generics
 import GHC.TypeLits

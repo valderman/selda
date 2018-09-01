@@ -118,7 +118,6 @@ import Database.Selda.Selectors
 import Database.Selda.Selectors.MakeSelectors
 import Database.Selda.SQL hiding (distinct)
 import Database.Selda.SqlRow
-import Database.Selda.SqlType
 import Database.Selda.Table
 import Database.Selda.Table.Compile
 import Database.Selda.Table.Validation
@@ -366,7 +365,7 @@ just = cast
 
 -- | Returns 'true' if the given field in the given row is equal to the given
 --   literal.
-is :: (SqlType c, SqlType c) => Selector r c -> c -> Row s r -> Col s Bool
+is :: SqlType c => Selector r c -> c -> Row s r -> Col s Bool
 is s x r = r ! s .== literal x
 
 -- | SQL NULL, at any type you like.

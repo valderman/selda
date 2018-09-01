@@ -19,17 +19,16 @@ import qualified GHC.Generics as G ((:*:)(..), Selector)
 #if MIN_VERSION_base(4, 9, 0)
 import qualified GHC.TypeLits as TL
 import qualified GHC.Generics as G ((:+:)(..))
+import qualified Database.Selda.Column as C (Col)
 #endif
 import Control.Exception (Exception (..), try, throw)
 import System.IO.Unsafe
 import Database.Selda.Types
--- import Database.Selda.Selectors
 import Database.Selda.SqlType
 import Database.Selda.SqlRow (SqlRow)
 import Database.Selda.Table.Type
 import Database.Selda.SQL (Param (..))
 import Database.Selda.Exp (Exp (Col, Lit), UntypedCol (..))
-import qualified Database.Selda.Column as C (Col)
 #if !MIN_VERSION_base(4, 11, 0)
 import Data.Monoid
 #endif
