@@ -10,9 +10,11 @@ import Text.Read
 
 changeLog :: ChangeLog
 changeLog =
-  [ Version "0.3.3.0" "TBD"
+  [ Version "0.3.3.0" "2018-09-02"
     "Ad hoc selectors on GHC 8.0 and up."
-    [ "Ad hoc selectors using DataKinds and TypeApplications."
+    [ "Ad hoc selectors using OverloadedLabels."
+    , "Shorter build times."
+    , "Minor API updates and simplifications."
     ]
   , Version "0.3.2.0" "2018-08-07"
     "Minor API improvements and bug fixes."
