@@ -43,6 +43,7 @@ queryTests run = test
   , "isIn inner query renaming (#46)" ~: run isInQueryRenaming
   , "distinct on multiple queries" ~: run selectDistinct
   , "distinct on single query" ~: run selectValuesDistinct
+  , "distinct restrict" ~: run selectRestrictedDistinct
   , "matchNull" ~: run simpleMatchNull
   , "ifThenElse" ~: run simpleIfThenElse
   , "validateTable validates" ~: run validateTableValidates
@@ -438,6 +439,20 @@ instance SqlRow L
 selectValuesDistinct = do
   res <- query $ distinct $ selectValues $ replicate 5 (L "Link")
   assEq "wrong result set" [L "Link"] res
+
+data Distinct = D { a :: Int, b :: Int }
+    deriving Generic
+instance SqlRow Distinct
+
+d_a = unsafeSelector 0 :: Selector Distinct Int
+d_b  = unsafeSelector 1 :: Selector Distinct Int
+
+selectRestrictedDistinct = do
+  xs <- query $ distinct $ do
+    x <- selectValues [D 42 1, D 42 2, D 42 3]
+    restrict $ x ! d_b .>= 2
+    return $ x ! d_a
+  assEq "wrong result set" [42] xs
 
 simpleMatchNull = do
     res <- query $ do

@@ -221,11 +221,12 @@ orderRandom :: Query s ()
 orderRandom = order (One (NulOp (Fun0 "RANDOM") :: Exp SQL Int)) Asc
 
 -- | Remove all duplicates from the result set.
-distinct :: Query s a -> Query s a
+distinct :: (Columns a, Columns (OuterCols a))
+         => Query (Inner s) a
+         -> Query s (OuterCols a)
 distinct q = Query $ do
   (inner_st, res) <- isolate q
   st <- get
-  case sources inner_st of
-    [sql] -> put st {sources = [sql {SQL.distinct = True}]}
-    ss    -> put st {sources = [sqlFrom (allCols ss) (Product ss)]}
-  return res
+  let ss = sources inner_st
+  put st {sources = [(sqlFrom (allCols ss) (Product ss)) {SQL.distinct = True}]}
+  return (unsafeCoerce res)

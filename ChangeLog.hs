@@ -10,7 +10,12 @@ import Text.Read
 
 changeLog :: ChangeLog
 changeLog =
-  [ Version "0.3.3.0" "2018-09-02"
+  [ Version "0.3.3.1" "2018-09-04"
+    "Fixing DISTINCT."
+    [ "DISTINCT should now always return distinct results."
+    , "DISTINCT can no longer produce ill-scoped queries."
+    ]
+  , Version "0.3.3.0" "2018-09-01"
     "Ad hoc selectors on GHC 8.0 and up."
     [ "Ad hoc selectors using OverloadedLabels."
     , "Shorter build times."
