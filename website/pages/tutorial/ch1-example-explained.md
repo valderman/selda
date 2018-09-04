@@ -25,7 +25,7 @@ is important since Selda uses generics heavily to map Haskell types to database
 tables. `OverloadedStrings` is not strictly required, but highly recommended
 to reduce boilerplate when working with `Text` fields.
 `OverloadedLabels` is used to specify *field selectors*, which
-will be explained in greater detail [a few paragraphs down](#selectors).
+will be explained in greater detail [a few paragraphs down](tutorial/ch1-example-explained#selectors).
 
 ```language-haskell
 data Pet = Dog | Horse | Dragon
@@ -60,12 +60,13 @@ if they implement the `SqlRow` type class.
 By deriving `Generic` for our type, we can use the default `SqlRow` instance.
 In fact, you should never need to implement `SqlRow` yourself.
 
+<a id="selectors"></a>
+
 ```language-haskell
 people :: Table Person
 people = table "people" [#name :- primary]
 ```
 
-<a id="selectors"></a>
 Once we have the `Person` type and its `SqlRow` instance, building a table
 from it is easy.
 The `table` function accepts a table name, and a list of column attributes where
