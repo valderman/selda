@@ -10,7 +10,11 @@ import Text.Read
 
 changeLog :: ChangeLog
 changeLog =
-  [ Version "0.3.3.1" "2018-09-04"
+  [ Version "0.3.4.0" "2018-09-29"
+    "Nullable convenience functions."
+    [ "Added convenience functions for working with nullable columns."
+    ]
+  , Version "0.3.3.1" "2018-09-04"
     "Fixing DISTINCT."
     [ "DISTINCT should now always return distinct results."
     , "DISTINCT can no longer produce ill-scoped queries."

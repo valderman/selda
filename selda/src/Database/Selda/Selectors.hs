@@ -32,7 +32,7 @@ infixl 9 !
 --   If a nullable column is extracted from a nullable row, the resulting
 --   nested @Maybe@s will be squashed into a single level of nesting.
 (?) :: SqlType a => Row s (Maybe t) -> Selector t a -> Col s (Coalesce (Maybe a))
-Many xs ? Selector i = case xs !! i of Untyped x -> One (unsafeCoerce x)
+(Many xs) ? (Selector i) = case xs !! i of Untyped x -> One (unsafeCoerce x)
 infixl 9 ?
 
 upd :: Row s a -> Assignment s a -> Row s a

@@ -3,6 +3,7 @@
 module Tests.Query (queryTests) where
 import Data.List hiding (groupBy, insert)
 import Database.Selda
+import Database.Selda.Nullable
 import Database.Selda.Unsafe
 import Database.Selda.Validation
 import Test.HUnit
@@ -49,6 +50,12 @@ queryTests run = test
   , "validateTable validates" ~: run validateTableValidates
   , "aggregate empty table" ~: run aggregateEmptyTable
   , "empty singleton values" ~: run selectValuesEmptySingletonTable
+  , "coalesce row" ~: run coalesceRow
+  , "coalesce equality" ~: run coalesceEquality
+  , "coalesce num" ~: run coalesceNum
+  , "coalesce frac" ~: run coalesceFrac
+  , "coalesce sum" ~: run coalesceSum
+  , "nonNull" ~: run nonNullYieldsEmptyResult
   , "teardown succeeds" ~: run teardown
   ]
 
@@ -503,3 +510,73 @@ aggregateEmptyTable = do
 selectValuesEmptySingletonTable = do
   [res] <- query $ aggregate $ count <$> the <$> selectValues ([] :: [Only Int])
   assEq "non-zero count when selecting from empty values" 0 res
+
+coalesceRow = do
+    empty <- query $ do
+      _ <- selectValues [Only (1 :: Int)]
+      xs <- leftJoin (const false) (select people)
+      return (xs ?! pName)
+    assEq "result not single null" [Nothing] empty
+
+    res <- query $ do
+      person <- select people
+      restrict' (person ?! pName ?== text "Link")
+      xs <- leftJoin (const true) (select people)
+      order (xs ?! pName) ascending
+      return $ xs ?! pName
+    assEq "wrong result after coalescing" expected res
+  where
+    expected =
+      [ Just "Kobayashi"
+      , Just "Link"
+      , Just "Miyu"
+      , Just "Velvet"
+      ]
+
+
+coalesceEquality = do
+  ["Link"] <- query $ do
+    person <- select people
+    restrict' (person ! pPet ?== text "horse")
+    return (person ! pName)
+  ["Kobayashi"] <- query $ do
+    person <- select people
+    restrict' (person ! pPet ?/= text "horse")
+    return (person ! pName)
+  return ()
+
+coalesceNum = do
+  [Just 250 :*: Just 126 :*: Just 124] <- query $ do
+    _ <- selectValues [Only (1 :: Int)]
+    person <- leftJoin (const true) (select people)
+    restrict' (person ?! pName ?== text "Link")
+    return
+      (   person ?! pAge ?* int 2
+      :*: person ?! pAge ?+ int 1
+      :*: person ?! pAge ?- int 1)
+  return ()
+
+coalesceFrac = do
+  result <- query $ do
+    _ <- selectValues [Only (1 :: Int)]
+    person <- leftJoin (const true) (select people)
+    restrict' (person ?! pName ?== text "Miyu")
+    return
+      (   person ?! pCash ?/ float 2
+      :*: person ?! pAge ?/ int 2)
+  assEq "wrong calculation results" [Just (-250) :*: Just 5] result
+
+coalesceSum = do
+  res <- query $ aggregate $ do
+    _ <- selectValues [Only (1 :: Int)]
+    person <- leftJoin (const true) (select people)
+    age <- nonNull $ person ?! pAge
+    return $ sum_ age
+  assEq "wrong sum" [125+19+23+10::Int] res
+
+nonNullYieldsEmptyResult = do
+  empty <- query $ do
+    _ <- selectValues [Only (1 :: Int)]
+    person <- leftJoin (const false) (select people)
+    nonNull $ person ?! pAge
+  assEq "empty list not empty" [] empty
