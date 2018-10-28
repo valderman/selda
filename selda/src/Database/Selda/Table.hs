@@ -75,7 +75,7 @@ table tn attrs = tableFieldMod tn attrs id
 -- >   deriving Generic
 -- >
 -- > people :: Table Person
--- > people = tableFieldMod "people" [personName :- autoPrimaryGen] (stripPrefix "person")
+-- > people = tableFieldMod "people" [personName :- autoPrimaryGen] (fromJust . stripPrefix "person")
 --
 --   This will create a table with the columns named
 --   @Id@, @Name@, @Age@ and @Pet@.
