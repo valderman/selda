@@ -18,6 +18,9 @@ data Table a = Table
 
     -- | Does the given table have an auto-incrementing primary key?
   , tableHasAutoPK :: Bool
+
+    -- | Attributes involving multiple columns.
+  , tableAttrs :: [([Int], ColAttr)]
   }
 
 -- | A complete description of a database column.

@@ -156,7 +156,7 @@ fromColInfo ci = ColumnInfo
     , colFKs = map fk (Table.colFKs ci)
     }
   where
-    fk (Table tbl _ _, col) = (tbl, col)
+    fk (Table tbl _ _ _, col) = (tbl, col)
 
 -- | Get the column information for each column in the given table.
 columnInfo :: Table a -> [ColumnInfo]

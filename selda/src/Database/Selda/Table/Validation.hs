@@ -59,7 +59,7 @@ validate name cis = errs
       [ "column is used as a foreign key, but is not primary or unique: "
           <> fromTableName ftn <> "." <> fromColName fcn
       | ci <- cis
-      , (Table ftn fcs _, fcn) <- colFKs ci
+      , (Table ftn fcs _ _, fcn) <- colFKs ci
       , fc <- fcs
       , colName fc == fcn
       , not (Unique `elem` colAttrs fc)

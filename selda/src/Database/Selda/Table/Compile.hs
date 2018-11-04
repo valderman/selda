@@ -25,17 +25,22 @@ compileCreateTable cfg ifex tbl =
   where
     createTable = mconcat
       [ "CREATE TABLE ", ifNotExists ifex, fromTableName (tableName tbl), "("
-      , intercalate ", " (map (compileTableCol cfg) (tableCols tbl))
+      , intercalate ", " (map (compileTableCol cfg) (tableCols tbl) ++ multiUniques)
       , case allFKs of
           [] -> ""
           _  -> ", " <> intercalate ", " compFKs
       , ")"
+      ]
+    multiUniques =
+      [ mconcat ["UNIQUE(", intercalate ", " (colNames ixs), ")"]
+      | (ixs, Unique) <- tableAttrs tbl
       ]
     createIndexes =
       [ compileCreateIndex cfg (tableName tbl) (colName col) mmethod
       | col <- tableCols tbl
       , Indexed mmethod <- colAttrs col
       ]
+    colNames ixs = [fromColName (colName (tableCols tbl !! ix)) | ix <- ixs]
     ifNotExists Fail   = ""
     ifNotExists Ignore = "IF NOT EXISTS "
     allFKs = [(colName ci, fk) | ci <- tableCols tbl, fk <- colFKs ci]
@@ -56,7 +61,7 @@ compileCreateIndex cfg tbl col mmethod = mconcat
 
 -- | Compile a foreign key constraint.
 compileFK :: ColName -> (Table (), ColName) -> Int -> Text
-compileFK col (Table ftbl _ _, fcol) n = mconcat
+compileFK col (Table ftbl _ _ _, fcol) n = mconcat
   [ "CONSTRAINT ", fkName, " FOREIGN KEY (", fromColName col, ") "
   , "REFERENCES ", fromTableName ftbl, "(", fromColName fcol, ")"
   ]

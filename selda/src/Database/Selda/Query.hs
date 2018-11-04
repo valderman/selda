@@ -21,7 +21,7 @@ import Unsafe.Coerce
 
 -- | Query the given table.
 select :: Relational a => Table a -> Query s (Row s a)
-select (Table name cs _) = Query $ do
+select (Table name cs _ _) = Query $ do
   rns <- renameAll $ map colExpr cs
   st <- get
   put $ st {sources = sqlFrom rns (TableName name) : sources st}

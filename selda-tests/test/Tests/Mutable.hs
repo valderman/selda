@@ -66,6 +66,7 @@ mutableTests freshEnv = test
   , "auto-migrate no-op"             ~: freshEnv (migrationTest autoMigrateNoOp)
   , "migrate aggregate"              ~: freshEnv (migrationTest migrateAggregate)
   , "auto-migrate multi-step"        ~: freshEnv (migrationTest autoMigrateOneStep)
+  , "multi-unique insert"            ~: freshEnv multiUnique
   ]
 
 tryDropNeverFails = teardown
@@ -776,3 +777,21 @@ autoMigrateMultiStep = do
     order (the x) ascending
     return x
   assEq "multi-step automigration failed" [1,2,3] res
+
+multiUnique = do
+    tryDropTable uniques
+    createTable uniques
+    insert_ uniques [(1,1), (1,2), (2,1), (2,2)]
+    expectFalse1 <- tryInsert uniques [(1,1)]
+    expectFalse2 <- tryInsert uniques [(1,2)]
+    expectTrue1 <- tryInsert uniques [(1,3)]
+    expectTrue2 <- tryInsert uniques [(3,3)]
+    assEq "uniqueness violation" False expectFalse1
+    assEq "uniqueness violation" False expectFalse2
+    assEq "overly strict uniqueness constraint" True expectTrue1
+    assEq "overly strict uniqueness constraint" True expectTrue2
+    dropTable uniques
+  where
+    uniques :: Table (Int, Int)
+    (uniques, ua :*: ub) =
+      tableWithSelectors "uniques" [(ua :*: ub) :- unique]
