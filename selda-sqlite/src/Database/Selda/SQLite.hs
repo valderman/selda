@@ -82,9 +82,9 @@ sqliteGetTableInfo db tbl = do
     toTypeRep _ typ                         = Left typ
 
     indexInfo [_, SqlString ixname, _, SqlString itype, _] = do
-      let q = (ixinfo ixname)
-      [[_, _, SqlString name]] <- (snd . snd) <$> sqliteQueryRunner db q []
-      return (name, itype)
+      let q = ixinfo ixname
+      info <- (snd . snd) <$> sqliteQueryRunner db q []
+      return $ (map (\[_,_,SqlString name] -> name) info, itype)
     indexInfo _ = do
       error "unreachable"
 
@@ -94,8 +94,8 @@ sqliteGetTableInfo db tbl = do
         , colType = toTypeRep (pk == 1) (toLower ty)
         , colIsPK = pk == 1
         , colIsAutoIncrement = "auto_increment" `isSuffixOf` ty
-        , colIsUnique = any (== (name, "u")) ixs || pk == 1
-        , colHasIndex = any (== (name, "c")) ixs
+        , colIsUnique = any (== ([name], "u")) ixs || pk == 1
+        , colHasIndex = any (== ([name], "c")) ixs
         , colIsNullable = nonnull == 0
         , colFKs =
             [ (mkTableName reftbl, mkColName refkey)
