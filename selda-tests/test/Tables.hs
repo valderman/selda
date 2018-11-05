@@ -25,7 +25,6 @@ people :: Table Person
 people = table "people"
   [ pName :- primary
   , pName :- index
-  , (#name :+ #age) :- unique
   , pCash :- indexUsing HashIndex
   ]
 #if MIN_VERSION_base(4, 9, 0)
