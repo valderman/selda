@@ -212,7 +212,7 @@ validateMultiUnique = do
     dropTable tbl2
   where
     tbl1 :: Table (Int, Int)
-    tbl1 = table "foo" [(one :*: two) :- unique]
+    tbl1 = table "foo" [(one :+ Single two) :- unique]
 
     tbl2 :: Table (Int, Int)
     tbl2 = table "foo" []

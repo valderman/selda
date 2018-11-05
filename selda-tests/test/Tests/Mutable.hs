@@ -794,4 +794,4 @@ multiUnique = do
   where
     uniques :: Table (Int, Int)
     (uniques, ua :*: ub) =
-      tableWithSelectors "uniques" [(ua :*: ub) :- unique]
+      tableWithSelectors "uniques" [(ua :+ Single ub) :- unique]

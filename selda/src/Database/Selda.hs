@@ -81,6 +81,7 @@ module Database.Selda
   , Generic
   , TableName, ColName, Attr (..), Attribute
   , Selectors, GSelectors, ForeignKey (..)
+  , SelectorGroup, Group (..), sel
   , table, tableFieldMod, tableWithSelectors, selectors
   , primary, autoPrimary, untypedAutoPrimary, unique
   , IndexMethod (..), index, indexUsing
@@ -176,6 +177,12 @@ instance (TypeError
   fromSql = error "unreachable"
   defaultValue = error "unreachable"
 #endif
+
+-- | Annotation to force the type of a polymorphic label (i.e. @#foo@) to
+--   be a selector. This is useful, for instance, when defining unique
+--   constraints: @sel #foo :- unique@.
+sel :: Selector t a -> Selector t a
+sel = id
 
 -- | Add the given column to the column pointed to by the given selector.
 (+=) :: (SqlType a, Num (Col s a)) => Selector t a -> Col s a -> Assignment s t

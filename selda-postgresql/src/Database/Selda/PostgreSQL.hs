@@ -225,10 +225,10 @@ disableFKs c False = do
       , "end $$;"
       ]
 
-pgGetTableInfo :: Connection -> T.Text -> IO [ColumnInfo]
+pgGetTableInfo :: Connection -> T.Text -> IO TableInfo
 pgGetTableInfo c tbl = do
     Right (_, vals) <- pgQueryRunner c False tableinfo []
-    if null vals
+    colInfos <- if null vals
       then do
         pure []
       else do
@@ -237,6 +237,10 @@ pgGetTableInfo c tbl = do
         Right (_, fks) <- pgQueryRunner c False fkquery []
         Right (_, ixs) <- pgQueryRunner c False ixquery []
         mapM (describe pk fks (map toText ixs) (map toText uniques)) vals
+    pure $ TableInfo
+      { tableColumnInfos = colInfos
+      , tableUniqueGroups = error "TODO"
+      }
   where
     toText [SqlString s] = s
     tableinfo = mconcat

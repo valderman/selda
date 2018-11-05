@@ -5,7 +5,7 @@
 {-# LANGUAGE GADTs, CPP, DeriveGeneric, DataKinds #-}
 {-# LANGUAGE TypeApplications #-}
 module Database.Selda.Table
-  ( SelectorGroup, Attr (..), Table (..), Attribute
+  ( SelectorGroup, Group (..), Attr (..), Table (..), Attribute
   , ColInfo (..), ColAttr (..), IndexMethod (..)
   , ForeignKey (..)
   , table, tableFieldMod
@@ -26,24 +26,36 @@ import Database.Selda.Column (Row (..))
 import Database.Selda.Generic
 import Database.Selda.Table.Type
 import Database.Selda.Table.Validation (snub)
+import GHC.OverloadedLabels
 
 -- | A group of one or more selectors.
 --   A selector group is either a selector (i.e. @#id@), or an inductive
 --   tuple of selectors (i.e. @#foo :*: #bar@).
-class SelectorGroup t a where
-  indices :: Proxy t -> a -> [Int]
+class SelectorGroup g where
+  indices :: g t a -> [Int]
 
-instance SelectorGroup t (Selector t a) where
-  indices _ s = [selectorIndex s]
+instance SelectorGroup Selector where
+  indices s = [selectorIndex s]
+instance SelectorGroup Group where
+  indices (s :+ ss)  = selectorIndex s : indices ss
+  indices (Single s) = [selectorIndex s]
 
-instance SelectorGroup t b => SelectorGroup t (Selector t a :*: b) where
-  indices p (s :*: ss) = selectorIndex s : indices p ss
+-- | A non-empty list of selectors, where the element selectors need not have
+--   the same type.
+data Group t a where
+  (:+)   :: Selector t a -> Group t b -> Group t (a :*: b)
+  Single :: Selector t a -> Group t a
+infixr 1 :+
+
+instance forall x t a. IsLabel x (Selector t a) => IsLabel x (Group t a) where
+  fromLabel = Single (fromLabel @x)
 
 -- | A generic column attribute.
 --   Essentially a pair or a record selector over the type @a@ and a column
 --   attribute.
 data Attr a where
-  (:-) :: SelectorGroup t a => a -> Attribute t a -> Attr t
+  (:-) :: SelectorGroup g => g t a -> Attribute g t a -> Attr t
+infixl 0 :-
 
 -- | Generate a table from the given table name and list of column attributes.
 --   All @Maybe@ fields in the table's type will be represented by nullable
@@ -107,7 +119,7 @@ tableFieldMod tn attrs fieldMod = Table
     combinedAttrs =
       [ (ixs, a)
       | sel :- Attribute [a] <- attrs
-      , let ixs = indices (Proxy @a) sel
+      , let ixs = indices sel
       , case ixs of
           []  -> False
           [_] -> False
@@ -119,14 +131,14 @@ tableFieldMod tn attrs fieldMod = Table
       { colAttrs = colAttrs ci ++ concat
           [ as
           | sel :- Attribute as <- attrs
-          , case indices (Proxy @a) sel of
+          , case indices sel of
               [colIx] -> colIx == n
               _       -> False
           ]
       , colFKs = colFKs ci ++
           [ thefk
           | sel :- ForeignKey thefk <- attrs
-          , case indices (Proxy @a) sel of
+          , case indices sel of
               [colIx] -> colIx == n
               _       -> False
           ]
@@ -138,42 +150,42 @@ tidy ci = ci {colAttrs = snub $ colAttrs ci}
 
 -- | Some attribute that may be set on a column of type @c@, in a table of
 --   type @t@.
-data Attribute t c
+data Attribute (g :: * -> * -> *) t c
   = Attribute [ColAttr]
   | ForeignKey (Table (), ColName)
 
 -- | A primary key which does not auto-increment.
-primary :: Attribute t (Selector t c)
+primary :: Attribute Selector t c
 primary = Attribute [Primary, Required, Unique]
 
 -- | Create an index on this column.
-index :: Attribute t (Selector t c)
+index :: Attribute Selector t c
 index = Attribute [Indexed Nothing]
 
 -- | Create an index using the given index method on this column.
-indexUsing :: IndexMethod -> Attribute t (Selector t c)
+indexUsing :: IndexMethod -> Attribute Selector t c
 indexUsing m = Attribute [Indexed (Just m)]
 
 -- | An auto-incrementing primary key.
-autoPrimary :: Attribute t (Selector t (ID t))
+autoPrimary :: Attribute Selector t (ID t)
 autoPrimary = Attribute [Primary, AutoIncrement, Required, Unique]
 
 -- | An untyped auto-incrementing primary key.
 --   You should really only use this for ad hoc tables, such as tuples.
-untypedAutoPrimary :: Attribute t (Selector t RowID)
+untypedAutoPrimary :: Attribute Selector t RowID
 untypedAutoPrimary = Attribute [Primary, AutoIncrement, Required, Unique]
 
 -- | A table-unique value.
-unique :: SelectorGroup t g => Attribute t g
+unique :: SelectorGroup g => Attribute g t a
 unique = Attribute [Unique]
 
-mkFK :: Table t -> Selector a b -> Attribute c (Selector c d)
+mkFK :: Table t -> Selector a b -> Attribute Selector c d
 mkFK (Table tn tcs tapk tas) sel =
   ForeignKey (Table tn tcs tapk tas, colName (tcs !! selectorIndex sel))
 
 class ForeignKey a b where
   -- | A foreign key constraint referencing the given table and column.
-  foreignKey :: Table t -> Selector t a -> Attribute self (Selector self b)
+  foreignKey :: Table t -> Selector t a -> Attribute Selector self b
 
 instance ForeignKey a a where
   foreignKey = mkFK

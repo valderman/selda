@@ -2,7 +2,7 @@
 -- | Utilities for validating and inspecting Selda tables.
 module Database.Selda.Validation
   ( TableDiff (..), ColumnDiff (..)
-  , TableName, ColName, ColumnInfo, SqlTypeRep, columnInfo
+  , TableName, ColName, ColumnInfo, SqlTypeRep, tableInfo
   , showTableDiff, showColumnDiff
   , describeTable, diffTable, diffTables
   , validateTable, validateSchema
@@ -10,7 +10,8 @@ module Database.Selda.Validation
 import Control.Monad.Catch
 import Data.List ((\\))
 import Data.Maybe (catMaybes)
-import Data.Text (pack, unpack)
+import Data.Monoid ((<>))
+import Data.Text (pack, unpack, intercalate)
 import Database.Selda
 import Database.Selda.Backend
 import Database.Selda.Table.Type (tableName, tableCols)
@@ -47,6 +48,8 @@ validateSchema t = validateOrThrow (tableName t) (tableCols t) `seq` return ()
 data TableDiff
   = TableOK
   | TableMissing
+  | UniqueMissing [[ColName]]
+  | UniquePresent [[ColName]]
   | InconsistentColumns [(ColName, [ColumnDiff])]
     deriving Eq
 instance Show TableDiff where
@@ -77,6 +80,22 @@ instance Show ColumnDiff where
 showTableDiff :: TableDiff -> Text
 showTableDiff TableOK = "no inconsistencies detected"
 showTableDiff TableMissing = "table does not exist"
+showTableDiff (UniqueMissing cs) = mconcat
+  [ "table should have uniqueness constraints on the following column groups, "
+  , "but don't in database:\n"
+  , intercalate ", "
+    [ "(" <> intercalate ", " (map fromColName constraintGroup) <> ")"
+    | constraintGroup <- cs
+    ]
+  ]
+showTableDiff (UniquePresent cs) = mconcat
+  [ "table shouldn't have uniqueness constraints on the following column groups, "
+  , "but does in database:\n"
+  , intercalate ", "
+    [ "(" <> intercalate ", " (map fromColName constraintGroup) <> ")"
+    | constraintGroup <- cs
+    ]
+  ]
 showTableDiff (InconsistentColumns cols) = mconcat
   [ "table has inconsistent columns:\n"
   , mconcat (map showColDiffs cols)
@@ -135,7 +154,7 @@ showBoolDiff False what =
   mconcat ["column is not ", what, " in database, even though it should be"]
 
 -- | Get a description of the table by the given name currently in the database.
-describeTable :: MonadSelda m => TableName -> m [ColumnInfo]
+describeTable :: MonadSelda m => TableName -> m TableInfo
 describeTable tbl = do
   b <- seldaBackend
   liftIO $ getTableInfo b tbl
@@ -146,31 +165,39 @@ describeTable tbl = do
 diffTable :: MonadSelda m => Table a -> m TableDiff
 diffTable tbl = do
   dbInfos <- describeTable (tableName tbl)
-  return $ diffColumns (columnInfo tbl) dbInfos
+  return $ diffColumns (tableInfo tbl) dbInfos
 
 -- | Compute the difference between the two given tables.
 --   The first table is considered to be the schema, and the second the database.
 diffTables :: Table a -> Table b -> TableDiff
-diffTables schema db = diffColumns (columnInfo schema) (columnInfo db)
+diffTables schema db = diffColumns (tableInfo schema) (tableInfo db)
 
 -- | Compute the difference between the columns of two tables.
 --   The first table is considered to be the schema, and the second the database.
-diffColumns :: [ColumnInfo] -> [ColumnInfo] -> TableDiff
-diffColumns infos dbInfos =
+diffColumns :: TableInfo -> TableInfo -> TableDiff
+diffColumns inschema indb =
     case ( zipWith diffColumn infos dbInfos
          , map colName infos \\ map colName dbInfos
-         , map colName dbInfos \\ map colName infos) of
-      ([], _, _) ->
+         , map colName dbInfos \\ map colName infos
+         , tableUniqueGroups inschema \\ tableUniqueGroups indb
+         , tableUniqueGroups indb \\ tableUniqueGroups inschema) of
+      ([], _, _, _, _) ->
         TableMissing
-      (diffs, [], []) | all consistent diffs ->
+      (diffs, [], [], [], []) | all consistent diffs ->
         TableOK
-      (diffs, missing, extras) ->
+      (diffs, missing, extras, [], []) ->
         InconsistentColumns $ concat
           [ filter (not . consistent) diffs
           , map (, [ColumnMissing]) missing
           , map (, [ColumnPresent]) extras
           ]
+      (_, _, _, schemaUniques, []) ->
+        UniqueMissing schemaUniques
+      (_, _, _, _, dbUniques) ->
+        UniquePresent dbUniques
   where
+    infos = tableColumnInfos inschema
+    dbInfos = tableColumnInfos indb
     consistent (_, diffs) = null diffs
     diffColumn schema db = (colName schema, catMaybes
       ([ check colName NameMismatch

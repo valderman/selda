@@ -7,8 +7,8 @@ module Database.Selda.Backend
   , IndexMethod (..)
   , Param (..), ColAttr (..)
   , PPConfig (..), defPPConfig
-  , TableName, ColName, ColumnInfo (..)
-  , columnInfo, fromColInfo
+  , TableName, ColName, TableInfo (..), ColumnInfo (..)
+  , tableInfo, fromColInfo
   , mkTableName, mkColName, fromTableName, fromColName, rawTableName
   , newConnection, allStmts, seldaBackend
   , runSeldaT, seldaClose

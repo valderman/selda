@@ -8,7 +8,7 @@ module Database.Selda.Backend.Internal
   , Param (..), Lit (..), ColAttr (..)
   , SqlType (..), SqlValue (..), SqlTypeRep (..)
   , PPConfig (..), defPPConfig
-  , ColumnInfo (..), columnInfo, fromColInfo
+  , TableInfo (..), ColumnInfo (..), tableInfo, fromColInfo
   , sqlDateTimeFormat, sqlDateFormat, sqlTimeFormat
   , freshStmtId
   , invalidate
@@ -121,6 +121,15 @@ allStmts :: SeldaConnection -> IO [(StmtID, Dynamic)]
 allStmts =
   fmap (map (\(k, v) -> (k, stmtHandle v)) . M.toList) . readIORef . connStmts
 
+-- | Comprehensive information about a table.
+data TableInfo = TableInfo
+  { -- | Ordered information about each table column.
+    tableColumnInfos  :: [ColumnInfo]
+    -- | Unordered list of all uniqueness constraints on this table,
+    --   including those spanning only a single column.
+  , tableUniqueGroups :: [[ColName]]
+  }
+
 -- | Comprehensive information about a column.
 data ColumnInfo = ColumnInfo
   { -- | Name of the column.
@@ -132,8 +141,8 @@ data ColumnInfo = ColumnInfo
   , colIsPK :: Bool
     -- | Is the given column auto-incrementing?
   , colIsAutoIncrement :: Bool
-    -- | Is the column unique, either through a UNIQUE constraint or by virtue
-    --   of being a primary key?
+    -- | Is the given column unique, either through an explicit uniqueness
+    --   constraint or by virtue of being the primary key?
   , colIsUnique :: Bool
     -- | Can the column be NULL?
   , colIsNullable :: Bool
@@ -159,8 +168,14 @@ fromColInfo ci = ColumnInfo
     fk (Table tbl _ _ _, col) = (tbl, col)
 
 -- | Get the column information for each column in the given table.
-columnInfo :: Table a -> [ColumnInfo]
-columnInfo = map fromColInfo . tableCols
+tableInfo :: Table a -> TableInfo
+tableInfo t = TableInfo
+  { tableColumnInfos = map fromColInfo (tableCols t)
+  , tableUniqueGroups =
+    [ map (Table.colName . ((tableCols t) !!)) ixs
+    | (ixs, Unique) <- tableAttrs t
+    ]
+  }
 
 -- | A collection of functions making up a Selda backend.
 data SeldaBackend = SeldaBackend
@@ -181,7 +196,7 @@ data SeldaBackend = SeldaBackend
     -- | Get a list of all columns in the given table, with the type and any
     --   modifiers for each column.
     --   Return an empty list if the given table does not exist.
-  , getTableInfo :: TableName -> IO [ColumnInfo]
+  , getTableInfo :: TableName -> IO TableInfo
 
     -- | SQL pretty-printer configuration.
   , ppConfig :: PPConfig
