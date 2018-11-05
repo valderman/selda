@@ -68,7 +68,7 @@ sqliteGetTableInfo db tbl = do
       { tableColumnInfos = colInfos
       , tableUniqueGroups =
         [ map mkColName names
-        | (names, "u") <- indexes'
+        | (names@(_:_:_), "u") <- indexes'
         ]
       }
   where

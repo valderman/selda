@@ -228,20 +228,37 @@ disableFKs c False = do
 pgGetTableInfo :: Connection -> T.Text -> IO TableInfo
 pgGetTableInfo c tbl = do
     Right (_, vals) <- pgQueryRunner c False tableinfo []
-    colInfos <- if null vals
+    if null vals
       then do
-        pure []
+        pure $ TableInfo [] []
       else do
-        Right (_, [[SqlString pk]]) <- pgQueryRunner c False pkquery []
-        Right (_, uniques) <- pgQueryRunner c False uniquequery []
+        Right pkInfo <- pgQueryRunner c False pkquery []
+        let pk = case pkInfo of
+              (_, [[SqlString pk]]) -> Just pk
+              _                     -> Nothing
+        Right (_, us) <- pgQueryRunner c False uniquequery []
+        let uniques = map splitNames us
+            loneUniques = [u | [u] <- uniques]
         Right (_, fks) <- pgQueryRunner c False fkquery []
         Right (_, ixs) <- pgQueryRunner c False ixquery []
-        mapM (describe pk fks (map toText ixs) (map toText uniques)) vals
-    pure $ TableInfo
-      { tableColumnInfos = colInfos
-      , tableUniqueGroups = error "TODO"
-      }
+        colInfos <- mapM (describe pk fks (map toText ixs) loneUniques) vals
+        x <- pure $ TableInfo
+          { tableColumnInfos = colInfos
+          , tableUniqueGroups =
+            [ map mkColName names
+            | names@(_:_:_) <- uniques
+            ]
+          }
+        putStrLn $ "(" <> show uniques <> ", " <> show (tableUniqueGroups x) <> ")"
+        pure x
   where
+    splitNames [SqlString s] = breakNames s
+    -- TODO: this is super ugly; should really be fixed
+    breakNames s =
+      case T.break (== '"') s of
+        (n, ns) | T.null n  -> []
+                | T.null ns -> [n]
+                | otherwise -> n : breakNames (T.tail ns)
     toText [SqlString s] = s
     tableinfo = mconcat
       [ "SELECT column_name, data_type, is_nullable "
@@ -257,12 +274,13 @@ pgGetTableInfo c tbl = do
       , "  AND i.indisprimary;"
       ]
     uniquequery = mconcat
-      [ "SELECT a.attname "
+      [ "SELECT string_agg(a.attname, '\"') "
       , "FROM pg_index i "
       , "JOIN pg_attribute a ON a.attrelid = i.indrelid "
       , "  AND a.attnum = ANY(i.indkey) "
       , "WHERE i.indrelid = '", tbl, "'::regclass "
-      , "  AND i.indisunique;"
+      , "  AND i.indisunique "
+      , "GROUP BY i.indkey;"
       ]
     fkquery = mconcat
       [ "SELECT kcu.column_name, ccu.table_name, ccu.column_name "
@@ -287,8 +305,8 @@ pgGetTableInfo c tbl = do
     describe pk fks ixs us [SqlString name, SqlString ty, SqlString nullable] =
       return $ ColumnInfo
         { colName = mkColName name
-        , colType = mkTypeRep (pk == name) ty'
-        , colIsPK = pk == name
+        , colType = mkTypeRep (pk == Just name) ty'
+        , colIsPK = pk == Just name
         , colIsAutoIncrement = ty' == "bigserial"
         , colIsUnique = name `elem` us
         , colIsNullable = readBool (encodeUtf8 (T.toLower nullable))

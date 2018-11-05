@@ -125,10 +125,10 @@ allStmts =
 data TableInfo = TableInfo
   { -- | Ordered information about each table column.
     tableColumnInfos  :: [ColumnInfo]
-    -- | Unordered list of all uniqueness constraints on this table,
-    --   including those spanning only a single column.
+    -- | Unordered list of all uniqueness constraints on this table
+    --   which span more than a single column.
   , tableUniqueGroups :: [[ColName]]
-  }
+  } deriving (Show, Eq)
 
 -- | Comprehensive information about a column.
 data ColumnInfo = ColumnInfo
