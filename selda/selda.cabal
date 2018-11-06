@@ -102,6 +102,9 @@ library
   if impl(ghc < 7.11)
     build-depends:
       transformers  >=0.4 && <0.6
+  if impl(ghc < 8.1) && impl(ghc >= 8.0)
+    build-depends:
+      ghc-prim >= 0.5.0.0
   if impl(ghc >= 8.2)
     build-depends:
       hashable >= 1.2.6.1

@@ -2,8 +2,10 @@
 {-# LANGUAGE TypeFamilies, TypeOperators, FlexibleInstances #-}
 {-# LANGUAGE UndecidableInstances, MultiParamTypeClasses, OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts, ScopedTypeVariables, ConstraintKinds #-}
-{-# LANGUAGE GADTs, CPP, DeriveGeneric, DataKinds #-}
+{-# LANGUAGE GADTs, CPP, DeriveGeneric, DataKinds, MagicHash #-}
+#if MIN_VERSION_base(4, 10, 0)
 {-# LANGUAGE TypeApplications #-}
+#endif
 module Database.Selda.Table
   ( SelectorGroup, Group (..), Attr (..), Table (..), Attribute
   , ColInfo (..), ColAttr (..), IndexMethod (..)
@@ -26,7 +28,21 @@ import Database.Selda.Column (Row (..))
 import Database.Selda.Generic
 import Database.Selda.Table.Type
 import Database.Selda.Table.Validation (snub)
+
+#if MIN_VERSION_base(4, 9, 0)
 import GHC.OverloadedLabels
+#if !MIN_VERSION_base(4, 10, 0)
+import GHC.Prim
+#endif
+
+instance forall x t a. IsLabel x (Selector t a) => IsLabel x (Group t a) where
+#if MIN_VERSION_base(4, 10, 0)
+  fromLabel = Single (fromLabel @x)
+#else
+  fromLabel _ = Single (fromLabel (proxy# :: Proxy# x))
+#endif
+
+#endif
 
 -- | A group of one or more selectors.
 --   A selector group is either a selector (i.e. @#id@), or an inductive
@@ -46,9 +62,6 @@ data Group t a where
   (:+)   :: Selector t a -> Group t b -> Group t (a :*: b)
   Single :: Selector t a -> Group t a
 infixr 1 :+
-
-instance forall x t a. IsLabel x (Selector t a) => IsLabel x (Group t a) where
-  fromLabel = Single (fromLabel @x)
 
 -- | A generic column attribute.
 --   Essentially a pair or a record selector over the type @a@ and a column
