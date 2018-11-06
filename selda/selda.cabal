@@ -20,7 +20,7 @@ category:            Database
 build-type:          Simple
 extra-source-files:  ChangeLog.md
 cabal-version:       >=1.10
-tested-with:         GHC == 7.10.3, GHC == 8.0.2, GHC == 8.2.1, GHC == 8.4.1
+tested-with:         GHC == 7.10.3, GHC == 8.0.2, GHC == 8.2.1, GHC == 8.4.1, GHC == 8.6.1
 
 extra-source-files:
   README.md
