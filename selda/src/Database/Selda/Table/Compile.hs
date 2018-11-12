@@ -131,9 +131,9 @@ compInsert cfg tbl defs =
       | AutoIncrement `elem` colAttrs col =
         (n, ppAutoIncInsert cfg, ps)
       | otherwise =
-        (n+1, pack ('$':show n), def:ps)
+        (n+1, ppPlaceholder cfg n, def:ps)
     mkCol n (Right val) _ ps =
-        (n+1, pack ('$':show n), val:ps)
+        (n+1, ppPlaceholder cfg n, val:ps)
 
     -- Create a colum and return the next parameter id, plus the column itself.
     mkCols :: (Int, [Text], [Param]) -> (Either Param Param, ColInfo) -> (Int, [Text], [Param])
