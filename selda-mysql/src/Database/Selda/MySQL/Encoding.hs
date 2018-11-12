@@ -25,7 +25,6 @@ import           Data.ByteString.Builder.Scientific (FPFormat (..),
                                                      formatScientificBuilder)
 import qualified Data.ByteString.Unsafe as B
 import Database.MySQL.Protocol.Escape
-import Debug.Trace
 
 -- | Text protocol decoder
 getTextFieldSql :: ColumnDef -> Get SqlValue
@@ -45,6 +44,7 @@ getTextFieldSql f
       t == mySQLTypeTimestamp2      = SqlString . decodeUtf8 <$> getLenEncBytes
     | t == mySQLTypeDateTime  ||
       t == mySQLTypeDateTime2 ||
+      t == mySQLTypeDate      ||
       t == mySQLTypeNewDate   ||
       t == mySQLTypeTime ||
       t == mySQLTypeTime2           = SqlString . decodeUtf8 <$> getLenEncBytes
@@ -166,9 +166,8 @@ litToMySQL (LInt i) = MySQLInt64 $ fromIntegral i
 litToMySQL (LDouble d) = MySQLDouble d
 litToMySQL (LBool b) = MySQLInt8 $ if b then 1 else 0
 litToMySQL (LDateTime d) = let bs = encodeUtf8 d
-                           in traceShow bs $ MySQLDateTime $
-                              LocalTime (dateParser bs)
-                              (timeParser $ B.unsafeDrop 11 bs)
+                           in MySQLDateTime $ LocalTime (dateParser bs) $
+                              timeParser $ B.unsafeDrop 11 bs
 litToMySQL (LDate d) = MySQLDate $ dateParser $ encodeUtf8 d
 litToMySQL (LTime d) = MySQLTime 0 $ timeParser $ encodeUtf8 d
 litToMySQL (LJust a) = litToMySQL a

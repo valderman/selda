@@ -43,11 +43,11 @@ runPP cfg pp =
 compSql :: PPConfig
         -> SQL
         -> ([TableName], (Text, [Param]))
-compSql cfg = runPP cfg . ppSql
+compSql cfg = runPP cfg . ppSql cfg
 
 -- | Compile a single column expression.
 compExp :: PPConfig -> Exp SQL a -> (Text, [Param])
-compExp cfg = snd . runPP cfg . ppCol
+compExp cfg = snd . runPP cfg . ppCol cfg
 
 -- | Compile an @UPATE@ statement.
 compUpdate :: PPConfig
@@ -59,7 +59,7 @@ compUpdate cfg tbl p cs = snd $ runPP cfg ppUpd
   where
     ppUpd = do
       updates <- mapM ppUpdate cs
-      check <- ppCol p
+      check <- ppCol cfg p
       pure $ Text.unwords
         [ "UPDATE", fromTableName tbl
         , "SET", set updates
@@ -67,7 +67,7 @@ compUpdate cfg tbl p cs = snd $ runPP cfg ppUpd
         ]
     ppUpdate (n, c) = do
       let n' = fromColName n
-      c' <- ppSomeCol c
+      c' <- ppSomeCol cfg c
       let upd = Text.unwords [n', "=", c']
       if n' == c'
         then pure $ Left upd
@@ -84,18 +84,18 @@ compDelete :: PPConfig -> TableName -> Exp SQL Bool -> (Text, [Param])
 compDelete cfg tbl p = snd $ runPP cfg ppDelete
   where
     ppDelete = do
-      c' <- ppCol p
+      c' <- ppCol cfg p
       pure $ Text.unwords ["DELETE FROM", fromTableName tbl, "WHERE", c']
 
 -- | Pretty-print a literal as a named parameter and save the
 --   name-value binding in the environment.
-ppLit :: Lit a -> PP Text
-ppLit LNull     = pure "NULL"
-ppLit (LJust l) = ppLit l
-ppLit l         = do
+ppLit :: PPConfig -> Lit a -> PP Text
+ppLit _cfg LNull     = pure "NULL"
+ppLit cfg (LJust l) = ppLit cfg l
+ppLit cfg l         = do
   PPState ps ts ns qns tr <- get
   put $ PPState (Param l : ps) ts (succ ns) qns tr
-  return $ Text.pack ('$':show ns)
+  return $ Cfg.ppPlaceholder cfg ns
 
 dependOn :: TableName -> PP ()
 dependOn t = do
@@ -110,9 +110,9 @@ freshQueryName = do
   return $ Text.pack ('q':show qns)
 
 -- | Pretty-print an SQL AST.
-ppSql :: SQL -> PP Text
-ppSql (SQL cs src r gs ord lim dist) = do
-  cs' <- mapM ppSomeCol cs
+ppSql :: PPConfig -> SQL -> PP Text
+ppSql cfg (SQL cs src r gs ord lim dist) = do
+  cs' <- mapM (ppSomeCol cfg) cs
   src' <- ppSrc src
   r' <- ppRestricts r
   gs' <- ppGroups gs
@@ -139,13 +139,13 @@ ppSql (SQL cs src r gs ord lim dist) = do
     ppSrc (Product [])   = do
       pure ""
     ppSrc (Product sqls) = do
-      srcs <- mapM ppSql (reverse sqls)
+      srcs <- mapM (ppSql cfg) (reverse sqls)
       qs <- flip mapM ["(" <> s <> ")" | s <- srcs] $ \q -> do
         qn <- freshQueryName
         pure (q <> " AS " <> qn)
       pure $ " FROM " <> Text.intercalate ", " qs
     ppSrc (Values row rows) = do
-      row' <- Text.intercalate ", " <$> mapM ppSomeCol row
+      row' <- Text.intercalate ", " <$> mapM (ppSomeCol cfg) row
       rows' <- mapM ppRow rows
       qn <- freshQueryName
       pure $ mconcat
@@ -155,9 +155,9 @@ ppSql (SQL cs src r gs ord lim dist) = do
         , qn
         ]
     ppSrc (Join jointype on left right) = do
-      l' <- ppSql left
-      r' <- ppSql right
-      on' <- ppCol on
+      l' <- ppSql cfg left
+      r' <- ppSql cfg right
+      on' <- ppCol cfg on
       lqn <- freshQueryName
       rqn <- freshQueryName
       pure $ mconcat
@@ -170,20 +170,21 @@ ppSql (SQL cs src r gs ord lim dist) = do
     ppJoinType InnerJoin = "JOIN"
 
     ppRow xs = do
-      ls <- sequence [ppLit l | Param l <- xs]
+      ls <- sequence [ppLit cfg  l | Param l <- xs]
       pure $ Text.intercalate ", " ls
 
     ppRestricts [] = pure ""
-    ppRestricts rs = ppCols rs >>= \rs' -> pure $ " WHERE " <> rs'
+    ppRestricts rs = ppCols cfg rs >>= \rs' -> pure $ " WHERE " <> rs'
 
     ppGroups [] = pure ""
     ppGroups grps = do
-      cls <- sequence [ppCol c | Some c <- grps]
+      cls <- sequence [ppCol cfg c | Some c <- grps]
       pure $ " GROUP BY " <> Text.intercalate ", " cls
 
     ppOrder [] = pure ""
     ppOrder os = do
-      os' <- sequence [(<> (" " <> ppOrd o)) <$> ppCol c | (o, Some c) <- os]
+      os' <- sequence [ (<> (" " <> ppOrd o)) <$> ppCol cfg c
+                      | (o, Some c) <- os]
       pure $ " ORDER BY " <> Text.intercalate ", " os'
 
     ppOrd Asc = "ASC"
@@ -196,15 +197,15 @@ ppSql (SQL cs src r gs ord lim dist) = do
 
     ppInt = Text.pack . show
 
-ppSomeCol :: SomeCol SQL -> PP Text
-ppSomeCol (Some c)    = ppCol c
-ppSomeCol (Named n c) = do
-  c' <- ppCol c
+ppSomeCol :: PPConfig -> SomeCol SQL -> PP Text
+ppSomeCol cfg (Some c)    = ppCol cfg c
+ppSomeCol cfg (Named n c) = do
+  c' <- ppCol cfg c
   pure $ c' <> " AS " <> fromColName n
 
-ppCols :: [Exp SQL Bool] -> PP Text
-ppCols cs = do
-  cs' <- mapM ppCol (reverse cs)
+ppCols :: PPConfig -> [Exp SQL Bool] -> PP Text
+ppCols cfg cs = do
+  cs' <- mapM (ppCol cfg) (reverse cs)
   pure $ "(" <> Text.intercalate ") AND (" cs' <> ")"
 
 ppType :: SqlTypeRep -> PP Text
@@ -217,41 +218,41 @@ ppTypePK t = do
   c <- ppConfig <$> get
   pure $ Cfg.ppTypePK c t
 
-ppCol :: Exp SQL a -> PP Text
-ppCol (Col name)     = pure (fromColName name)
-ppCol (Lit l)        = ppLit l
-ppCol (BinOp op a b) = ppBinOp op a b
-ppCol (UnOp op a)    = ppUnOp op a
-ppCol (NulOp a)      = ppNulOp a
-ppCol (Fun2 f a b)   = do
-  a' <- ppCol a
-  b' <- ppCol b
+ppCol :: PPConfig -> Exp SQL a -> PP Text
+ppCol _ (Col name)     = pure (fromColName name)
+ppCol cfg (Lit l)        = ppLit cfg l
+ppCol cfg (BinOp op a b) = ppBinOp cfg op a b
+ppCol cfg (UnOp op a)    = ppUnOp cfg op a
+ppCol _ (NulOp a)      = ppNulOp a
+ppCol cfg (Fun2 f a b)   = do
+  a' <- ppCol cfg a
+  b' <- ppCol cfg b
   pure $ mconcat [f, "(", a', ", ", b', ")"]
-ppCol (If a b c)     = do
-  a' <- ppCol a
-  b' <- ppCol b
-  c' <- ppCol c
+ppCol cfg (If a b c)     = do
+  a' <- ppCol cfg a
+  b' <- ppCol cfg b
+  c' <- ppCol cfg c
   pure $ mconcat ["CASE WHEN ", a', " THEN ", b', " ELSE ", c', " END"]
-ppCol (AggrEx f x)   = ppUnOp (Fun f) x
-ppCol (Cast t x)     = do
-  x' <- ppCol x
+ppCol cfg (AggrEx f x)   = ppUnOp cfg (Fun f) x
+ppCol cfg (Cast t x)     = do
+  x' <- ppCol cfg x
   t' <- ppType t
   pure $ mconcat ["CAST(", x', " AS ", t', ")"]
-ppCol (InList x xs) = do
-  x' <- ppCol x
-  xs' <- mapM ppCol xs
+ppCol cfg (InList x xs) = do
+  x' <- ppCol cfg x
+  xs' <- mapM (ppCol cfg) xs
   pure $ mconcat [x', " IN (", Text.intercalate ", " xs', ")"]
-ppCol (InQuery x q) = do
-  x' <- ppCol x
-  q' <- ppSql q
+ppCol cfg (InQuery x q) = do
+  x' <- ppCol cfg x
+  q' <- ppSql cfg q
   pure $ mconcat [x', " IN (", q', ")"]
 
 ppNulOp :: NulOp a -> PP Text
 ppNulOp (Fun0 f) = pure $ f <> "()"
 
-ppUnOp :: UnOp a b -> Exp SQL a -> PP Text
-ppUnOp op c = do
-  c' <- ppCol c
+ppUnOp :: PPConfig -> UnOp a b -> Exp SQL a -> PP Text
+ppUnOp cfg op c = do
+  c' <- ppCol cfg c
   pure $ case op of
     Abs    -> "ABS(" <> c' <> ")"
     Sgn    -> "SIGN(" <> c' <> ")"
@@ -260,10 +261,10 @@ ppUnOp op c = do
     IsNull -> "(" <> c' <> ") IS NULL"
     Fun f  -> f <> "(" <> c' <> ")"
 
-ppBinOp :: BinOp a b -> Exp SQL a -> Exp SQL a -> PP Text
-ppBinOp op a b = do
-    a' <- ppCol a
-    b' <- ppCol b
+ppBinOp :: PPConfig -> BinOp a b -> Exp SQL a -> Exp SQL a -> PP Text
+ppBinOp cfg op a b = do
+    a' <- ppCol cfg a
+    b' <- ppCol cfg b
     pure $ paren a a' <> " " <> ppOp op <> " " <> paren b b'
   where
     paren :: Exp SQL a -> Text -> Text

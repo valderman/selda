@@ -22,10 +22,8 @@ import Data.IORef
 import Data.List
 import Data.Function
 import Control.Monad
-import Control.Monad.Fix
 import Control.Exception hiding (bracket, bracketOnError)
 import Control.Monad.Catch (MonadThrow, MonadMask, bracket)
-import Debug.Trace
 
 -- | Perform the given computation over a MySQL database.  The
 --   database connection is guaranteed to be closed when the
@@ -157,9 +155,7 @@ mySQLRunStmt conn qry params =
 mySQLQuery :: MySQLConn -> T.Text -> [S.Param] -> IO (Either OK [[SqlValue]])
 mySQLQuery conn@(MySQLConn is os _ consumed) qryText params = do
   guardUnconsumed conn
-  let Query qry =
-        traceShow qryText $
-        renderParams (Query $ LB.fromStrict $ encodeUtf8 qryText) $
+  let Query qry = renderParams (Query $ LB.fromStrict $ encodeUtf8 qryText) $
                   [litToMySQL p | Param p <- params]
   writeCommand (COM_QUERY qry) os 
   p <- readPacket is
