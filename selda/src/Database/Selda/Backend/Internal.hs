@@ -38,7 +38,7 @@ import System.IO.Unsafe (unsafePerformIO)
 --
 --   When publishing a new backend, consider submitting a pull request with a
 --   constructor for your backend instead of using the @Other@ constructor.
-data BackendID = SQLite | PostgreSQL | Other Text
+data BackendID = SQLite | PostgreSQL | MySQL | Other Text
   deriving (Show, Eq, Ord)
 
 -- | Thrown by any function in 'SeldaT' if an error occurs.
