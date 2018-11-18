@@ -24,6 +24,8 @@ import Data.Function
 import Control.Monad
 import Control.Exception hiding (bracket, bracketOnError)
 import Control.Monad.Catch (MonadThrow, MonadMask, bracket)
+import Debug.Trace
+import Data.Char (chr)
 
 -- | Perform the given computation over a MySQL database.  The
 --   database connection is guaranteed to be closed when the
@@ -157,7 +159,8 @@ mySQLQuery conn@(MySQLConn is os _ consumed) qryText params = do
   guardUnconsumed conn
   let Query qry = renderParams (Query $ LB.fromStrict $ encodeUtf8 qryText) $
                   [litToMySQL p | Param p <- params]
-  writeCommand (COM_QUERY qry) os 
+  trace ("\nQUERY: " <> (map (chr . fromIntegral) $ LB.unpack qry)) $
+         writeCommand (COM_QUERY qry) os 
   p <- readPacket is
   if | isERR p -> decodeFromPacket p >>= throwIO . ERRException
      | isOK p -> Left <$> decodeFromPacket p
@@ -204,15 +207,22 @@ mySQLQueryStmt conn@(MySQLConn is os _ consumed) stid params = do
 mySQLPPConfig :: PPConfig
 mySQLPPConfig = PPConfig
     { ppType = fromSqlTypeRep
-    , ppTypeHook = \ty _ _ -> fromSqlTypeRep ty
+    , ppTypeHook = mySQLPPTypeHook
     , ppTypePK = fromSqlTypeRep
     , ppPlaceholder = const "?"
     , ppAutoIncInsert = "0"
     , ppColAttrs = T.unwords . map mySQLColAttr
     , ppColAttrsHook = \_ ats _ -> T.unwords $ map mySQLColAttr ats
-    , ppIndexMethodHook = (" USING " <>) . compileIndexMethod
+    , ppIndexMethodHook = mySQLIndexMethodHook
     , ppMaxInsertParams = Nothing
     }
+
+mySQLIndexMethodHook :: Maybe IndexMethod -> T.Text -> T.Text
+mySQLIndexMethodHook method col =
+  "(" <> col <> ")" <>
+  case method of
+    Just m -> " USING " <> compileIndexMethod m
+    Nothing -> ""
   where
     compileIndexMethod BTreeIndex = "BTREE"
     compileIndexMethod HashIndex  = "HASH"
@@ -238,7 +248,7 @@ mySQLColAttr Unique        = "UNIQUE"
 mySQLColAttr (Indexed _)   = ""
 
 fromSqlTypeRep :: SqlTypeRep -> T.Text
-fromSqlTypeRep TText = "VARCHAR"
+fromSqlTypeRep TText = "Text"
 fromSqlTypeRep TRowID = "BIGINT"
 fromSqlTypeRep TInt = "BIGINT"
 fromSqlTypeRep TFloat = "DOUBLE"
@@ -248,3 +258,13 @@ fromSqlTypeRep TDate = "DATE"
 fromSqlTypeRep TTime = "TIME"
 fromSqlTypeRep TBlob = "BLOB"
 
+mySQLPPTypeHook :: SqlTypeRep -> [ColAttr] -> (SqlTypeRep -> T.Text) -> T.Text
+mySQLPPTypeHook TText attrs _
+  | any isIndexed attrs = "VARCHAR(3000)"
+  | otherwise = "TEXT"
+mySQLPPTypeHook t _ _ = fromSqlTypeRep t
+
+isIndexed :: ColAttr -> Bool
+isIndexed Primary = True
+isIndexed (Indexed _) = True
+isIndexed _ = False

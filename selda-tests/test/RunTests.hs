@@ -18,6 +18,9 @@ import Tables (teardown)
 -- as PGConnectInfo.pgConnectInfo :: PGConnectInfo.
 import Database.Selda.PostgreSQL
 import PGConnectInfo (pgConnectInfo)
+#elif defined MYSQL
+import Database.Selda.MySQL
+import MySQLConnectInfo (mySqlConnectInfo)
 #else
 import Database.Selda.SQLite
 #endif
@@ -37,6 +40,8 @@ main = do
 freshEnv :: FilePath -> SeldaM a -> IO a
 #ifdef POSTGRES
 freshEnv _ m = withPostgreSQL pgConnectInfo $ teardown >> m
+#elif defined MYSQL
+freshEnv _ m = withMySQL mySqlConnectInfo $ teardown >> m
 #else
 freshEnv file m = do
   exists <- doesFileExist file
@@ -60,6 +65,9 @@ allTests f = TestList
 #ifdef POSTGRES
     open = pgOpen pgConnectInfo
     run = withPostgreSQL pgConnectInfo
+#elif defined MYSQL
+    open = mySQLOpen mySqlConnectInfo
+    run = withMySQL mySqlConnectInfo
 #else
     open = sqliteOpen f
     run = withSQLite f

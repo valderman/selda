@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Database.Selda.SQL.Print.Config (PPConfig (..), defPPConfig) where
 import Data.Text (Text)
+import Data.Maybe (fromMaybe)
 import qualified Data.Text as T
 import Database.Selda.SqlType
 import Database.Selda.Table
@@ -44,7 +45,7 @@ data PPConfig = PPConfig
 
     -- | @CREATE INDEX@ suffix to indicate that the index should use the given
     --   index method.
-  , ppIndexMethodHook :: IndexMethod -> Text
+  , ppIndexMethodHook :: Maybe IndexMethod -> Text -> Text
   }
 
 -- | Default settings for pretty-printing.
@@ -62,8 +63,11 @@ defPPConfig = PPConfig
     , ppColAttrsHook = \_ ats _ -> T.unwords $ map defColAttr ats
     , ppAutoIncInsert = "NULL"
     , ppMaxInsertParams = Nothing
-    , ppIndexMethodHook = const ""
+    , ppIndexMethodHook = defPPIndexMethodHook
     }
+
+defPPIndexMethodHook :: Maybe IndexMethod -> Text -> Text
+defPPIndexMethodHook _ col = "(" <> col <> ")"
 
 -- | Default compilation for SQL types.
 defType :: SqlTypeRep -> Text

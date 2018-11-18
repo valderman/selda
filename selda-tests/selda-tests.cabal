@@ -12,6 +12,9 @@ cabal-version:       >=1.10
 flag postgres
   default: False
   description: Run tests using PostgreSQL backend.
+flag mysql
+  default: False
+  description: Run tests using MySQL backend
 
 library
   default-language:
@@ -42,6 +45,9 @@ test-suite selda-testsuite
   if flag(postgres)
     build-depends: selda-postgresql
     cpp-options:   -DPOSTGRES
+  if flag(mysql)
+    build-depends: selda-mysql
+    cpp-options: -DMYSQL
   else
     build-depends: selda-sqlite
   hs-source-dirs:

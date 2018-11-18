@@ -53,10 +53,7 @@ compileCreateIndex cfg tbl col mmethod = mconcat
   [ "CREATE INDEX "
   , fromColName $ addColPrefix col ("ix" <> rawTableName tbl <> "_")
   , " ON ", fromTableName tbl
-  , case mmethod of
-      Just method -> " " <> ppIndexMethodHook cfg method
-      _           -> ""
-  , " (", fromColName col, ")"
+  , ppIndexMethodHook cfg mmethod (fromColName col)
   ]
 
 -- | Compile a foreign key constraint.
@@ -80,7 +77,7 @@ compileTableCol cfg ci = Text.unwords
     cty = colType ci
     attrs = colAttrs ci
     ppType'
-      | cty == TRowID && [Primary, AutoIncrement] `areIn` attrs = ppTypePK
+      | [Primary, AutoIncrement] `areIn` attrs = ppTypePK
       | otherwise = ppType
     areIn x y = null (x \\ y)
 
