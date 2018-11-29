@@ -249,7 +249,6 @@ pgGetTableInfo c tbl = do
             | names@(_:_:_) <- uniques
             ]
           }
-        putStrLn $ "(" <> show uniques <> ", " <> show (tableUniqueGroups x) <> ")"
         pure x
   where
     splitNames [SqlString s] = breakNames s
