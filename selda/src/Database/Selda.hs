@@ -275,6 +275,11 @@ suchThat q p = inner $ do
   return x
 infixr 7 `suchThat`
 
+-- | Comparisons over columns.
+--   Note that when comparing nullable (i.e. @Maybe@) columns, SQL @NULL@
+--   semantics are used. This means that comparing to a @NULL@ field will remove
+--   the row in question from the current set.
+--   To test for @NULL@, use 'isNull' instead of @.== literal Nothing@.
 (.==), (./=) :: SqlType a => Col s a -> Col s a -> Col s Bool
 (.>), (.<), (.>=), (.<=) :: SqlOrd a => Col s a -> Col s a -> Col s Bool
 (.==) = liftC2 $ BinOp Eq
@@ -361,12 +366,11 @@ descending = Desc
 -- >
 -- > people :: Table Person
 -- > people = table "people" []
--- > sName :*: sAge :*: sPet = selectors people
 -- >
 -- > peopleWithCats = do
 -- >   person <- select people
--- >   restrict (person ! sPet .== just "cat")
--- >   return (name ! sName)
+-- >   restrict (person ! #pet .== just "cat")
+-- >   return (person ! #name)
 just :: SqlType a => Col s a -> Col s (Maybe a)
 just = cast
 
