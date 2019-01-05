@@ -69,8 +69,7 @@ data ColumnDiff
   | UniqueMismatch Bool
   | ForeignKeyMissing TableName ColName
   | ForeignKeyPresent TableName ColName
-  | IndexMissing
-  | IndexPresent
+  | IndexMismatch Bool
     deriving Eq
 
 instance Show ColumnDiff where
@@ -115,10 +114,6 @@ showColumnDiff ColumnMissing =
   "column does not exist in database"
 showColumnDiff ColumnPresent =
   "column exists in database even though it shouldn't"
-showColumnDiff IndexMissing =
-  "column does not have an index in the database, even though it should"
-showColumnDiff IndexPresent =
-  "column has an index in the database, even though it shouldn't"
 showColumnDiff (NameMismatch n) =
   mconcat ["column is called ", fromColName n, " in database"]
 showColumnDiff (UnknownType t) =
@@ -146,6 +141,8 @@ showColumnDiff (NullableMismatch dbval) =
   showBoolDiff dbval "nullable"
 showColumnDiff (UniqueMismatch dbval) =
   showBoolDiff dbval "unique"
+showColumnDiff (IndexMismatch dbval) =
+  showBoolDiff dbval "indexed"
 
 showBoolDiff :: Bool -> Text -> Text
 showBoolDiff True what =
@@ -212,6 +209,7 @@ diffColumns inschema indb =
        , check colIsAutoIncrement AutoIncrementMismatch
        , check colIsNullable NullableMismatch
        , check colIsUnique UniqueMismatch
+       , check colHasIndex IndexMismatch
        ] ++ mconcat
        [ map (Just . uncurry ForeignKeyPresent)
              (colFKs schema \\ colFKs db)

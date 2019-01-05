@@ -128,6 +128,8 @@ nullableUnique = do
       ]
 
 validateWrongTable = do
+    tryDropTable goodPeople
+    createTable goodPeople
     assertFail $ validateTable badPeople1
     assertFail $ validateTable badPeople2
     assertFail $ validateTable badPeople3
@@ -136,20 +138,23 @@ validateWrongTable = do
     assertFail $ validateTable badIxPeople2
     assertFail $ validateTable badIxPeople3
     assertFail $ validateTable badIxPeople4
+    dropTable goodPeople
   where
-    peopleFieldNames "col_1" = "name"
-    peopleFieldNames "col_2" = "age"
-    peopleFieldNames "col_3" = "pet"
-    peopleFieldNames "col_4" = "cash"
-    peopleFieldNames "col_5" = "extra"
+    goodPeople :: Table (Text, Int, Maybe Text, Double)
+    goodPeople = table "people"
+      [ (unsafeSelector 0 :: Selector (Text, Int, Maybe Text, Double) Text)
+          :- index
+      , (unsafeSelector 3 :: Selector (Text, Int, Maybe Text, Double) Double)
+          :- indexUsing HashIndex
+      ]
 
     badPeople1 :: Table (Text, Int, Text, Double)
-    badPeople1 = tableFieldMod "people"
+    badPeople1 = table "people"
       [ (unsafeSelector 0 :: Selector (Text, Int, Text, Double) Text)
           :- index
       , (unsafeSelector 3 :: Selector (Text, Int, Text, Double) Double)
           :- indexUsing HashIndex
-      ] peopleFieldNames
+      ]
 
     badPeople2 :: Table (Text, Bool, Maybe Text, Double)
     badPeople2 = table "people"
