@@ -45,8 +45,8 @@ instance forall x t a. IsLabel x (Selector t a) => IsLabel x (Group t a) where
 #endif
 
 -- | A group of one or more selectors.
---   A selector group is either a selector (i.e. @#id@), or an inductive
---   tuple of selectors (i.e. @#foo :*: #bar@).
+--   A selector group is either a selector (i.e. @#id@), or a non-empty
+--   list of selectors (i.e. @#foo :+ Single #bar@).
 class SelectorGroup g where
   indices :: g t a -> [Int]
 
