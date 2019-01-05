@@ -1,6 +1,6 @@
 {-# LANGUAGE GADTs, CPP, OverloadedStrings #-}
 -- | SQLite3 backend for Selda.
-module Database.Selda.SQLite (withSQLite, sqliteOpen, seldaClose) where
+module Database.Selda.SQLite (withSQLite, sqliteOpen, sqliteBackend, seldaClose) where
 import Database.Selda
 import Database.Selda.Backend
 import Data.Dynamic
@@ -40,6 +40,14 @@ withSQLite _ _ = return $ error "withSQLite called in JS context"
 #else
 withSQLite file m = bracket (sqliteOpen file) seldaClose (runSeldaT m)
 
+-- | Create a Selda backend using an already open database handle.
+--   This is useful for situations where you want to use some SQLite-specific
+--   functionality alongside Selda.
+--
+--   Note that manipulating the underlying database handle directly voids
+--   any and all safety guarantees made by the Selda API.
+--   Caching functionality in particular WILL break.
+--   Proceed with extreme caution.
 sqliteBackend :: Database -> SeldaBackend
 sqliteBackend db = SeldaBackend
   { runStmt         = \q ps -> snd <$> sqliteQueryRunner db q ps
