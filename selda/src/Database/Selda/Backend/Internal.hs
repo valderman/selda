@@ -1,4 +1,4 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving, DefaultSignatures #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, DefaultSignatures, CPP #-}
 -- | Internal backend API.
 module Database.Selda.Backend.Internal
   ( StmtID, BackendID (..)
@@ -33,6 +33,10 @@ import qualified Data.HashMap.Strict as M
 import Data.IORef
 import Data.Text (Text)
 import System.IO.Unsafe (unsafePerformIO)
+
+#if MIN_VERSION_base(4, 9, 0)
+import Control.Monad.Fail (MonadFail)
+#endif
 
 -- | Uniquely identifies some particular backend.
 --
@@ -282,6 +286,9 @@ seldaBackend = connBackend <$> seldaConnection
 newtype SeldaT m a = S {unS :: StateT SeldaState m a}
   deriving ( Functor, Applicative, Monad, MonadIO
            , MonadThrow, MonadCatch, MonadMask, MonadTrans
+#if MIN_VERSION_base(4, 9, 0)
+           , MonadFail
+#endif
            )
 
 instance (MonadIO m, MonadMask m) => MonadSelda (SeldaT m) where
