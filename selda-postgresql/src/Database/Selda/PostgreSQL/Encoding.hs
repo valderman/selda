@@ -41,6 +41,7 @@ timeType      = Oid 1266
 timestampType = Oid 1184
 blobType      = Oid 17
 varcharType   = Oid 1043
+uuidType      = Oid 2950
 
 -- | Convert a parameter into an postgres parameter triple.
 fromSqlValue :: Lit a -> Maybe (Oid, BS.ByteString, Format)
@@ -51,6 +52,7 @@ fromSqlValue (LText s)     = Just (textType, encodeUtf8 $ Text.filter (/= '\0') 
 fromSqlValue (LDateTime s) = Just (timestampType, encodeUtf8 s, Text)
 fromSqlValue (LTime s)     = Just (timeType, encodeUtf8 s, Text)
 fromSqlValue (LDate s)     = Just (dateType, encodeUtf8 s, Text)
+fromSqlValue (LUUID x)     = Just (uuidType, x, Binary)
 fromSqlValue (LBlob b)     = Just (blobType, b, Binary)
 fromSqlValue (LNull)       = Nothing
 fromSqlValue (LJust x)     = fromSqlValue x
@@ -67,6 +69,7 @@ fromSqlType TDate     = dateType
 fromSqlType TTime     = timeType
 fromSqlType TBlob     = blobType
 fromSqlType TRowID    = intType
+fromSqlType TUUID     = uuidType
 
 -- | Convert the given postgres return value and type to an @SqlValue@.
 toSqlValue :: Oid -> BS.ByteString -> SqlValue
@@ -77,9 +80,11 @@ toSqlValue t val
   | t == int16Type   = SqlInt $ readInt val
   | t == doubleType  = SqlFloat $ read (unpack val)
   | t == blobType    = SqlBlob $ pgDecode val
+  | t == uuidType    = SqlBlob $ decodeUuid val
   | t `elem` textish = SqlString (decodeUtf8 val)
   | otherwise        = error $ "BUG: result with unknown type oid: " ++ show t
   where
+    decodeUuid = pgDecode . BS.append "\\x" . BS.filter (/= 45)
     -- PostgreSQL hex strings are of the format \xdeadbeefdeadbeefdeadbeef...
     pgDecode s
       | BS.index s 0 == 92 && BS.index s 1 == 120 =

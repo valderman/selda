@@ -12,6 +12,7 @@ import Data.Time
 import Database.Selda
 import Database.Selda.Backend hiding (disableForeignKeys)
 import Database.Selda.Migrations
+import Database.Selda.Unsafe (unsafeSelector)
 import Test.HUnit
 import Utils
 import Tables
@@ -67,6 +68,8 @@ mutableTests freshEnv = test
   , "migrate aggregate"              ~: freshEnv (migrationTest migrateAggregate)
   , "auto-migrate multi-step"        ~: freshEnv (migrationTest autoMigrateOneStep)
   , "multi-unique insert"            ~: freshEnv multiUnique
+  , "uuid inserts"                   ~: freshEnv uuidInserts
+  , "uuid queries"                   ~: freshEnv uuidQueries
   ]
 
 tryDropNeverFails = teardown
@@ -795,3 +798,29 @@ multiUnique = do
     uniques :: Table (Int, Int)
     (uniques, ua :*: ub) =
       tableWithSelectors "uniques" [(ua :+ Single ub) :- unique]
+
+uuidTable :: Table (UUID, Int)
+uuidTable = table "uuidTable"
+  [ (unsafeSelector 0 :: Selector (UUID, Int) UUID) :- primary
+  ]
+
+uuidSetup = do
+  tryDropTable uuidTable
+  createTable uuidTable
+  uuid <- newUuid
+  assertFail $ insert_ uuidTable [(uuid, 1), (uuid, 2)]
+  uuid2 <- newUuid
+  insert_ uuidTable [(uuid, 1), (uuid2, 2)]
+  return (uuid, uuid2)
+
+uuidInserts = do
+  _ <- uuidSetup
+  dropTable uuidTable
+
+uuidQueries = do
+  (a, b) <- uuidSetup
+  [(a', n)] <- query $ do
+    x <- select uuidTable
+    restrict (x ! unsafeSelector 0 .== literal a)
+    return x
+  assEq "wrong uuid returned" a a'

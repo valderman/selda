@@ -55,6 +55,7 @@ instance Hashable (Lit a) where
   hashWithSalt s (LJust x)     = hashWithSalt s x
   hashWithSalt _ (LNull)       = 0
   hashWithSalt s (LCustom l)   = hashWithSalt s l
+  hashWithSalt s (LUUID x)     = hashWithSalt s x
 
 data ResultCache = ResultCache
   { -- | Query to result mapping.

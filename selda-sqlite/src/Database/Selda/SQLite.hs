@@ -190,6 +190,7 @@ toSqlData (LBlob b)     = SQLBlob b
 toSqlData (LNull)       = SQLNull
 toSqlData (LJust x)     = toSqlData x
 toSqlData (LCustom l)   = toSqlData l
+toSqlData (LUUID x)     = SQLBlob x
 
 fromSqlData :: SQLData -> SqlValue
 fromSqlData (SQLInteger i) = SqlInt $ fromIntegral i

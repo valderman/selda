@@ -28,6 +28,7 @@ module Database.Selda
   , Table, Query, Row, Col, Res, Result
   , query, queryInto
   , transaction, setLocalCache, withoutForeignKeyEnforcement
+  , newUuid
 
     -- * Constructing queries
   , SqlType (..), SqlRow (..), SqlEnum (..)
@@ -102,7 +103,7 @@ module Database.Selda
 
     -- * Useful re-exports
   , MonadIO, MonadMask, liftIO
-  , Text, Day, TimeOfDay, UTCTime
+  , Text, Day, TimeOfDay, UTCTime, UUID
   ) where
 import Control.Monad.Catch (MonadMask)
 import Data.Typeable (Typeable)
@@ -131,6 +132,10 @@ import Data.Time (Day, TimeOfDay, UTCTime)
 import Data.Typeable (eqT, (:~:)(..))
 import GHC.Generics (Rep)
 import Unsafe.Coerce
+
+-- For UUID generation
+import Data.UUID.Types (UUID)
+import System.Random (randomIO)
 
 #if MIN_VERSION_base(4, 9, 0)
 import Database.Selda.Selectors.FieldSelectors
@@ -177,6 +182,15 @@ instance (TypeError
   fromSql = error "unreachable"
   defaultValue = error "unreachable"
 #endif
+
+-- | Generate a new random UUID using the system's random number generator.
+--   UUIDs generated this way are (astronomically likely to be) unique,
+--   but not necessarily unpredictable.
+--
+--   For applications where unpredictability is crucial, take care to use a
+--   proper cryptographic PRNG to generate your UUIDs.
+newUuid :: MonadIO m => m UUID
+newUuid = liftIO randomIO
 
 -- | Annotation to force the type of a polymorphic label (i.e. @#foo@) to
 --   be a selector. This is useful, for instance, when defining unique

@@ -3,7 +3,7 @@
 -- | Types representable as columns in Selda's subset of SQL.
 module Database.Selda.SqlType
   ( SqlType (..), SqlEnum (..)
-  , Lit (..), RowID, ID, SqlValue (..), SqlTypeRep (..)
+  , Lit (..), UUID, RowID, ID, SqlValue (..), SqlTypeRep (..)
   , invalidRowId, isInvalidRowId, toRowId, fromRowId
   , fromId, toId, invalidId, isInvalidId, untyped
   , compLit, litType
@@ -12,10 +12,12 @@ module Database.Selda.SqlType
 import Control.Applicative ((<|>))
 import Data.ByteString (ByteString, empty)
 import qualified Data.ByteString.Lazy as BSL
+import Data.Maybe (fromJust)
 import Data.Proxy
 import Data.Text (Text, pack, unpack)
 import Data.Time
 import Data.Typeable
+import Data.UUID.Types (UUID, toString, toByteString, fromByteString, nil)
 
 -- | Format string used to represent date and time when
 --   talking to the database backend.
@@ -43,6 +45,7 @@ data SqlTypeRep
   | TDate
   | TTime
   | TBlob
+  | TUUID
     deriving (Show, Eq, Ord)
 
 -- | Any datatype representable in (Selda's subset of) SQL.
@@ -95,7 +98,8 @@ data Lit a where
   LJust     :: SqlType a => !(Lit a) -> Lit (Maybe a)
   LBlob     :: !ByteString -> Lit ByteString
   LNull     :: SqlType a => Lit (Maybe a)
-  LCustom   :: Lit a -> Lit b
+  LCustom   :: Lit a       -> Lit b
+  LUUID     :: !ByteString -> Lit UUID
 
 -- | The SQL type representation for the given literal.
 litType :: Lit a -> SqlTypeRep
@@ -113,6 +117,7 @@ litType (x@LNull)     = sqlType (proxyFor x)
     proxyFor :: Lit (Maybe a) -> Proxy a
     proxyFor _ = Proxy
 litType (LCustom x)   = litType x
+litType (LUUID{})     = TUUID
 
 instance Eq (Lit a) where
   a == b = compLit a b == EQ
@@ -133,6 +138,7 @@ litConTag (LJust{})     = 7
 litConTag (LBlob{})     = 8
 litConTag (LNull)       = 9
 litConTag (LCustom{})   = 10
+litConTag (LUUID{})     = 11
 
 -- | Compare two literals of different type for equality.
 compLit :: Lit a -> Lit b -> Ordering
@@ -146,6 +152,7 @@ compLit (LTime x)     (LTime x')     = x `compare` x'
 compLit (LBlob x)     (LBlob x')     = x `compare` x'
 compLit (LJust x)     (LJust x')     = x `compLit` x'
 compLit (LCustom x)   (LCustom x')   = x `compLit` x'
+compLit (LUUID x)     (LUUID x')     = x `compare` x'
 compLit a             b              = litConTag a `compare` litConTag b
 
 -- | Some value that is representable in SQL.
@@ -177,6 +184,7 @@ instance Show (Lit a) where
   show (LJust x)     = "Just " ++ show x
   show (LNull)       = "Nothing"
   show (LCustom l)   = show l
+  show (LUUID u)     = toString $ fromJust $ fromByteString (BSL.fromStrict u)
 
 -- | A row identifier for some table.
 --   This is the type of auto-incrementing primary keys.
@@ -326,6 +334,13 @@ instance SqlType BSL.ByteString where
   fromSql (SqlBlob x) = BSL.fromStrict x
   fromSql v           = error $ "fromSql: blob column with non-blob value: " ++ show v
   defaultValue = LCustom $ LBlob empty
+
+instance SqlType UUID where
+  mkLit = LUUID . BSL.toStrict . toByteString
+  sqlType _ = TUUID
+  fromSql (SqlBlob x) = fromJust . fromByteString $ BSL.fromStrict x
+  fromSql v           = error $ "fromSql: UUID column with non-blob value: " ++ show v
+  defaultValue = LUUID $ BSL.toStrict $ toByteString nil
 
 instance SqlType a => SqlType (Maybe a) where
   mkLit (Just x) = LJust $ mkLit x

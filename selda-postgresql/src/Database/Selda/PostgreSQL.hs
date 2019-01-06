@@ -146,11 +146,12 @@ pgPPConfig = defPPConfig
     pgTypeHook :: SqlTypeRep -> [ColAttr] -> (SqlTypeRep -> T.Text) -> T.Text
     pgTypeHook ty attrs fun
       | isGenericIntPrimaryKey ty attrs = pgColTypePK pgPPConfig TRowID
-      | otherwise                       = pgDateTimeHook fun ty
+      | otherwise                       = pgTypeRenameHook fun ty
 
-    pgDateTimeHook _ TDateTime = "timestamp with time zone"
-    pgDateTimeHook _ TTime     = "time with time zone"
-    pgDateTimeHook f ty        = f ty
+    pgTypeRenameHook _ TDateTime = "timestamp with time zone"
+    pgTypeRenameHook _ TTime     = "time with time zone"
+    pgTypeRenameHook _ TUUID     = "uuid"
+    pgTypeRenameHook f ty        = f ty
 
     pgColAttrsHook :: SqlTypeRep -> [ColAttr] -> ([ColAttr] -> T.Text) -> T.Text
     pgColAttrsHook ty attrs fun
