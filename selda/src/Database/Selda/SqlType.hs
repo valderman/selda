@@ -9,6 +9,7 @@ module Database.Selda.SqlType
   , compLit, litType
   , sqlDateTimeFormat, sqlDateFormat, sqlTimeFormat
   ) where
+import Control.Applicative ((<|>))
 import Data.ByteString (ByteString, empty)
 import qualified Data.ByteString.Lazy as BSL
 import Data.Proxy
@@ -19,7 +20,7 @@ import Data.Typeable
 -- | Format string used to represent date and time when
 --   talking to the database backend.
 sqlDateTimeFormat :: String
-sqlDateTimeFormat = "%F %H:%M:%S%Q+00"
+sqlDateTimeFormat = "%F %H:%M:%S%Q%z"
 
 -- | Format string used to represent date when
 --   talking to the database backend.
@@ -29,7 +30,7 @@ sqlDateFormat = "%F"
 -- | Format string used to represent time of day when
 --   talking to the database backend.
 sqlTimeFormat :: String
-sqlTimeFormat = "%H:%M:%S%Q+00"
+sqlTimeFormat = "%H:%M:%S%Q%z"
 
 -- | Representation of an SQL type.
 data SqlTypeRep
@@ -279,11 +280,11 @@ instance SqlType UTCTime where
   mkLit = LDateTime . pack . formatTime defaultTimeLocale sqlDateTimeFormat
   sqlType _             = TDateTime
   fromSql (SqlString s) =
-    case parseTimeM True defaultTimeLocale sqlDateTimeFormat (unpack s) of
+    case withWeirdTimeZone sqlDateTimeFormat (unpack s) of
       Just t -> t
       _      -> error $ "fromSql: bad datetime string: " ++ unpack s
   fromSql v             = error $ "fromSql: datetime column with non-datetime value: " ++ show v
-  defaultValue = LDateTime "1970-01-01 00:00:00+00"
+  defaultValue = LDateTime "1970-01-01 00:00:00+0000"
 
 instance SqlType Day where
   mkLit = LDate . pack . formatTime defaultTimeLocale sqlDateFormat
@@ -299,11 +300,18 @@ instance SqlType TimeOfDay where
   mkLit = LTime . pack . formatTime defaultTimeLocale sqlTimeFormat
   sqlType _             = TTime
   fromSql (SqlString s) =
-    case parseTimeM True defaultTimeLocale sqlTimeFormat (unpack s) of
+    case withWeirdTimeZone sqlTimeFormat (unpack s) of
       Just t -> t
       _      -> error $ "fromSql: bad time string: " ++ unpack s
   fromSql v             = error $ "fromSql: time column with non-time value: " ++ show v
-  defaultValue = LTime "00:00:00+00"
+  defaultValue = LTime "00:00:00+0000"
+
+-- | PostgreSQL uses its own nonstandard time zone specifier,
+--   which we need to be able to handle.
+withWeirdTimeZone :: ParseTime t => String -> String -> Maybe t
+withWeirdTimeZone fmt s =
+  parseTimeM True defaultTimeLocale fmt (s++"00")
+  <|> parseTimeM True defaultTimeLocale fmt s
 
 instance SqlType ByteString where
   mkLit = LBlob

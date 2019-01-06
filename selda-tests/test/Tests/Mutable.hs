@@ -124,9 +124,9 @@ updateNothing = do
 insertTime = do
   tryDropTable times
   createTable times
-  let Just t = parseTimeM True defaultTimeLocale sqlDateTimeFormat "2011-11-11 11:11:11.11111+00"
+  let Just t = parseTimeM True defaultTimeLocale sqlDateTimeFormat "2011-11-11 11:11:11.11111+0000"
       Just d = parseTimeM True defaultTimeLocale sqlDateFormat "2011-11-11"
-      Just lt = parseTimeM True defaultTimeLocale sqlTimeFormat "11:11:11.11111+00"
+      Just lt = parseTimeM True defaultTimeLocale sqlTimeFormat "11:11:11.11111+0000"
   insert_ times [("now", t, d, lt)]
   [("now", t', d', lt')] <- query $ select times
   assEq "time not properly inserted" (t, d, lt) (t', d', lt')
