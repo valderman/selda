@@ -314,12 +314,14 @@ instance SqlType TimeOfDay where
   fromSql v             = error $ "fromSql: time column with non-time value: " ++ show v
   defaultValue = LTime "00:00:00+0000"
 
--- | PostgreSQL uses its own nonstandard time zone specifier,
---   which we need to be able to handle.
+-- | Both PostgreSQL and SQLite to weird things with time zones.
+--   Long term solution is to use proper binary types internally for
+--   time values, so this is really just an interim solution.
 withWeirdTimeZone :: ParseTime t => String -> String -> Maybe t
 withWeirdTimeZone fmt s =
   parseTimeM True defaultTimeLocale fmt (s++"00")
   <|> parseTimeM True defaultTimeLocale fmt s
+  <|> parseTimeM True defaultTimeLocale fmt (s++"+0000")
 
 instance SqlType ByteString where
   mkLit = LBlob
