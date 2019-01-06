@@ -146,7 +146,11 @@ pgPPConfig = defPPConfig
     pgTypeHook :: SqlTypeRep -> [ColAttr] -> (SqlTypeRep -> T.Text) -> T.Text
     pgTypeHook ty attrs fun
       | isGenericIntPrimaryKey ty attrs = pgColTypePK pgPPConfig TRowID
-      | otherwise = fun ty
+      | otherwise                       = pgDateTimeHook fun ty
+
+    pgDateTimeHook _ TDateTime = "timestamp with time zone"
+    pgDateTimeHook _ TTime     = "time with time zone"
+    pgDateTimeHook f ty        = f ty
 
     pgColAttrsHook :: SqlTypeRep -> [ColAttr] -> ([ColAttr] -> T.Text) -> T.Text
     pgColAttrsHook ty attrs fun
@@ -401,20 +405,20 @@ doError c msg = do
     ]
 
 mkTypeRep :: Bool -> T.Text ->  Either T.Text SqlTypeRep
-mkTypeRep True  "bigint"           = Right TRowID
-mkTypeRep True  "bigserial"        = Right TRowID
-mkTypeRep True  "int8"             = Right TRowID
-mkTypeRep _ispk "int8"             = Right TInt
-mkTypeRep _ispk "bigint"           = Right TInt
-mkTypeRep _ispk "float8"           = Right TFloat
-mkTypeRep _ispk "double precision" = Right TFloat
-mkTypeRep _ispk "timestamp"        = Right TDateTime
-mkTypeRep _ispk "bytea"            = Right TBlob
-mkTypeRep _ispk "text"             = Right TText
-mkTypeRep _ispk "boolean"          = Right TBool
-mkTypeRep _ispk "date"             = Right TDate
-mkTypeRep _ispk "time"             = Right TTime
-mkTypeRep _ispk typ                = Left typ
+mkTypeRep True  "bigint"                   = Right TRowID
+mkTypeRep True  "bigserial"                = Right TRowID
+mkTypeRep True  "int8"                     = Right TRowID
+mkTypeRep _ispk "int8"                     = Right TInt
+mkTypeRep _ispk "bigint"                   = Right TInt
+mkTypeRep _ispk "float8"                   = Right TFloat
+mkTypeRep _ispk "double precision"         = Right TFloat
+mkTypeRep _ispk "timestamp with time zone" = Right TDateTime
+mkTypeRep _ispk "bytea"                    = Right TBlob
+mkTypeRep _ispk "text"                     = Right TText
+mkTypeRep _ispk "boolean"                  = Right TBool
+mkTypeRep _ispk "date"                     = Right TDate
+mkTypeRep _ispk "time with time zone"      = Right TTime
+mkTypeRep _ispk typ                        = Left typ
 
 -- | Custom column types for postgres.
 pgColType :: PPConfig -> SqlTypeRep -> T.Text

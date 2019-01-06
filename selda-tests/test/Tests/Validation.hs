@@ -24,6 +24,7 @@ validationTests freshEnv =
   , "validating wrong table fails"       ~: freshEnv validateWrongTable
   , "validating nonexistent table fails" ~: freshEnv validateNonexistentTable
   , "multi-column unique validation"     ~: freshEnv validateMultiUnique
+  , "timestamp column validation"        ~: freshEnv validateTimestamp
   ]
 
 nulIdentifiersFail = do
@@ -223,3 +224,11 @@ validateMultiUnique = do
     tbl2 = table "foo" []
 
     (one :*: two) = selectors tbl1
+
+validateTimestamp = do
+    tryDropTable tbl
+    createTable tbl
+    validateTable tbl
+  where
+    tbl :: Table (UTCTime, TimeOfDay)
+    tbl = table "foo" []

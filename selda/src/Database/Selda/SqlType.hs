@@ -19,7 +19,7 @@ import Data.Typeable
 -- | Format string used to represent date and time when
 --   talking to the database backend.
 sqlDateTimeFormat :: String
-sqlDateTimeFormat = "%F %H:%M:%S%Q"
+sqlDateTimeFormat = "%F %H:%M:%S%Q+00"
 
 -- | Format string used to represent date when
 --   talking to the database backend.
@@ -29,7 +29,7 @@ sqlDateFormat = "%F"
 -- | Format string used to represent time of day when
 --   talking to the database backend.
 sqlTimeFormat :: String
-sqlTimeFormat = "%H:%M:%S%Q"
+sqlTimeFormat = "%H:%M:%S%Q+00"
 
 -- | Representation of an SQL type.
 data SqlTypeRep
@@ -283,7 +283,7 @@ instance SqlType UTCTime where
       Just t -> t
       _      -> error $ "fromSql: bad datetime string: " ++ unpack s
   fromSql v             = error $ "fromSql: datetime column with non-datetime value: " ++ show v
-  defaultValue = LDateTime "1970-01-01 00:00:00"
+  defaultValue = LDateTime "1970-01-01 00:00:00+00"
 
 instance SqlType Day where
   mkLit = LDate . pack . formatTime defaultTimeLocale sqlDateFormat
@@ -303,7 +303,7 @@ instance SqlType TimeOfDay where
       Just t -> t
       _      -> error $ "fromSql: bad time string: " ++ unpack s
   fromSql v             = error $ "fromSql: time column with non-time value: " ++ show v
-  defaultValue = LTime "00:00:00"
+  defaultValue = LTime "00:00:00+00"
 
 instance SqlType ByteString where
   mkLit = LBlob

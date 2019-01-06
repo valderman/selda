@@ -3,7 +3,7 @@
 }:
 mkDerivation {
   pname = "selda";
-  version = "0.3.4.0";
+  version = "0.4.0.0";
   src = ./.;
   libraryHaskellDepends = [
     base exceptions hashable mtl psqueues text time

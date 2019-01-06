@@ -37,8 +37,8 @@ textType      = Oid 25
 nameType      = Oid 19
 doubleType    = Oid 701
 dateType      = Oid 1082
-timeType      = Oid 1083
-timestampType = Oid 1114
+timeType      = Oid 1266
+timestampType = Oid 1184
 blobType      = Oid 17
 varcharType   = Oid 1043
 
