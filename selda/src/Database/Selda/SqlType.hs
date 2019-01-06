@@ -337,6 +337,7 @@ instance SqlType BSL.ByteString where
   fromSql v           = error $ "fromSql: blob column with non-blob value: " ++ show v
   defaultValue = LCustom $ LBlob empty
 
+-- | @defaultValue@ for UUIDs is the all-zero RFC4122 nil UUID.
 instance SqlType UUID where
   mkLit = LUUID . BSL.toStrict . toByteString
   sqlType _ = TUUID
