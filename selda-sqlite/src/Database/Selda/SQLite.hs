@@ -104,13 +104,15 @@ sqliteGetTableInfo db tbl = do
       error "unreachable"
 
     describe fks ixs [_, SqlString name, SqlString ty, SqlInt nonnull, _, SqlInt pk] = do
+      let isUnique = any (== ([name], "u")) ixs || pk == 1
+          isMultiUnique = any (\(ns, typ) -> typ == "u" && name `elem` ns) ixs
       return $ ColumnInfo
         { colName = mkColName name
         , colType = toTypeRep (pk == 1) (toLower ty)
         , colIsPK = pk == 1
         , colIsAutoIncrement = "auto_increment" `isSuffixOf` ty
-        , colHasIndex = any (== ([name], "c")) ixs
-        , colIsUnique = any (== ([name], "u")) ixs || pk == 1
+        , colHasIndex = isUnique || isMultiUnique || any (== ([name], "c")) ixs
+        , colIsUnique = isUnique
         , colIsNullable = nonnull == 0
         , colFKs =
             [ (mkTableName reftbl, mkColName refkey)
