@@ -419,6 +419,7 @@ mkTypeRep _ispk "text"                     = Right TText
 mkTypeRep _ispk "boolean"                  = Right TBool
 mkTypeRep _ispk "date"                     = Right TDate
 mkTypeRep _ispk "time with time zone"      = Right TTime
+mkTypeRep _ispk "uuid"                     = Right TUUID
 mkTypeRep _ispk typ                        = Left typ
 
 -- | Custom column types for postgres.
