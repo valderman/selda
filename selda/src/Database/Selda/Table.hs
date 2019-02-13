@@ -139,7 +139,7 @@ tableFieldMod tn attrs fieldMod = Table
           _   -> True
       ]
     pkAttrs =
-      [ (ixs, Primary)
+      concat [ [(ixs, Primary), (ixs, Required), (ixs, Unique)]
       | sel :- Attribute [Primary,Required,Unique] <- attrs
       , let ixs = indices sel
       , case ixs of
