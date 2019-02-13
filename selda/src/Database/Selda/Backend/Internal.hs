@@ -132,6 +132,9 @@ data TableInfo = TableInfo
     -- | Unordered list of all uniqueness constraints on this table
     --   which span more than a single column.
   , tableUniqueGroups :: [[ColName]]
+    -- | Unordered list of all primary key constraints on this table
+    --   which span more than a single column.
+  , tablePkGroups :: [[ColName]]
   } deriving (Show, Eq)
 
 -- | Comprehensive information about a column.
@@ -141,13 +144,8 @@ data ColumnInfo = ColumnInfo
     -- | Selda type of the column, or the type name given by the database
     --   if Selda couldn't make sense of the type.
   , colType :: Either Text SqlTypeRep
-    -- | Is the given column the primary key of its table?
-  , colIsPK :: Bool
     -- | Is the given column auto-incrementing?
   , colIsAutoIncrement :: Bool
-    -- | Is the given column unique, either through an explicit uniqueness
-    --   constraint or by virtue of being the primary key?
-  , colIsUnique :: Bool
     -- | Can the column be NULL?
   , colIsNullable :: Bool
     -- | Is the column indexed, either implicitly or explicitly?
@@ -161,9 +159,7 @@ fromColInfo :: Table.ColInfo -> ColumnInfo
 fromColInfo ci = ColumnInfo
     { colName = Table.colName ci
     , colType = Right $ Table.colType ci
-    , colIsPK = Primary `elem` Table.colAttrs ci
     , colIsAutoIncrement = AutoIncrement `elem` Table.colAttrs ci
-    , colIsUnique = Unique `elem` Table.colAttrs ci
     , colIsNullable = Optional `elem` Table.colAttrs ci
     , colHasIndex =
       not (null [() | Indexed _ <- Table.colAttrs ci])
@@ -178,11 +174,16 @@ tableInfo :: Table a -> TableInfo
 tableInfo t = TableInfo
   { tableColumnInfos = map (setMultiUniqueIndex . fromColInfo) (tableCols t)
   , tableUniqueGroups = uniqueGroups
+  , tablePkGroups = pkGroups
   }
   where
     uniqueGroups =
       [ map (Table.colName . ((tableCols t) !!)) ixs
       | (ixs, Unique) <- tableAttrs t
+      ]
+    pkGroups =
+      [ map (Table.colName . ((tableCols t) !!)) ixs
+      | (ixs, Primary) <- tableAttrs t
       ]
     setMultiUniqueIndex ci
       | any (colName ci `elem`) uniqueGroups = ci { colHasIndex = True }

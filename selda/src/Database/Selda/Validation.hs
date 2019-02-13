@@ -205,10 +205,8 @@ diffColumns inschema indb =
              Just (TypeMismatch schemaColType t)
            _ ->
              Nothing
-       , check colIsPK PrimaryKeyMismatch
        , check colIsAutoIncrement AutoIncrementMismatch
        , check colIsNullable NullableMismatch
-       , check colIsUnique UniqueMismatch
        , check colHasIndex IndexMismatch
        ] ++ mconcat
        [ map (Just . uncurry ForeignKeyPresent)

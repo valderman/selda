@@ -78,6 +78,7 @@ sqliteGetTableInfo db tbl = do
         [ map mkColName names
         | (names@(_:_:_), "u") <- indexes'
         ]
+      , tablePkGroups = [] -- not sure what to put here
       }
   where
     tblinfo = mconcat ["PRAGMA table_info(", tbl, ");"]
@@ -109,10 +110,8 @@ sqliteGetTableInfo db tbl = do
       return $ ColumnInfo
         { colName = mkColName name
         , colType = toTypeRep (pk == 1) (toLower ty)
-        , colIsPK = pk == 1
         , colIsAutoIncrement = "auto_increment" `isSuffixOf` ty
         , colHasIndex = isUnique || isMultiUnique || any (== ([name], "c")) ixs
-        , colIsUnique = isUnique
         , colIsNullable = nonnull == 0
         , colFKs =
             [ (mkTableName reftbl, mkColName refkey)
