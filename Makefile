@@ -16,6 +16,7 @@ help:
 	@echo "haddock      - build Haddock docs"
 	@echo "sandbox      - create shared sandbox"
 	@echo "deps         - install dependencies"
+	@echo "tags         - build tags file for emacs"
 
 build: license
 	cd ./selda ; cabal configure
@@ -54,6 +55,9 @@ check: test pgtest haddock
 	done
 	cd ./selda ; cabal configure -f-localcache
 	cd ./selda ; cabal build
+
+tags:
+	hasktags --etags .
 
 test: build
 	cabal install --only-dependencies --enable-tests --allow-newer=time ./selda-tests

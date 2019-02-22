@@ -14,3 +14,4 @@ cabal.sandbox.config
 /*/LICENSE
 result*
 *.sqlite
+TAGS
