@@ -243,6 +243,7 @@ data SeldaState = SeldaState
 --   need to implement these operations yourself.
 class MonadIO m => MonadSelda m where
   -- | Get the connection in use by the computation.
+  --   Must always return the same connection during a transaction.
   seldaConnection :: m SeldaConnection
 
   -- | Invalidate the given table as soon as the current transaction finishes.
