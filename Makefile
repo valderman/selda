@@ -57,7 +57,7 @@ check: test pgtest haddock
 	cd ./selda ; cabal build
 
 tags:
-	hasktags --etags .
+	hasktags --etags selda selda-sqlite selda-postgresql selda-tests
 
 test: build
 	cabal install --only-dependencies --enable-tests --allow-newer=time ./selda-tests
