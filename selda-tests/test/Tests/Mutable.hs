@@ -277,7 +277,7 @@ dupeInsertThrowsSeldaError = do
   dropTable comments'
   where
     comments' :: Table (Int, Maybe Text, Text)
-    comments' = table "comments" [cId :- primary]
+    comments' = table "comments" [Single cId :- primary]
     cId :*: cName :*: cComment = selectors comments'
 
 dupeInsert2ThrowsSeldaError = do
@@ -437,7 +437,7 @@ uniqueViolation = do
   where
     uniquePeople :: Table (Text, Maybe Text)
     (uniquePeople, upName :*: upPet) =
-          tableWithSelectors "uniquePeople" [upName :- unique]
+          tableWithSelectors "uniquePeople" [Single upName :- unique]
 
 insertOrUpdate = do
     tryDropTable counters
@@ -465,7 +465,7 @@ insertOrUpdate = do
     dropTable counters
   where
     counters :: Table (Int, Int)
-    counters = table "counters" [c :- primary]
+    counters = table "counters" [Single c :- primary]
     c :*: v = selectors counters
 
 tryInsertDoesntFail = do
@@ -482,7 +482,7 @@ tryInsertDoesntFail = do
   where
     uniquePeople :: Table (Text, Maybe Text)
     (uniquePeople, upName :*: upPet) =
-      tableWithSelectors "uniquePeople" [upName :- unique]
+      tableWithSelectors "uniquePeople" [Single upName :- unique]
 
 isInList = do
   setup
@@ -689,15 +689,15 @@ migrationTest test = do
     tryDropTable migrationTable3
 
 migrationTable1 :: Table (Only Int)
-migrationTable1 = table "table1" [mt1_1 :- primary]
+migrationTable1 = table "table1" [Single mt1_1 :- primary]
 mt1_1 = selectors migrationTable1
 
 migrationTable2 :: Table (Text, Int)
-migrationTable2 = table "table1" [mt2_1 :- primary]
+migrationTable2 = table "table1" [Single mt2_1 :- primary]
 mt2_1 :*: mt2_2 = selectors migrationTable2
 
 migrationTable3 :: Table (Only Int)
-migrationTable3 = table "table3" [mt3_1 :- primary]
+migrationTable3 = table "table3" [Single mt3_1 :- primary]
 mt3_1 = selectors migrationTable3
 
 steps =
@@ -801,7 +801,7 @@ multiUnique = do
 
 uuidTable :: Table (UUID, Int)
 uuidTable = table "uuidTable"
-  [ (unsafeSelector 0 :: Selector (UUID, Int) UUID) :- primary
+  [ Single (unsafeSelector 0 :: Selector (UUID, Int) UUID) :- primary
   ]
 
 uuidSetup = do

@@ -18,12 +18,12 @@ data Person = Person
 instance SqlRow Person
 
 modPeople :: Table Person
-modPeople = tableFieldMod "modpeople" [pName :- primary] $ \name ->
+modPeople = tableFieldMod "modpeople" [Single pName :- primary] $ \name ->
   "mod_" <> name
 
 people :: Table Person
 people = table "people"
-  [ pName :- primary
+  [ Single pName :- primary
   , pName :- index
   , pCash :- indexUsing HashIndex
   ]

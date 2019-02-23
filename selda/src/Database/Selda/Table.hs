@@ -7,7 +7,7 @@
 {-# LANGUAGE TypeApplications #-}
 #endif
 module Database.Selda.Table
-  ( SelectorGroup, Group (..), Attr (..), Table (..), Attribute
+  ( SelectorLike, Group (..), Attr (..), Table (..), Attribute
   , ColInfo (..), ColAttr (..), IndexMethod (..)
   , ForeignKey (..)
   , table, tableFieldMod
@@ -44,20 +44,9 @@ instance forall x t a. IsLabel x (Selector t a) => IsLabel x (Group t a) where
 
 #endif
 
--- | A group of one or more selectors.
---   A selector group is either a selector (i.e. @#id@), or a non-empty
---   list of selectors (i.e. @#foo :+ Single #bar@).
-class SelectorGroup g where
-  indices :: g t a -> [Int]
-
-instance SelectorGroup Selector where
-  indices s = [selectorIndex s]
-instance SelectorGroup Group where
-  indices (s :+ ss)  = selectorIndex s : indices ss
-  indices (Single s) = [selectorIndex s]
-
 -- | A non-empty list of selectors, where the element selectors need not have
---   the same type.
+--   the same type. Used to specify constraints, such as uniqueness or primary
+--   key, potentially spanning multiple columns.
 data Group t a where
   (:+)   :: Selector t a -> Group t b -> Group t (a :*: b)
   Single :: Selector t a -> Group t a
@@ -65,9 +54,10 @@ infixr 1 :+
 
 -- | A generic column attribute.
 --   Essentially a pair or a record selector over the type @a@ and a column
---   attribute.
+--   attribute. An attribute may be either a 'Group' attribute, meaning that
+--   it can span multiple columns, or a 'Selector' -- single column -- attribute.
 data Attr a where
-  (:-) :: SelectorGroup g => g t a -> Attribute g t a -> Attr t
+  (:-) :: SelectorLike g => g t a -> Attribute g t a -> Attr t
 infixl 0 :-
 
 -- | Generate a table from the given table name and list of column attributes.
@@ -85,8 +75,7 @@ infixl 0 :-
 -- >   deriving Generic
 -- >
 -- > people :: Table Person
--- > people = table "people" [pId :- autoPrimary]
--- > pId :*: pName :*: pAge :*: pPet = selectors people
+-- > people = table "people" [#id :- autoPrimary]
 --
 --   This will result in a table of @Person@s, with an auto-incrementing primary
 --   key.
@@ -113,7 +102,9 @@ table tn attrs = tableFieldMod tn attrs id
 -- >   deriving Generic
 -- >
 -- > people :: Table Person
--- > people = tableFieldMod "people" [personName :- autoPrimaryGen] (fromJust . stripPrefix "person")
+-- > people = tableFieldMod "people"
+-- >   [#personName :- autoPrimaryGen]
+-- >   (fromJust . stripPrefix "person")
 --
 --   This will create a table with the columns named
 --   @Id@, @Name@, @Age@ and @Pet@.
@@ -166,6 +157,15 @@ tableFieldMod tn attrs fieldMod = Table
           ]
       }
 
+class SelectorLike g where
+  indices :: g t a -> [Int]
+
+instance SelectorLike Selector where
+  indices s = [selectorIndex s]
+instance SelectorLike Group where
+  indices (s :+ ss)  = selectorIndex s : indices ss
+  indices (Single s) = [selectorIndex s]
+
 -- | Remove duplicate attributes.
 tidy :: ColInfo -> ColInfo
 tidy ci = ci {colAttrs = snub $ colAttrs ci}
@@ -177,7 +177,7 @@ data Attribute (g :: * -> * -> *) t c
   | ForeignKey (Table (), ColName)
 
 -- | A primary key which does not auto-increment.
-primary :: SelectorGroup g => Attribute g t a
+primary :: Attribute Group t a
 primary = Attribute [Primary, Required]
 
 -- | Create an index on this column.
@@ -198,7 +198,7 @@ untypedAutoPrimary :: Attribute Selector t RowID
 untypedAutoPrimary = Attribute [Primary, AutoIncrement, Required]
 
 -- | A table-unique value.
-unique :: SelectorGroup g => Attribute g t a
+unique :: Attribute Group t a
 unique = Attribute [Unique]
 
 mkFK :: Table t -> Selector a b -> Attribute Selector c d

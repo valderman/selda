@@ -480,7 +480,7 @@ validateTableValidates = do
     assertFail $ validateTable bad
   where
     bad :: Table (RowID, RowID)
-    bad = table "bad" [one :- primary, two :- primary]
+    bad = table "bad" [Single one :- primary, Single two :- primary]
     one :*: two = selectors bad
 
 aggregateEmptyTable = do

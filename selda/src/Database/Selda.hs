@@ -82,7 +82,7 @@ module Database.Selda
   , Generic
   , TableName, ColName, Attr (..), Attribute
   , Selectors, GSelectors, ForeignKey (..)
-  , SelectorGroup, Group (..), sel
+  , SelectorLike, Group (..), sel
   , table, tableFieldMod, tableWithSelectors, selectors
   , primary, autoPrimary, untypedAutoPrimary, unique
   , IndexMethod (..), index, indexUsing

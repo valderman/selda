@@ -80,13 +80,13 @@ duplicatePKsFail = do
   where
     dupes1 :: Table (Int, Text)
     dupes1 = table "duplicate"
-      [ sel_fst :- primary
-      , sel_snd :- primary
+      [ Single sel_fst :- primary
+      , Single sel_snd :- primary
       ]
     dupes2 :: Table (RowID, Text)
     dupes2 = table "duplicate"
       [ sel_fst :- untypedAutoPrimary
-      , sel_snd :- primary
+      , Single sel_snd :- primary
       ]
 
 nonUniqueFKFails = do
@@ -108,7 +108,7 @@ nonPrimaryUniqueFK = do
   where
     uniquePeople :: Table (Text, Maybe Text)
     (uniquePeople, upName :*: upPet) =
-      tableWithSelectors "uniquePeople" [upName :- unique]
+      tableWithSelectors "uniquePeople" [Single upName :- unique]
     addressesWithFK :: Table (Text, Text)
     addressesWithFK = table "addressesWithFK"
       [ sel_fst :- foreignKey uniquePeople upName
@@ -121,8 +121,8 @@ nullableUnique = do
     uniquePeople :: Table (Text, Maybe Text)
     (uniquePeople, upName :*: upPet) =
       tableWithSelectors "uniquePeople"
-        [ upName :- unique
-        , upPet :- unique
+        [ Single upName :- unique
+        , Single upPet :- unique
         ]
     addressesWithFK :: Table (Text, Text)
     addressesWithFK = table "addressesWithFK"
@@ -203,7 +203,7 @@ validateNonexistentTable = do
     assertFail $ validateTable nonsense
   where
     nonsense :: Table (Only Int)
-    nonsense = table "I don't exist" [one :- primary]
+    nonsense = table "I don't exist" [Single one :- primary]
     one = selectors nonsense
 
 validateMultiUnique = do
