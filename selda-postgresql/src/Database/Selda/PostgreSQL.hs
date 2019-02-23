@@ -235,7 +235,7 @@ pgGetTableInfo c tbl = do
     Right (_, vals) <- pgQueryRunner c False tableinfo []
     if null vals
       then do
-        pure $ TableInfo [] []
+        pure $ TableInfo [] [] []
       else do
         Right pkInfo <- pgQueryRunner c False pkquery []
         let pk = case pkInfo of
@@ -310,9 +310,7 @@ pgGetTableInfo c tbl = do
       return $ ColumnInfo
         { colName = mkColName name
         , colType = mkTypeRep (pk == Just name) ty'
-        , colIsPK = pk == Just name
         , colIsAutoIncrement = ty' == "bigserial"
-        , colIsUnique = name `elem` us
         , colIsNullable = readBool (encodeUtf8 (T.toLower nullable))
         , colHasIndex = name `elem` ixs
         , colFKs =

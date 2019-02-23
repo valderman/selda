@@ -25,11 +25,15 @@ compileCreateTable cfg ifex tbl =
   where
     createTable = mconcat
       [ "CREATE TABLE ", ifNotExists ifex, fromTableName (tableName tbl), "("
-      , intercalate ", " (map (compileTableCol cfg) (tableCols tbl) ++ multiUniques)
+      , intercalate ", " (map (compileTableCol cfg) (tableCols tbl) ++ multiUniques ++ multiPrimary)
       , case allFKs of
           [] -> ""
           _  -> ", " <> intercalate ", " compFKs
       , ")"
+      ]
+    multiPrimary =
+      [ mconcat ["PRIMARY KEY(", intercalate ", " (colNames ixs), ")"]
+      | (ixs, Primary) <- tableAttrs tbl
       ]
     multiUniques =
       [ mconcat ["UNIQUE(", intercalate ", " (colNames ixs), ")"]

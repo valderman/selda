@@ -126,12 +126,21 @@ tableFieldMod tn attrs fieldMod = Table
   { tableName = tn
   , tableCols = map tidy cols
   , tableHasAutoPK = apk
-  , tableAttrs = combinedAttrs
+  , tableAttrs = combinedAttrs ++ pkAttrs
   }
   where
     combinedAttrs =
       [ (ixs, a)
       | sel :- Attribute [a] <- attrs
+      , let ixs = indices sel
+      , case ixs of
+          []  -> False
+          [_] -> False
+          _   -> True
+      ]
+    pkAttrs =
+      concat [ [(ixs, Primary), (ixs, Required), (ixs, Unique)]
+      | sel :- Attribute [Primary,Required,Unique] <- attrs
       , let ixs = indices sel
       , case ixs of
           []  -> False
@@ -168,7 +177,7 @@ data Attribute (g :: * -> * -> *) t c
   | ForeignKey (Table (), ColName)
 
 -- | A primary key which does not auto-increment.
-primary :: Attribute Selector t c
+primary :: SelectorGroup g => Attribute g t a
 primary = Attribute [Primary, Required, Unique]
 
 -- | Create an index on this column.
