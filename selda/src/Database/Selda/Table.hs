@@ -139,8 +139,8 @@ tableFieldMod tn attrs fieldMod = Table
           _   -> True
       ]
     pkAttrs =
-      concat [ [(ixs, Primary), (ixs, Required), (ixs, Unique)]
-      | sel :- Attribute [Primary,Required,Unique] <- attrs
+      concat [ [(ixs, Primary), (ixs, Required)]
+      | sel :- Attribute [Primary,Required] <- attrs
       , let ixs = indices sel
       , case ixs of
           []  -> False
@@ -178,7 +178,7 @@ data Attribute (g :: * -> * -> *) t c
 
 -- | A primary key which does not auto-increment.
 primary :: SelectorGroup g => Attribute g t a
-primary = Attribute [Primary, Required, Unique]
+primary = Attribute [Primary, Required]
 
 -- | Create an index on this column.
 index :: Attribute Selector t c
@@ -190,12 +190,12 @@ indexUsing m = Attribute [Indexed (Just m)]
 
 -- | An auto-incrementing primary key.
 autoPrimary :: Attribute Selector t (ID t)
-autoPrimary = Attribute [Primary, AutoIncrement, Required, Unique]
+autoPrimary = Attribute [Primary, AutoIncrement, Required]
 
 -- | An untyped auto-incrementing primary key.
 --   You should really only use this for ad hoc tables, such as tuples.
 untypedAutoPrimary :: Attribute Selector t RowID
-untypedAutoPrimary = Attribute [Primary, AutoIncrement, Required, Unique]
+untypedAutoPrimary = Attribute [Primary, AutoIncrement, Required]
 
 -- | A table-unique value.
 unique :: SelectorGroup g => Attribute g t a

@@ -14,17 +14,18 @@ import Utils
 import Tables
 
 validationTests freshEnv =
-  [ "nul identifiers fail"               ~: freshEnv nulIdentifiersFail
-  , "empty identifiers are caught"       ~: freshEnv emptyIdentifiersFail
-  , "duplicate columns are caught"       ~: freshEnv duplicateColsFail
-  , "duplicate PKs are caught"           ~: freshEnv duplicatePKsFail
-  , "non-unique FK fails"                ~: freshEnv nonUniqueFKFails
-  , "non-primary unique FK passes"       ~: freshEnv nonPrimaryUniqueFK
-  , "nullable unique field passes"       ~: freshEnv nullableUnique
-  , "validating wrong table fails"       ~: freshEnv validateWrongTable
-  , "validating nonexistent table fails" ~: freshEnv validateNonexistentTable
-  , "multi-column unique validation"     ~: freshEnv validateMultiUnique
-  , "timestamp column validation"        ~: freshEnv validateTimestamp
+  [ "nul identifiers fail"                ~: freshEnv nulIdentifiersFail
+  , "empty identifiers are caught"        ~: freshEnv emptyIdentifiersFail
+  , "duplicate columns are caught"        ~: freshEnv duplicateColsFail
+  , "duplicate PKs are caught"            ~: freshEnv duplicatePKsFail
+  , "non-unique FK fails"                 ~: freshEnv nonUniqueFKFails
+  , "non-primary unique FK passes"        ~: freshEnv nonPrimaryUniqueFK
+  , "nullable unique field passes"        ~: freshEnv nullableUnique
+  , "validating wrong table fails"        ~: freshEnv validateWrongTable
+  , "validating nonexistent table fails"  ~: freshEnv validateNonexistentTable
+  , "multi-column unique validation"      ~: freshEnv validateMultiUnique
+  , "multi-column primary key validation" ~: freshEnv validateMultiPk
+  , "timestamp column validation"         ~: freshEnv validateTimestamp
   ]
 
 nulIdentifiersFail = do
@@ -219,6 +220,26 @@ validateMultiUnique = do
   where
     tbl1 :: Table (Int, Int)
     tbl1 = table "foo" [(one :+ Single two) :- unique]
+
+    tbl2 :: Table (Int, Int)
+    tbl2 = table "foo" []
+
+    (one :*: two) = selectors tbl1
+
+validateMultiPk = do
+    tryDropTable tbl1
+    createTable tbl1
+    validateTable tbl1
+    assertFail $ validateTable tbl2
+    dropTable tbl1
+
+    createTable tbl2
+    validateTable tbl2
+    assertFail $ validateTable tbl1
+    dropTable tbl2
+  where
+    tbl1 :: Table (Int, Int)
+    tbl1 = table "foo" [(one :+ Single two) :- primary]
 
     tbl2 :: Table (Int, Int)
     tbl2 = table "foo" []

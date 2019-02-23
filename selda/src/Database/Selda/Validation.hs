@@ -50,6 +50,8 @@ data TableDiff
   | TableMissing
   | UniqueMissing [[ColName]]
   | UniquePresent [[ColName]]
+  | PkMissing [[ColName]]
+  | PkPresent [[ColName]]
   | InconsistentColumns [(ColName, [ColumnDiff])]
     deriving Eq
 instance Show TableDiff where
@@ -63,10 +65,8 @@ data ColumnDiff
   | NameMismatch ColName
   | UnknownType Text
   | TypeMismatch SqlTypeRep SqlTypeRep
-  | PrimaryKeyMismatch Bool
   | AutoIncrementMismatch Bool
   | NullableMismatch Bool
-  | UniqueMismatch Bool
   | ForeignKeyMissing TableName ColName
   | ForeignKeyPresent TableName ColName
   | IndexMismatch Bool
@@ -81,7 +81,7 @@ showTableDiff TableOK = "no inconsistencies detected"
 showTableDiff TableMissing = "table does not exist"
 showTableDiff (UniqueMissing cs) = mconcat
   [ "table should have uniqueness constraints on the following column groups, "
-  , "but don't in database:\n"
+  , "but doesn't in database:\n"
   , intercalate ", "
     [ "(" <> intercalate ", " (map fromColName constraintGroup) <> ")"
     | constraintGroup <- cs
@@ -89,6 +89,22 @@ showTableDiff (UniqueMissing cs) = mconcat
   ]
 showTableDiff (UniquePresent cs) = mconcat
   [ "table shouldn't have uniqueness constraints on the following column groups, "
+  , "but does in database:\n"
+  , intercalate ", "
+    [ "(" <> intercalate ", " (map fromColName constraintGroup) <> ")"
+    | constraintGroup <- cs
+    ]
+  ]
+showTableDiff (PkMissing cs) = mconcat
+  [ "table should have primary key constraints on the following column groups, "
+  , "but doesn't in database:\n"
+  , intercalate ", "
+    [ "(" <> intercalate ", " (map fromColName constraintGroup) <> ")"
+    | constraintGroup <- cs
+    ]
+  ]
+showTableDiff (PkPresent cs) = mconcat
+  [ "table shouldn't have primary key constraints on the following column groups, "
   , "but does in database:\n"
   , intercalate ", "
     [ "(" <> intercalate ", " (map fromColName constraintGroup) <> ")"
@@ -133,14 +149,10 @@ showColumnDiff (ForeignKeyPresent tbl col) =
           , fromColName col, " of table ", fromTableName tbl
           , ", in database, even though it shouldn't be"
           ]
-showColumnDiff (PrimaryKeyMismatch dbval) =
-  showBoolDiff dbval "primary key"
 showColumnDiff (AutoIncrementMismatch dbval) =
   showBoolDiff dbval "auto-incrementing"
 showColumnDiff (NullableMismatch dbval) =
   showBoolDiff dbval "nullable"
-showColumnDiff (UniqueMismatch dbval) =
-  showBoolDiff dbval "unique"
 showColumnDiff (IndexMismatch dbval) =
   showBoolDiff dbval "indexed"
 
@@ -177,21 +189,27 @@ diffColumns inschema indb =
          , map colName infos \\ map colName dbInfos
          , map colName dbInfos \\ map colName infos
          , tableUniqueGroups inschema \\ tableUniqueGroups indb
-         , tableUniqueGroups indb \\ tableUniqueGroups inschema) of
-      ([], _, _, _, _) ->
+         , tableUniqueGroups indb \\ tableUniqueGroups inschema
+         , tablePkGroups inschema \\ tablePkGroups indb
+         , tablePkGroups indb \\ tablePkGroups inschema) of
+      ([], _, _, _, _, _, _) ->
         TableMissing
-      (diffs, [], [], [], []) | all consistent diffs ->
+      (diffs, [], [], [], [], [], []) | all consistent diffs ->
         TableOK
-      (diffs, missing, extras, [], []) ->
+      (diffs, missing, extras, [], [], [], []) ->
         InconsistentColumns $ concat
           [ filter (not . consistent) diffs
           , map (, [ColumnMissing]) missing
           , map (, [ColumnPresent]) extras
           ]
-      (_, _, _, schemaUniques, []) ->
+      (_, _, _, schemaUniques, [], [], []) ->
         UniqueMissing schemaUniques
-      (_, _, _, _, dbUniques) ->
+      (_, _, _, _, dbUniques, [], []) ->
         UniquePresent dbUniques
+      (_, _, _, _, _, schemaPks, []) ->
+        PkMissing schemaPks
+      (_, _, _, _, _, _, dbPks) ->
+        PkPresent dbPks
   where
     infos = tableColumnInfos inschema
     dbInfos = tableColumnInfos indb

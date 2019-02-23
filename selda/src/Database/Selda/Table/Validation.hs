@@ -62,7 +62,7 @@ validate name cis = errs
       , (Table ftn fcs _ _, fcn) <- colFKs ci
       , fc <- fcs
       , colName fc == fcn
-      , not (Unique `elem` colAttrs fc)
+      , not $ Prelude.any (`elem` colAttrs fc) [Primary, Unique]
       ]
 
     -- This should be impossible, but...

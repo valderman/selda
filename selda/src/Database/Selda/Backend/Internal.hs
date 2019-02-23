@@ -129,11 +129,9 @@ allStmts =
 data TableInfo = TableInfo
   { -- | Ordered information about each table column.
     tableColumnInfos  :: [ColumnInfo]
-    -- | Unordered list of all uniqueness constraints on this table
-    --   which span more than a single column.
+    -- | Unordered list of all (non-PK) uniqueness constraints on this table.
   , tableUniqueGroups :: [[ColName]]
-    -- | Unordered list of all primary key constraints on this table
-    --   which span more than a single column.
+    -- | Unordered list of all primary key constraints on this table.
   , tablePkGroups :: [[ColName]]
   } deriving (Show, Eq)
 
@@ -148,7 +146,7 @@ data ColumnInfo = ColumnInfo
   , colIsAutoIncrement :: Bool
     -- | Can the column be NULL?
   , colIsNullable :: Bool
-    -- | Is the column indexed, either implicitly or explicitly?
+    -- | Is the column explicitly indexed (i.e. using 'indexed')?
   , colHasIndex :: Bool
     -- | Any foreign key (table, column) pairs referenced by this column.
   , colFKs :: [(TableName, ColName)]
@@ -161,9 +159,7 @@ fromColInfo ci = ColumnInfo
     , colType = Right $ Table.colType ci
     , colIsAutoIncrement = AutoIncrement `elem` Table.colAttrs ci
     , colIsNullable = Optional `elem` Table.colAttrs ci
-    , colHasIndex =
-      not (null [() | Indexed _ <- Table.colAttrs ci])
-        || Unique `elem` Table.colAttrs ci
+    , colHasIndex = not $ null [() | Indexed _ <- Table.colAttrs ci]
     , colFKs = map fk (Table.colFKs ci)
     }
   where
@@ -172,7 +168,7 @@ fromColInfo ci = ColumnInfo
 -- | Get the column information for each column in the given table.
 tableInfo :: Table a -> TableInfo
 tableInfo t = TableInfo
-  { tableColumnInfos = map (setMultiUniqueIndex . fromColInfo) (tableCols t)
+  { tableColumnInfos = map fromColInfo (tableCols t)
   , tableUniqueGroups = uniqueGroups
   , tablePkGroups = pkGroups
   }
@@ -185,9 +181,6 @@ tableInfo t = TableInfo
       [ map (Table.colName . ((tableCols t) !!)) ixs
       | (ixs, Primary) <- tableAttrs t
       ]
-    setMultiUniqueIndex ci
-      | any (colName ci `elem`) uniqueGroups = ci { colHasIndex = True }
-      | otherwise                            = ci
 
 -- | A collection of functions making up a Selda backend.
 data SeldaBackend = SeldaBackend
