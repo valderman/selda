@@ -46,6 +46,7 @@ library
   exposed-modules:
     Database.Selda
     Database.Selda.Backend
+    Database.Selda.Backend.Internal
     Database.Selda.Migrations
     Database.Selda.Nullable
     Database.Selda.SqlType

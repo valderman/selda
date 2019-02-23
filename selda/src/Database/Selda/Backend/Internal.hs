@@ -1,8 +1,11 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving, DefaultSignatures, CPP #-}
 -- | Internal backend API.
+--   Using anything exported from this module may or may not invalidate any
+--   safety guarantees made by Selda; use at your own peril.
 module Database.Selda.Backend.Internal
   ( StmtID, BackendID (..)
   , QueryRunner, SeldaBackend (..), SeldaConnection (..), SeldaStmt (..)
+  , SeldaState (..)
   , MonadSelda (..), SeldaT (..), SeldaM
   , SeldaError (..)
   , Param (..), Lit (..), ColAttr (..)
