@@ -22,6 +22,7 @@ build: license
 	cd ./selda ; cabal configure
 	cp -f README.md ./selda/README.md
 	cabal install $(PACKAGES)
+	make tags ; true
 
 license:
 	cp -f LICENSE ./selda/LICENSE
