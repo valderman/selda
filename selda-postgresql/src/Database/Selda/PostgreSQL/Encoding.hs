@@ -28,7 +28,7 @@ import Unsafe.Coerce
 
 -- | OIDs for all types used by Selda.
 blobType, boolType, intType, int32Type, int16Type, textType, doubleType,
-  dateType, timeType, timestampType, nameType, varcharType :: Oid
+  dateType, timeType, timestampType, nameType, varcharType, uuidType :: Oid
 boolType      = Oid 16
 intType       = Oid 20
 int32Type     = Oid 23

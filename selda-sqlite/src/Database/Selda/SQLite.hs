@@ -68,19 +68,18 @@ sqliteBackend db = SeldaBackend
 sqliteGetTableInfo :: Database -> Text -> IO TableInfo
 sqliteGetTableInfo db tbl = do
     cols <- (snd . snd) <$> sqliteQueryRunner db tblinfo []
-    indexes <- (snd . snd) <$> sqliteQueryRunner db indexes []
     fks <- (snd . snd) <$> sqliteQueryRunner db fklist []
-    indexes' <- mapM indexInfo indexes
-    colInfos <- mapM (describe fks indexes') cols
+    ixs <- mapM indexInfo . snd . snd =<< sqliteQueryRunner db indexes []
+    colInfos <- mapM (describe fks ixs) cols
     return $ TableInfo
       { tableColumnInfos = colInfos
       , tableUniqueGroups =
         [ map mkColName names
-        | (names, "u") <- indexes'
+        | (names, "u") <- ixs
         ]
       , tablePrimaryKey = concat
         [ map mkColName names
-        | (names, "pk") <- indexes'
+        | (names, "pk") <- ixs
         ]
       }
   where
@@ -108,8 +107,6 @@ sqliteGetTableInfo db tbl = do
       error "unreachable"
 
     describe fks ixs [_, SqlString name, SqlString ty, SqlInt nonnull, _, SqlInt pk] = do
-      let isUnique = any (== ([name], "u")) ixs || pk == 1
-          isMultiUnique = any (\(ns, typ) -> typ == "u" && name `elem` ns) ixs
       return $ ColumnInfo
         { colName = mkColName name
         , colType = toTypeRep (pk == 1) (toLower ty)

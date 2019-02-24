@@ -9,11 +9,13 @@ module Database.Selda.PostgreSQL
 import qualified Data.ByteString.Char8 as BS
 import Data.Dynamic
 import Data.Foldable (for_)
+#if !MIN_VERSION_base(4, 11, 0)
 import Data.Monoid
+#endif
 import qualified Data.Text as T
 import Data.Text.Encoding
-import Database.Selda.Backend
-import Control.Monad (forM_, void)
+import Database.Selda.Backend hiding (toText)
+import Control.Monad (void)
 import Control.Monad.Catch
 import Control.Monad.IO.Class
 
@@ -21,8 +23,6 @@ import Control.Monad.IO.Class
 import Database.Selda.PostgreSQL.Encoding
 import Database.PostgreSQL.LibPQ hiding (user, pass, db, host)
 #endif
-
-import Debug.Trace
 
 -- | PostgreSQL connection information.
 data PGConnectInfo = PGConnectInfo
@@ -193,7 +193,7 @@ disableFKs :: Connection -> Bool -> IO ()
 disableFKs c True = do
     void $ pgQueryRunner c False "BEGIN TRANSACTION;" []
     void $ pgQueryRunner c False create []
-    void $ pgQueryRunner c False drop []
+    void $ pgQueryRunner c False dropTbl []
   where
     create = mconcat
       [ "create table if not exists __selda_dropped_fks ("
@@ -201,7 +201,7 @@ disableFKs c True = do
       , "        sql text"
       , ");"
       ]
-    drop = mconcat
+    dropTbl = mconcat
       [ "do $$ declare t record;"
       , "begin"
       , "    for t in select conrelid::regclass::varchar table_name, conname constraint_name,"
@@ -245,7 +245,7 @@ pgGetTableInfo c tbl = do
             loneUniques = [u | [u] <- uniques]
         Right (_, fks) <- pgQueryRunner c False fkquery []
         Right (_, ixs) <- pgQueryRunner c False ixquery []
-        colInfos <- mapM (describe fks (map toText ixs) loneUniques) vals
+        colInfos <- mapM (describe fks (map toText ixs)) vals
         x <- pure $ TableInfo
           { tableColumnInfos = colInfos
           , tableUniqueGroups =
@@ -256,7 +256,7 @@ pgGetTableInfo c tbl = do
           }
         pure x
   where
-    splitNames [SqlString s] = breakNames s
+    splitNames = breakNames . toText
     -- TODO: this is super ugly; should really be fixed
     breakNames s =
       case T.break (== '"') s of
@@ -264,6 +264,7 @@ pgGetTableInfo c tbl = do
                 | T.null ns -> [n]
                 | otherwise -> n : breakNames (T.tail ns)
     toText [SqlString s] = s
+    toText _             = error "toText: unreachable"
     tableinfo = mconcat
       [ "SELECT column_name, data_type, is_nullable "
       , "FROM information_schema.columns "
@@ -310,7 +311,7 @@ pgGetTableInfo c tbl = do
       , "and t.relkind = 'r' "
       , "and t.relname = '", tbl , "';"
       ]
-    describe fks ixs us [SqlString name, SqlString ty, SqlString nullable] =
+    describe fks ixs [SqlString name, SqlString ty, SqlString nullable] =
       return $ ColumnInfo
         { colName = mkColName name
         , colType = mkTypeRep ty'
@@ -324,7 +325,7 @@ pgGetTableInfo c tbl = do
             ]
         }
       where ty' = T.toLower ty
-    describe _ _ _ results =
+    describe _ _ results =
       throwM $ SqlError $ "bad result from table info query: " ++ show results
 
 pgQueryRunner :: Connection -> Bool -> T.Text -> [Param] -> IO (Either Int (Int, [[SqlValue]]))
