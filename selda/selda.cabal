@@ -53,7 +53,6 @@ library
     Database.Selda.Unsafe
     Database.Selda.Validation
   other-modules:
-    Database.Selda.Backend.Internal
     Database.Selda.Caching
     Database.Selda.Column
     Database.Selda.Compile
