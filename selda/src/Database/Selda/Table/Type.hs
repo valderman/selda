@@ -38,7 +38,7 @@ data ColInfo = ColInfo
 --   pretty-printed.
 data ColAttr
   = Primary
-  | AutoIncrement
+  | AutoPrimary
   | Required
   | Optional
   | Unique

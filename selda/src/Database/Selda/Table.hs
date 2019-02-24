@@ -117,7 +117,7 @@ tableFieldMod tn attrs fieldMod = Table
   { tableName = tn
   , tableCols = map tidy cols
   , tableHasAutoPK = apk
-  , tableAttrs = combinedAttrs ++ pkAttrs
+  , tableAttrs = concat [combinedAttrs, pkAttrs]
   }
   where
     combinedAttrs =
@@ -125,21 +125,17 @@ tableFieldMod tn attrs fieldMod = Table
       | sel :- Attribute [a] <- attrs
       , let ixs = indices sel
       , case ixs of
-          []  -> False
-          [_] -> False
-          _   -> True
+          (_:_:_)           -> True
+          [_] | a == Unique -> True
+          _                 -> False
       ]
-    pkAttrs =
-      concat [ [(ixs, Primary), (ixs, Required)]
+    pkAttrs = concat
+      [ [(ixs, Primary), (ixs, Required)]
       | sel :- Attribute [Primary,Required] <- attrs
       , let ixs = indices sel
-      , case ixs of
-          []  -> False
-          [_] -> False
-          _   -> True
       ]
     cols = zipWith addAttrs [0..] (tblCols (Proxy :: Proxy a) fieldMod)
-    apk = or [AutoIncrement `elem` as | _ :- Attribute as <- attrs]
+    apk = or [AutoPrimary `elem` as | _ :- Attribute as <- attrs]
     addAttrs n ci = ci
       { colAttrs = colAttrs ci ++ concat
           [ as
@@ -190,12 +186,12 @@ indexUsing m = Attribute [Indexed (Just m)]
 
 -- | An auto-incrementing primary key.
 autoPrimary :: Attribute Selector t (ID t)
-autoPrimary = Attribute [Primary, AutoIncrement, Required]
+autoPrimary = Attribute [AutoPrimary, Required]
 
 -- | An untyped auto-incrementing primary key.
 --   You should really only use this for ad hoc tables, such as tuples.
 untypedAutoPrimary :: Attribute Selector t RowID
-untypedAutoPrimary = Attribute [Primary, AutoIncrement, Required]
+untypedAutoPrimary = Attribute [AutoPrimary, Required]
 
 -- | A table-unique value.
 unique :: Attribute Group t a

@@ -80,9 +80,9 @@ defType TUUID     = "BLOB"
 
 -- | Default compilation for a column attribute.
 defColAttr :: ColAttr -> Text
-defColAttr Primary       = "PRIMARY KEY"
-defColAttr AutoIncrement = "AUTOINCREMENT"
-defColAttr Required      = "NOT NULL"
-defColAttr Optional      = "NULL"
-defColAttr Unique        = "UNIQUE"
-defColAttr (Indexed _)   = ""
+defColAttr Primary     = ""
+defColAttr AutoPrimary = "PRIMARY KEY AUTOINCREMENT"
+defColAttr Required    = "NOT NULL"
+defColAttr Optional    = "NULL"
+defColAttr Unique      = "UNIQUE"
+defColAttr (Indexed _) = ""

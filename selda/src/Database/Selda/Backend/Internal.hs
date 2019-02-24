@@ -131,11 +131,11 @@ allStmts =
 -- | Comprehensive information about a table.
 data TableInfo = TableInfo
   { -- | Ordered information about each table column.
-    tableColumnInfos  :: [ColumnInfo]
+    tableColumnInfos :: [ColumnInfo]
     -- | Unordered list of all (non-PK) uniqueness constraints on this table.
   , tableUniqueGroups :: [[ColName]]
     -- | Unordered list of all primary key constraints on this table.
-  , tablePkGroups :: [[ColName]]
+  , tablePrimaryKey :: [ColName]
   } deriving (Show, Eq)
 
 -- | Comprehensive information about a column.
@@ -146,7 +146,7 @@ data ColumnInfo = ColumnInfo
     --   if Selda couldn't make sense of the type.
   , colType :: Either Text SqlTypeRep
     -- | Is the given column auto-incrementing?
-  , colIsAutoIncrement :: Bool
+  , colIsAutoPrimary :: Bool
     -- | Can the column be NULL?
   , colIsNullable :: Bool
     -- | Is the column explicitly indexed (i.e. using 'indexed')?
@@ -160,7 +160,7 @@ fromColInfo :: Table.ColInfo -> ColumnInfo
 fromColInfo ci = ColumnInfo
     { colName = Table.colName ci
     , colType = Right $ Table.colType ci
-    , colIsAutoIncrement = AutoIncrement `elem` Table.colAttrs ci
+    , colIsAutoPrimary = AutoPrimary `elem` Table.colAttrs ci
     , colIsNullable = Optional `elem` Table.colAttrs ci
     , colHasIndex = not $ null [() | Indexed _ <- Table.colAttrs ci]
     , colFKs = map fk (Table.colFKs ci)
@@ -173,14 +173,14 @@ tableInfo :: Table a -> TableInfo
 tableInfo t = TableInfo
   { tableColumnInfos = map fromColInfo (tableCols t)
   , tableUniqueGroups = uniqueGroups
-  , tablePkGroups = pkGroups
+  , tablePrimaryKey = pkGroups
   }
   where
     uniqueGroups =
       [ map (Table.colName . ((tableCols t) !!)) ixs
       | (ixs, Unique) <- tableAttrs t
       ]
-    pkGroups =
+    pkGroups = concat
       [ map (Table.colName . ((tableCols t) !!)) ixs
       | (ixs, Primary) <- tableAttrs t
       ]

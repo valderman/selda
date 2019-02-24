@@ -54,7 +54,7 @@ validate name cis = errs
     dupes =
       ["duplicate column: " <> fromColName x | (x:_:_) <- soup $ map colName cis]
     pkDupes =
-      ["multiple primary keys" | (Primary:_:_) <- soup $ concatMap colAttrs cis]
+      if moreThanOne pkAttrs then ["multiple primary keys"] else []
     nonPkFks =
       [ "column is used as a foreign key, but is not primary or unique: "
           <> fromTableName ftn <> "." <> fromColName fcn
@@ -62,7 +62,7 @@ validate name cis = errs
       , (Table ftn fcs _ _, fcn) <- colFKs ci
       , fc <- fcs
       , colName fc == fcn
-      , not $ Prelude.any (`elem` colAttrs fc) [Primary, Unique]
+      , not $ Prelude.any (`elem` colAttrs fc) [Primary, AutoPrimary, Unique]
       ]
 
     -- This should be impossible, but...
@@ -71,6 +71,15 @@ validate name cis = errs
                        <> " is both optional and required"
       | ci <- cis
       , Optional `elem` colAttrs ci && Required `elem` colAttrs ci
+      ]
+
+    moreThanOne []  = False
+    moreThanOne [_] = False
+    moreThanOne _   = True
+    pkAttrs =
+      [ attr
+      | attr <- concatMap colAttrs cis
+      , attr `elem` [Primary, AutoPrimary]
       ]
 
 -- | Return all columns of the given table if the table schema is valid,

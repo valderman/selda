@@ -76,11 +76,11 @@ sqliteGetTableInfo db tbl = do
       { tableColumnInfos = colInfos
       , tableUniqueGroups =
         [ map mkColName names
-        | (names@(_:_:_), "u") <- indexes'
+        | (names, "u") <- indexes'
         ]
-      , tablePkGroups =
+      , tablePrimaryKey = concat
         [ map mkColName names
-        | (names@(_:_:_), "pk") <- indexes'
+        | (names, "pk") <- indexes'
         ]
       }
   where
@@ -113,7 +113,7 @@ sqliteGetTableInfo db tbl = do
       return $ ColumnInfo
         { colName = mkColName name
         , colType = toTypeRep (pk == 1) (toLower ty)
-        , colIsAutoIncrement = "auto_increment" `isSuffixOf` ty
+        , colIsAutoPrimary = "auto_increment" `isSuffixOf` ty
         , colHasIndex = any (== ([name], "c")) ixs
         , colIsNullable = nonnull == 0
         , colFKs =

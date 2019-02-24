@@ -50,8 +50,8 @@ data TableDiff
   | TableMissing
   | UniqueMissing [[ColName]]
   | UniquePresent [[ColName]]
-  | PkMissing [[ColName]]
-  | PkPresent [[ColName]]
+  | PkMissing [ColName]
+  | PkPresent [ColName]
   | InconsistentColumns [(ColName, [ColumnDiff])]
     deriving Eq
 instance Show TableDiff where
@@ -96,20 +96,14 @@ showTableDiff (UniquePresent cs) = mconcat
     ]
   ]
 showTableDiff (PkMissing cs) = mconcat
-  [ "table should have primary key constraints on the following column groups, "
+  [ "table should have primary a key constraint on the following column group, "
   , "but doesn't in database:\n"
-  , intercalate ", "
-    [ "(" <> intercalate ", " (map fromColName constraintGroup) <> ")"
-    | constraintGroup <- cs
-    ]
+  , "(" <> intercalate ", " (map fromColName cs) <> ")"
   ]
 showTableDiff (PkPresent cs) = mconcat
-  [ "table shouldn't have primary key constraints on the following column groups, "
+  [ "table shouldn't have a primary key constraint group, "
   , "but does in database:\n"
-  , intercalate ", "
-    [ "(" <> intercalate ", " (map fromColName constraintGroup) <> ")"
-    | constraintGroup <- cs
-    ]
+  , "(" <> intercalate ", " (map fromColName cs) <> ")"
   ]
 showTableDiff (InconsistentColumns cols) = mconcat
   [ "table has inconsistent columns:\n"
@@ -190,8 +184,8 @@ diffColumns inschema indb =
          , map colName dbInfos \\ map colName infos
          , tableUniqueGroups inschema \\ tableUniqueGroups indb
          , tableUniqueGroups indb \\ tableUniqueGroups inschema
-         , tablePkGroups inschema \\ tablePkGroups indb
-         , tablePkGroups indb \\ tablePkGroups inschema) of
+         , tablePrimaryKey inschema \\ tablePrimaryKey indb
+         , tablePrimaryKey indb \\ tablePrimaryKey inschema) of
       ([], _, _, _, _, _, _) ->
         TableMissing
       (diffs, [], [], [], [], [], []) | all consistent diffs ->
@@ -223,7 +217,7 @@ diffColumns inschema indb =
              Just (TypeMismatch schemaColType t)
            _ ->
              Nothing
-       , check colIsAutoIncrement AutoIncrementMismatch
+       , check colIsAutoPrimary AutoIncrementMismatch
        , check colIsNullable NullableMismatch
        , check colHasIndex IndexMismatch
        ] ++ mconcat

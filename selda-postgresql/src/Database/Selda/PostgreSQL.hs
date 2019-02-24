@@ -22,6 +22,8 @@ import Database.Selda.PostgreSQL.Encoding
 import Database.PostgreSQL.LibPQ hiding (user, pass, db, host)
 #endif
 
+import Debug.Trace
+
 -- | PostgreSQL connection information.
 data PGConnectInfo = PGConnectInfo
   { -- | Host to connect to.
@@ -155,11 +157,11 @@ pgPPConfig = defPPConfig
 
     pgColAttrsHook :: SqlTypeRep -> [ColAttr] -> ([ColAttr] -> T.Text) -> T.Text
     pgColAttrsHook ty attrs fun
-      | isGenericIntPrimaryKey ty attrs = fun [Primary]
-      | otherwise = fun $ filter (/= AutoIncrement) attrs
+      | isGenericIntPrimaryKey ty attrs = fun [AutoPrimary]
+      | otherwise = fun attrs
 
     bigserialQue :: [ColAttr]
-    bigserialQue = [Primary,AutoIncrement,Required,Unique]
+    bigserialQue = [AutoPrimary,Required]
 
     -- For when we use 'autoPrimaryGen' on 'Int' field
     isGenericIntPrimaryKey :: SqlTypeRep -> [ColAttr] -> Bool
@@ -237,22 +239,20 @@ pgGetTableInfo c tbl = do
       then do
         pure $ TableInfo [] [] []
       else do
-        Right pkInfo <- pgQueryRunner c False pkquery []
-        let pk = case pkInfo of
-              (_, [[SqlString pk]]) -> Just pk
-              _                     -> Nothing
+        Right (_, pkInfo) <- pgQueryRunner c False pkquery []
         Right (_, us) <- pgQueryRunner c False uniquequery []
         let uniques = map splitNames us
             loneUniques = [u | [u] <- uniques]
         Right (_, fks) <- pgQueryRunner c False fkquery []
         Right (_, ixs) <- pgQueryRunner c False ixquery []
-        colInfos <- mapM (describe pk fks (map toText ixs) loneUniques) vals
+        colInfos <- mapM (describe fks (map toText ixs) loneUniques) vals
         x <- pure $ TableInfo
           { tableColumnInfos = colInfos
           , tableUniqueGroups =
             [ map mkColName names
             | names@(_:_:_) <- uniques
             ]
+          , tablePrimaryKey = [mkColName pk | [SqlString pk] <- pkInfo]
           }
         pure x
   where
@@ -284,6 +284,7 @@ pgGetTableInfo c tbl = do
       , "  AND a.attnum = ANY(i.indkey) "
       , "WHERE i.indrelid = '", tbl, "'::regclass "
       , "  AND i.indisunique "
+      , "  AND NOT i.indisprimary "
       , "GROUP BY i.indkey;"
       ]
     fkquery = mconcat
@@ -304,13 +305,16 @@ pgGetTableInfo c tbl = do
       , "and a.attrelid = t.oid "
       , "and a.attnum = ANY(ix.indkey) "
       , "and t.relkind = 'r' "
+      , "and not ix.indisunique "
+      , "and not ix.indisprimary "
+      , "and t.relkind = 'r' "
       , "and t.relname = '", tbl , "';"
       ]
-    describe pk fks ixs us [SqlString name, SqlString ty, SqlString nullable] =
+    describe fks ixs us [SqlString name, SqlString ty, SqlString nullable] =
       return $ ColumnInfo
         { colName = mkColName name
-        , colType = mkTypeRep (pk == Just name) ty'
-        , colIsAutoIncrement = ty' == "bigserial"
+        , colType = mkTypeRep ty'
+        , colIsAutoPrimary = ty' == "bigserial"
         , colIsNullable = readBool (encodeUtf8 (T.toLower nullable))
         , colHasIndex = name `elem` ixs
         , colFKs =
@@ -320,7 +324,7 @@ pgGetTableInfo c tbl = do
             ]
         }
       where ty' = T.toLower ty
-    describe _ _ _ _ results =
+    describe _ _ _ results =
       throwM $ SqlError $ "bad result from table info query: " ++ show results
 
 pgQueryRunner :: Connection -> Bool -> T.Text -> [Param] -> IO (Either Int (Int, [[SqlValue]]))
@@ -403,22 +407,20 @@ doError c msg = do
     , maybe "" ((": " ++) . BS.unpack) me
     ]
 
-mkTypeRep :: Bool -> T.Text ->  Either T.Text SqlTypeRep
-mkTypeRep True  "bigint"                   = Right TRowID
-mkTypeRep True  "bigserial"                = Right TRowID
-mkTypeRep True  "int8"                     = Right TRowID
-mkTypeRep _ispk "int8"                     = Right TInt
-mkTypeRep _ispk "bigint"                   = Right TInt
-mkTypeRep _ispk "float8"                   = Right TFloat
-mkTypeRep _ispk "double precision"         = Right TFloat
-mkTypeRep _ispk "timestamp with time zone" = Right TDateTime
-mkTypeRep _ispk "bytea"                    = Right TBlob
-mkTypeRep _ispk "text"                     = Right TText
-mkTypeRep _ispk "boolean"                  = Right TBool
-mkTypeRep _ispk "date"                     = Right TDate
-mkTypeRep _ispk "time with time zone"      = Right TTime
-mkTypeRep _ispk "uuid"                     = Right TUUID
-mkTypeRep _ispk typ                        = Left typ
+mkTypeRep :: T.Text ->  Either T.Text SqlTypeRep
+mkTypeRep "bigserial"                = Right TRowID
+mkTypeRep "int8"                     = Right TInt
+mkTypeRep "bigint"                   = Right TInt
+mkTypeRep "float8"                   = Right TFloat
+mkTypeRep "double precision"         = Right TFloat
+mkTypeRep "timestamp with time zone" = Right TDateTime
+mkTypeRep "bytea"                    = Right TBlob
+mkTypeRep "text"                     = Right TText
+mkTypeRep "boolean"                  = Right TBool
+mkTypeRep "date"                     = Right TDate
+mkTypeRep "time with time zone"      = Right TTime
+mkTypeRep "uuid"                     = Right TUUID
+mkTypeRep typ                        = Left typ
 
 -- | Custom column types for postgres.
 pgColType :: PPConfig -> SqlTypeRep -> T.Text
@@ -431,12 +433,12 @@ pgColType cfg t       = ppType cfg t
 
 -- | Custom attribute types for postgres.
 pgColAttr :: ColAttr -> T.Text
-pgColAttr Primary       = "PRIMARY KEY"
-pgColAttr AutoIncrement = ""
-pgColAttr Required      = "NOT NULL"
-pgColAttr Optional      = "NULL"
-pgColAttr Unique        = "UNIQUE"
-pgColAttr (Indexed _)   = ""
+pgColAttr Primary     = ""
+pgColAttr AutoPrimary = "PRIMARY KEY"
+pgColAttr Required    = "NOT NULL"
+pgColAttr Optional    = "NULL"
+pgColAttr Unique      = "UNIQUE"
+pgColAttr (Indexed _) = ""
 
 -- | Custom column types (primary key position) for postgres.
 pgColTypePK :: PPConfig -> SqlTypeRep -> T.Text
