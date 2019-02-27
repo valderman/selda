@@ -96,7 +96,7 @@ showTableDiff (UniquePresent cs) = mconcat
     ]
   ]
 showTableDiff (PkMissing cs) = mconcat
-  [ "table should have primary a key constraint on the following column group, "
+  [ "table should have a primary key constraint on the following column group, "
   , "but doesn't in database:\n"
   , "(" <> intercalate ", " (map fromColName cs) <> ")"
   ]
