@@ -248,10 +248,7 @@ pgGetTableInfo c tbl = do
         colInfos <- mapM (describe fks (map toText ixs)) vals
         x <- pure $ TableInfo
           { tableColumnInfos = colInfos
-          , tableUniqueGroups =
-            [ map mkColName names
-            | names@(_:_:_) <- uniques
-            ]
+          , tableUniqueGroups = map (map mkColName) uniques
           , tablePrimaryKey = [mkColName pk | [SqlString pk] <- pkInfo]
           }
         pure x
