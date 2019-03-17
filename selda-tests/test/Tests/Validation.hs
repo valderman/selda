@@ -24,6 +24,7 @@ validationTests freshEnv =
   , "validating wrong table fails"        ~: freshEnv validateWrongTable
   , "validating nonexistent table fails"  ~: freshEnv validateNonexistentTable
   , "multi-column unique validation"      ~: freshEnv validateMultiUnique
+  , "single-column unique validation"     ~: freshEnv validateSingleUnique
   , "multi-column primary key validation" ~: freshEnv validateMultiPk
   , "timestamp column validation"         ~: freshEnv validateTimestamp
   ]
@@ -220,6 +221,26 @@ validateMultiUnique = do
   where
     tbl1 :: Table (Int, Int)
     tbl1 = table "foo" [(one :+ Single two) :- unique]
+
+    tbl2 :: Table (Int, Int)
+    tbl2 = table "foo" []
+
+    (one :*: two) = selectors tbl1
+
+validateSingleUnique = do
+    tryDropTable tbl1
+    createTable tbl1
+    validateTable tbl1
+    assertFail $ validateTable tbl2
+    dropTable tbl1
+
+    createTable tbl2
+    validateTable tbl2
+    assertFail $ validateTable tbl1
+    dropTable tbl2
+  where
+    tbl1 :: Table (Int, Int)
+    tbl1 = table "foo" [Single one :- unique]
 
     tbl2 :: Table (Int, Int)
     tbl2 = table "foo" []
