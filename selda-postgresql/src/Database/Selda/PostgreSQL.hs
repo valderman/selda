@@ -242,16 +242,12 @@ pgGetTableInfo c tbl = do
         Right (_, pkInfo) <- pgQueryRunner c False pkquery []
         Right (_, us) <- pgQueryRunner c False uniquequery []
         let uniques = map splitNames us
-            loneUniques = [u | [u] <- uniques]
         Right (_, fks) <- pgQueryRunner c False fkquery []
         Right (_, ixs) <- pgQueryRunner c False ixquery []
         colInfos <- mapM (describe fks (map toText ixs)) vals
         x <- pure $ TableInfo
           { tableColumnInfos = colInfos
-          , tableUniqueGroups =
-            [ map mkColName names
-            | names@(_:_:_) <- uniques
-            ]
+          , tableUniqueGroups = map (map mkColName) uniques
           , tablePrimaryKey = [mkColName pk | [SqlString pk] <- pkInfo]
           }
         pure x
