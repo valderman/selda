@@ -130,7 +130,7 @@ machine. To set up a VM for the PostgreSQL backend tests:
     ```
     $ psql -h 127.0.0.1 -U postgres -W
     [password from login screen]
-    # CREATE TABLE test;
+    # CREATE DATABASE test;
     # \q
     ```
 * Run `make pgtest` to check that everything works.
