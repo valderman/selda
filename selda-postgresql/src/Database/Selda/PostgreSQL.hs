@@ -93,7 +93,7 @@ pgConnString PGConnectInfo{..} = mconcat
 -- | Perform the given computation over a PostgreSQL database.
 --   The database connection is guaranteed to be closed when the computation
 --   terminates.
-withPostgreSQL :: (MonadIO m, MonadThrow m, MonadMask m)
+withPostgreSQL :: (MonadIO m, MonadMask m)
                => PGConnectInfo -> SeldaT m a -> m a
 #ifdef __HASTE__
 withPostgreSQL _ _ = return $ error "withPostgreSQL called in JS context"
