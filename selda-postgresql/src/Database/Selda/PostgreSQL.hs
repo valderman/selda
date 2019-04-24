@@ -315,8 +315,8 @@ pgGetTableInfo c tbl = do
         , colIsNullable = readBool (encodeUtf8 (T.toLower nullable))
         , colHasIndex = name `elem` ixs
         , colFKs =
-            [ (mkTableName tbl, mkColName col)
-            | [SqlString cname, SqlString tbl, SqlString col] <- fks
+            [ (mkTableName tblname, mkColName col)
+            | [SqlString cname, SqlString tblname, SqlString col] <- fks
             , name == cname
             ]
         }

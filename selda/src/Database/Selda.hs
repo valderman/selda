@@ -134,7 +134,6 @@ import GHC.Generics (Rep)
 import Unsafe.Coerce
 
 -- For UUID generation
-import Data.UUID.Types (UUID)
 import System.Random (randomIO)
 
 #if MIN_VERSION_base(4, 9, 0)
