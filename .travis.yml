@@ -15,18 +15,18 @@ before_cache:
 
 matrix:
   include:
-    - env: CABALVER=1.22 GHCVER=7.10.3
+    - env: CABALVER=2.4 GHCVER=7.10.3
       compiler: ": #GHC 7.10.3"
-      addons: {apt: {packages: [cabal-install-1.22,ghc-7.10.3,libpq-dev], sources: [hvr-ghc]}}
-    - env: CABALVER=1.24 GHCVER=8.0.2
+      addons: {apt: {packages: [cabal-install-2.4,ghc-7.10.3,libpq-dev], sources: [hvr-ghc]}}
+    - env: CABALVER=2.4 GHCVER=8.0.2
       compiler: ": #GHC 8.0.2"
-      addons: {apt: {packages: [cabal-install-1.24,ghc-8.0.2,libpq-dev], sources: [hvr-ghc]}}
-    - env: CABALVER=1.24 GHCVER=8.4.2
+      addons: {apt: {packages: [cabal-install-2.4,ghc-8.0.2,libpq-dev], sources: [hvr-ghc]}}
+    - env: CABALVER=2.4 GHCVER=8.4.2
       compiler: ": #GHC 8.4.2"
-      addons: {apt: {packages: [cabal-install-1.24,ghc-8.4.2,libpq-dev], sources: [hvr-ghc]}}
-    - env: CABALVER=1.24 GHCVER=8.6.3
+      addons: {apt: {packages: [cabal-install-2.4,ghc-8.4.2,libpq-dev], sources: [hvr-ghc]}}
+    - env: CABALVER=2.4 GHCVER=8.6.3
       compiler: ": #GHC 8.6.3"
-      addons: {apt: {packages: [cabal-install-1.24,ghc-8.6.3,libpq-dev], sources: [hvr-ghc]}}
+      addons: {apt: {packages: [cabal-install-2.4,ghc-8.6.3,libpq-dev], sources: [hvr-ghc]}}
 
 before_script:
  - psql -c 'create database test;' -U postgres

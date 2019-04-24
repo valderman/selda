@@ -1,38 +1,30 @@
-PACKAGES=./selda ./selda-sqlite ./selda-postgresql
-.PHONY: help build license deps travischeck haddock check test pgtest sqlite postgres repl upload-selda upload sandbox
+PACKAGES=selda selda-sqlite selda-postgresql
+.PHONY: help build license deps travischeck haddock check test pgtest sqlite postgres repl upload-selda upload
 
 help:
 	@echo "Available targets:"
-	@echo "build        - build and install packages"
+	@echo "build        - build packages"
 	@echo "test         - build packages and run tests with SQLite"
 	@echo "pgtest       - build packages and run tests with PostgreSQL"
 	@echo "repl         - start ghci"
 	@echo "check        - build package, run tests, do a cabal sanity check"
 	@echo "travischeck  - like check, but with appropriate PGConnectInfo"
-	@echo "sqlite       - build and install sqlite backend"
-	@echo "postgres     - build and install postgres backend"
+	@echo "sqlite       - build sqlite backend"
+	@echo "postgres     - build postgres backend"
 	@echo "upload       - upload packages to Hackage"
 	@echo "upload-selda - upload only the main selda package"
 	@echo "haddock      - build Haddock docs"
-	@echo "sandbox      - create shared sandbox"
-	@echo "deps         - install dependencies"
 	@echo "tags         - build tags file for emacs"
 
 build: license
-	cd ./selda ; cabal configure
 	cp -f README.md ./selda/README.md
-	cabal install $(PACKAGES)
+	cabal v2-build $(PACKAGES)
 	make tags ; true
 
 license:
 	cp -f LICENSE ./selda/LICENSE
 	cp -f LICENSE ./selda-postgresql/LICENSE
 	cp -f LICENSE ./selda-sqlite/LICENSE
-
-deps: license
-	cd ./selda ; cabal install --allow-newer=base
-	cabal install -f-haste $(PACKAGES)
-	cabal install ./selda-tests --only-dependencies --enable-tests
 
 travischeck:
 	echo '{-# LANGUAGE OverloadedStrings #-}' > selda-tests/PGConnectInfo.hs
@@ -42,64 +34,51 @@ travischeck:
 	make check
 
 haddock:
-	cd selda ; cabal configure
-	cd selda ; cabal haddock
+	cabal v2-haddock $(PACKAGES)
 
 check: test pgtest haddock
-	runghc ChangeLog.hs md
+	cabal v2-run selda-changelog md
+	cabal v2-clean
 	for pkg in $(PACKAGES) ; do \
 	  cd $$pkg ; \
-	  cabal clean ; \
 	  cabal check ; \
-	  cabal sdist ; \
 	  cd .. ; \
 	done
-	cd ./selda ; cabal configure -f-localcache
-	cd ./selda ; cabal build
+	cabal v2-sdist $(PACKAGES)
+	cabal v2-configure -f-localcache selda
+	cabal v2-build selda
 
 tags:
 	hasktags --etags selda selda-sqlite selda-postgresql selda-tests
 
 test: build
-	cabal install --only-dependencies --enable-tests --allow-newer=time ./selda-tests
-	cd ./selda-tests && cabal configure --enable-tests
-	cd ./selda-tests && cabal test
+	cd ./selda-tests && cabal v2-configure --enable-tests
+	cd ./selda-tests && cabal v2-test
 
 pgtest: build
-	cabal install --only-dependencies --enable-tests ./selda-tests
-	cd ./selda-tests && cabal configure --enable-tests -fpostgres
-	cd ./selda-tests && cabal test
+	cd ./selda-tests && cabal v2-configure --enable-tests -fpostgres
+	cd ./selda-tests && cabal v2-test
 
 sqlite:
-	cabal install ./selda-sqlite
+	cabal v2-build selda-sqlite
 
 postgres:
-	cabal install ./selda-postgresql
+	cabal v2-build selda-postgresql
 
 repl:
-	cabal repl --ghc-options="-XOverloadedStrings"
+	cabal v2-repl --ghc-options="-XOverloadedStrings" selda
 
 upload-selda: check
-	runghc ChangeLog.hs validate
-	runghc ChangeLog.hs tag
-	cabal upload ./selda/dist/selda-*.tar.gz
+	cabal v2-run selda-changelog validate
+	cabal v2-run selda-changelog tag
+	cabal upload ./dist-newstyle/sdist/selda-0.*.tar.gz
 	git push
 	git push --tags
 
 upload: check
-	runghc ChangeLog.hs validate
-	runghc ChangeLog.hs tag
-	cabal upload $$(for pkg in $(PACKAGES) ; do echo $$pkg/dist/$$pkg-*.tar.gz ; done)
+	false # fix selda-* aliasing selda-sqlite etc.
+	cabal v2-run selda-changelog validate
+	cabal v2-run selda-changelog tag
+	cabal upload $$(for pkg in $(PACKAGES) ; do echo ./dist-newstyle/sdist/$$pkg-*.tar.gz ; done)
 	git push
 	git push --tags
-
-sandbox: cabal.sandbox.config
-
-cabal.sandbox.config:
-	mkdir -p .cabal-sandbox
-	cd .cabal-sandbox ; cabal sandbox init --sandbox .
-	cd selda ; cabal sandbox init --sandbox ../.cabal-sandbox
-	cd selda-sqlite ; cabal sandbox init --sandbox ../.cabal-sandbox
-	cd selda-postgresql ; cabal sandbox init --sandbox ../.cabal-sandbox
-	cd selda-tests ; cabal sandbox init --sandbox ../.cabal-sandbox
-	cabal sandbox init --sandbox .cabal-sandbox

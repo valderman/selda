@@ -1,0 +1,16 @@
+cabal-version: >=1.10
+name:          selda-dev-tools
+version:       0.1.0.0
+license:       MIT
+author:        Anton Ekblad
+maintainer:    anton@ekblad.cc
+build-type:    Simple
+
+executable selda-changelog
+  main-is: ChangeLog.hs
+  build-depends:
+    base     >=4.8 && <5,
+    time     >=1.5 && <1.10,
+    filepath >=1.4 && <1.5,
+    process  >=1.5 && <1.7
+  default-language: Haskell2010

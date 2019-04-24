@@ -91,9 +91,7 @@ From the repository root:
 
 * Install `libpq-dev` from your package manager.
     This is required to build the PostgreSQL backend.
-* Run `make sandbox` followed by `make deps`.
-    This will set up a local sandbox for your Selda hacking, and install all
-    Haskell necessary dependencies.
+* Make sure you're running a cabal version that supports v2-style commands.
 * Familiarise yourself with the various targets in the makefile.
     The dependencies between Selda, the backends and the tests are slightly
     complex, so straight-up cabal is too quirky for day to day hacking.
@@ -141,7 +139,7 @@ TODOs
 
 Features that would be nice to have but are not yet implemented.
 
-* Monadic if/else.
+* Monadic if/else
 * Streaming
-* MySQL/MariaDB backend.
-* MSSQL backend.
+* MySQL/MariaDB backend
+* MSSQL backend
