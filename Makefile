@@ -9,6 +9,7 @@ help:
 	@echo "repl         - start ghci"
 	@echo "check        - build package, run tests, do a cabal sanity check"
 	@echo "travischeck  - like check, but with appropriate PGConnectInfo"
+	@echo "selda        - build core Selda package"
 	@echo "sqlite       - build sqlite backend"
 	@echo "postgres     - build postgres backend"
 	@echo "upload       - upload packages to Hackage"
@@ -16,15 +17,13 @@ help:
 	@echo "haddock      - build Haddock docs"
 	@echo "tags         - build tags file for emacs"
 
-build: license
-	cp -f README.md ./selda/README.md
-	cabal v2-build $(PACKAGES)
-	make tags ; true
+build: selda sqlite postgres
 
-license:
+selda:
 	cp -f LICENSE ./selda/LICENSE
-	cp -f LICENSE ./selda-postgresql/LICENSE
-	cp -f LICENSE ./selda-sqlite/LICENSE
+	cp -f README.md ./selda/README.md
+	cabal v2-build selda
+	make tags ; true
 
 travischeck:
 	echo '{-# LANGUAGE OverloadedStrings #-}' > selda-tests/PGConnectInfo.hs
@@ -51,18 +50,20 @@ check: test pgtest haddock
 tags:
 	hasktags --etags selda selda-sqlite selda-postgresql selda-tests
 
-test: build
+test: selda sqlite
 	cd ./selda-tests && cabal v2-configure --enable-tests
 	cd ./selda-tests && cabal v2-test
 
-pgtest: build
+pgtest: selda postgres
 	cd ./selda-tests && cabal v2-configure --enable-tests -fpostgres
 	cd ./selda-tests && cabal v2-test
 
 sqlite:
+	cp -f LICENSE ./selda-sqlite/LICENSE
 	cabal v2-build selda-sqlite
 
 postgres:
+	cp -f LICENSE ./selda-postgresql/LICENSE
 	cabal v2-build selda-postgresql
 
 repl:
