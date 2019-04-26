@@ -10,7 +10,16 @@ import Text.Read
 
 changeLog :: ChangeLog
 changeLog =
-  [ Version "0.3.4.0" "2018-09-29"
+  [ Version "0.4.0.0" "TBD"
+    "Major update"
+    [ "Switch to PostgreSQL binary protocol."
+    , "Native UUID support."
+    , "Multi-column primary key and uniqueness constraint support."
+    , "Officially support GHC 8.6."
+    , "Update toolchain to use v2-style cabal commands."
+    , "Misc. bug fixes."
+    ]
+  , Version "0.3.4.0" "2018-09-29"
     "Nullable convenience functions."
     [ "Added convenience functions for working with nullable columns."
     ]
