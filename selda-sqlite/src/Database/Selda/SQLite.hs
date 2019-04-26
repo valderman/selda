@@ -1,14 +1,18 @@
 {-# LANGUAGE GADTs, CPP, OverloadedStrings #-}
 -- | SQLite3 backend for Selda.
-module Database.Selda.SQLite (withSQLite, sqliteOpen, sqliteBackend, seldaClose) where
+module Database.Selda.SQLite
+  ( withSQLite
+  , sqliteOpen, seldaClose
+  , sqliteBackend
+  ) where
 import Database.Selda
 import Database.Selda.Backend
-import Data.Dynamic
-import Data.Text as Text (pack, toLower, take, isSuffixOf)
+#ifndef __HASTE__
 import Control.Monad (void, when, unless)
 import Control.Monad.Catch
-#ifndef __HASTE__
 import Data.ByteString.Lazy (toStrict)
+import Data.Dynamic
+import Data.Text as Text (pack, toLower, take, isSuffixOf)
 import Data.Time (FormatTime, formatTime, defaultTimeLocale)
 import Data.UUID.Types (toByteString)
 import Database.SQLite3
@@ -19,10 +23,10 @@ import System.Directory (makeAbsolute)
 --   The connection is reusable across calls to `runSeldaT`, and must be
 --   explicitly closed using 'seldaClose' when no longer needed.
 sqliteOpen :: (MonadIO m, MonadMask m) => FilePath -> m SeldaConnection
-sqliteOpen file = do
 #ifdef __HASTE__
-  error "sqliteOpen called in JS context"
+sqliteOpen _ = error "sqliteOpen called in JS context"
 #else
+sqliteOpen file = do
   mask $ \restore -> do
     edb <- try $ liftIO $ open (pack file)
     case edb of
@@ -40,6 +44,9 @@ sqliteOpen file = do
 withSQLite :: (MonadIO m, MonadMask m) => FilePath -> SeldaT m a -> m a
 #ifdef __HASTE__
 withSQLite _ _ = return $ error "withSQLite called in JS context"
+
+sqliteBackend :: a -> SeldaBackend
+sqliteBackend _ = error "sqliteBackend called in JS context"
 #else
 withSQLite file m = bracket (sqliteOpen file) seldaClose (runSeldaT m)
 

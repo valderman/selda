@@ -6,21 +6,22 @@ module Database.Selda.PostgreSQL
   , pgOpen, pgOpen', seldaClose
   , pgConnString, pgPPConfig
   ) where
-import qualified Data.ByteString.Char8 as BS (pack, unpack)
-import qualified Data.ByteString as BS (foldl', ByteString)
-import Data.Dynamic
-import Data.Foldable (for_)
 #if !MIN_VERSION_base(4, 11, 0)
 import Data.Monoid
 #endif
+import Data.ByteString (ByteString)
 import qualified Data.Text as T
-import Data.Text.Encoding
 import Database.Selda.Backend hiding (toText)
-import Control.Monad (void)
 import Control.Monad.Catch
 import Control.Monad.IO.Class
 
 #ifndef __HASTE__
+import Control.Monad (void)
+import qualified Data.ByteString as BS (foldl')
+import qualified Data.ByteString.Char8 as BS (pack, unpack)
+import Data.Dynamic
+import Data.Foldable (for_)
+import Data.Text.Encoding
 import Database.Selda.PostgreSQL.Encoding
 import Database.PostgreSQL.LibPQ hiding (user, pass, db, host)
 #endif
@@ -72,7 +73,7 @@ auth ci (user, pass) = ci
 infixl 4 `auth`
 
 -- | Convert `PGConnectInfo` into `ByteString`
-pgConnString :: PGConnectInfo -> BS.ByteString
+pgConnString :: PGConnectInfo -> ByteString
 #ifdef __HASTE__
 pgConnString PGConnectInfo{..} = error "pgConnString called in JS context"
 #else
@@ -106,12 +107,14 @@ withPostgreSQL ci m = bracket (pgOpen ci) seldaClose (runSeldaT m)
 --   calls to 'runSeldaT', and must be explicitly closed using 'seldaClose'
 --   when no longer needed.
 pgOpen :: (MonadIO m, MonadMask m) => PGConnectInfo -> m SeldaConnection
-#ifdef __HASTE__
-pgOpen _ = return $ error "pgOpen called in JS context"
-#else
 pgOpen ci = pgOpen' (pgSchema ci) (pgConnString ci)
 
-pgOpen' :: (MonadIO m, MonadMask m) => Maybe T.Text -> BS.ByteString -> m SeldaConnection
+pgPPConfig :: PPConfig
+pgOpen' :: (MonadIO m, MonadMask m) => Maybe T.Text -> ByteString -> m SeldaConnection
+#ifdef __HASTE__
+pgOpen' _ _ = return $ error "pgOpen' called in JS context"
+pgPPConfig = error "pgPPConfig evaluated in JS context"
+#else
 pgOpen' schema connStr =
   bracketOnError (liftIO $ connectdb connStr) (liftIO . finish) $ \conn -> do
     st <- liftIO $ status conn
@@ -132,7 +135,6 @@ pgOpen' schema connStr =
         [ "unable to connect to postgres server: " ++ show f
         ]
 
-pgPPConfig :: PPConfig
 pgPPConfig = defPPConfig
     { ppType = pgColType defPPConfig
     , ppTypeHook = pgTypeHook
