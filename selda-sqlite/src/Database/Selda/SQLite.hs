@@ -8,6 +8,9 @@ import Data.Text as Text (pack, toLower, take, isSuffixOf)
 import Control.Monad (void, when, unless)
 import Control.Monad.Catch
 #ifndef __HASTE__
+import Data.ByteString.Lazy (toStrict)
+import Data.Time (FormatTime, formatTime, defaultTimeLocale)
+import Data.UUID.Types (toByteString)
 import Database.SQLite3
 import System.Directory (makeAbsolute)
 #endif
@@ -181,15 +184,15 @@ toSqlData :: Lit a -> SQLData
 toSqlData (LInt i)      = SQLInteger $ fromIntegral i
 toSqlData (LDouble d)   = SQLFloat d
 toSqlData (LText s)     = SQLText s
-toSqlData (LDateTime s) = SQLText s
-toSqlData (LDate s)     = SQLText s
-toSqlData (LTime s)     = SQLText s
+toSqlData (LDateTime t) = SQLText $ pack $ fmtTime sqlDateTimeFormat t
+toSqlData (LDate d)     = SQLText $ pack $ fmtTime sqlDateFormat d
+toSqlData (LTime t)     = SQLText $ pack $ fmtTime sqlTimeFormat t
 toSqlData (LBool b)     = SQLInteger $ if b then 1 else 0
 toSqlData (LBlob b)     = SQLBlob b
 toSqlData (LNull)       = SQLNull
 toSqlData (LJust x)     = toSqlData x
 toSqlData (LCustom l)   = toSqlData l
-toSqlData (LUUID x)     = SQLBlob x
+toSqlData (LUUID x)     = SQLBlob (toStrict $ toByteString x)
 
 fromSqlData :: SQLData -> SqlValue
 fromSqlData (SQLInteger i) = SqlInt $ fromIntegral i
@@ -197,4 +200,7 @@ fromSqlData (SQLFloat f)   = SqlFloat f
 fromSqlData (SQLText s)    = SqlString s
 fromSqlData (SQLBlob b)    = SqlBlob b
 fromSqlData SQLNull        = SqlNull
+
+fmtTime :: FormatTime t => String -> t -> String
+fmtTime = formatTime defaultTimeLocale
 #endif

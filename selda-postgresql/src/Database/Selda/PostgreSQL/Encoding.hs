@@ -1,30 +1,31 @@
 {-# LANGUAGE GADTs, BangPatterns, OverloadedStrings, CPP #-}
 -- | Encoding/decoding for PostgreSQL.
 module Database.Selda.PostgreSQL.Encoding
-  ( toSqlValue, fromSqlValue, fromSqlType
-  , readInt, readBool
+  ( toSqlValue, fromSqlValue, fromSqlType, readInt, readBool
   ) where
 #ifdef __HASTE__
 
-toSqlValue, fromSqlValue, fromSqlType, readInt :: a
+toSqlValue, fromSqlValue, fromSqlType, readInt, readBool :: a
 toSqlValue = undefined
 fromSqlValue = undefined
 fromSqlType = undefined
 readInt = undefined
+readBool = undefined
 
 #else
 
+import Control.Applicative ((<|>))
 import qualified Data.ByteString as BS
-import Data.ByteString.Builder
-import Data.ByteString.Char8 (unpack)
-import qualified Data.ByteString.Char8 as BSC (map)
 import qualified Data.ByteString.Lazy as LBS
 import Data.Char (toLower)
-import qualified Data.Text as Text
-import Data.Text.Encoding
-import Database.PostgreSQL.LibPQ (Oid (..), Format (..))
+import qualified Data.Text as T
+import Data.Time (utc, localToUTCTimeOfDay)
+import Database.PostgreSQL.LibPQ (Oid (..), Format (Binary))
 import Database.Selda.Backend
-import Unsafe.Coerce
+import PostgreSQL.Binary.Encoding as Enc
+import PostgreSQL.Binary.Decoding as Dec
+import qualified Data.UUID.Types as UUID (toByteString)
+import Data.Int (Int16, Int32, Int64)
 
 -- | OIDs for all types used by Selda.
 blobType, boolType, intType, int32Type, int16Type, textType, doubleType,
@@ -43,17 +44,24 @@ blobType      = Oid 17
 varcharType   = Oid 1043
 uuidType      = Oid 2950
 
+bytes :: Enc.Encoding -> BS.ByteString
+bytes = Enc.encodingBytes
+
 -- | Convert a parameter into an postgres parameter triple.
 fromSqlValue :: Lit a -> Maybe (Oid, BS.ByteString, Format)
-fromSqlValue (LBool b)     = Just (boolType, toBS $ if b then word8 1 else word8 0, Binary)
-fromSqlValue (LInt n)      = Just (intType, toBS $ int64BE (fromIntegral n), Binary)
-fromSqlValue (LDouble f)   = Just (doubleType, toBS $ int64BE (unsafeCoerce f), Binary)
-fromSqlValue (LText s)     = Just (textType, encodeUtf8 $ Text.filter (/= '\0') s, Binary)
-fromSqlValue (LDateTime s) = Just (timestampType, encodeUtf8 s, Text)
-fromSqlValue (LTime s)     = Just (timeType, encodeUtf8 s, Text)
-fromSqlValue (LDate s)     = Just (dateType, encodeUtf8 s, Text)
-fromSqlValue (LUUID x)     = Just (uuidType, x, Binary)
-fromSqlValue (LBlob b)     = Just (blobType, b, Binary)
+fromSqlValue (LBool b)     = Just (boolType, bytes $ Enc.bool b, Binary)
+fromSqlValue (LInt n)      = Just ( intType
+                                  , bytes $ Enc.int8_int64 $ fromIntegral n
+                                  , Binary)
+fromSqlValue (LDouble f)   = Just (doubleType, bytes $ Enc.float8 f, Binary)
+fromSqlValue (LText s)     = Just (textType, bytes $ Enc.text_strict s, Binary)
+fromSqlValue (LDateTime t) = Just ( timestampType
+                                  , bytes $ Enc.timestamptz_int t
+                                  , Binary)
+fromSqlValue (LTime t)     = Just (timeType, bytes $ Enc.timetz_int (t, utc), Binary)
+fromSqlValue (LDate d)     = Just (dateType, bytes $ Enc.date d, Binary)
+fromSqlValue (LUUID x)     = Just (uuidType, bytes $ Enc.uuid x, Binary)
+fromSqlValue (LBlob b)     = Just (blobType, bytes $ Enc.bytea_strict b, Binary)
 fromSqlValue (LNull)       = Nothing
 fromSqlValue (LJust x)     = fromSqlValue x
 fromSqlValue (LCustom l)   = fromSqlValue l
@@ -74,69 +82,44 @@ fromSqlType TUUID     = uuidType
 -- | Convert the given postgres return value and type to an @SqlValue@.
 toSqlValue :: Oid -> BS.ByteString -> SqlValue
 toSqlValue t val
-  | t == boolType    = SqlBool $ readBool (BSC.map toLower val)
-  | t == intType     = SqlInt $ readInt val
-  | t == int32Type   = SqlInt $ readInt val
-  | t == int16Type   = SqlInt $ readInt val
-  | t == doubleType  = SqlFloat $ read (unpack val)
-  | t == blobType    = SqlBlob $ pgDecode val
-  | t == uuidType    = SqlBlob $ decodeUuid val
-  | t `elem` textish = SqlString (decodeUtf8 val)
-  | otherwise        = error $ "BUG: result with unknown type oid: " ++ show t
+  | t == boolType      = SqlBool    $ parse Dec.bool val
+  | t == intType       = SqlInt     $ fromIntegral $ parse (Dec.int :: Value Int64) val
+  | t == int32Type     = SqlInt     $ fromIntegral $ parse (Dec.int :: Value Int32) val
+  | t == int16Type     = SqlInt     $ fromIntegral $ parse (Dec.int :: Value Int16) val
+  | t == doubleType    = SqlFloat   $ parse Dec.float8 val
+  | t == blobType      = SqlBlob    $ parse Dec.bytea_strict val
+  | t == uuidType      = SqlBlob    $ toBS $ parse Dec.uuid val
+  | t == timestampType = SqlUTCTime $ parse parseTimestamp val
+  | t == timeType      = SqlTime    $ toTime $ parse parseTime val
+  | t == dateType      = SqlDate    $ parse Dec.date val
+  | t `elem` textish   = SqlString  $ parse Dec.text_strict val
+  | otherwise          = error $ "BUG: result with unknown type oid: " ++ show t
   where
-    decodeUuid = pgDecode . BS.append "\\x" . BS.filter (/= 45)
-    -- PostgreSQL hex strings are of the format \xdeadbeefdeadbeefdeadbeef...
-    pgDecode s
-      | BS.index s 0 == 92 && BS.index s 1 == 120 =
-        BS.pack $ go $ BS.drop 2 s
-      | otherwise =
-        error $ "bad blob string from postgres: " ++ show s
-      where
-        hex n x =
-          case BS.index x n of
-            c | c >= 97   -> c - 87 -- c >= 'a'
-              | c >= 65   -> c - 55 -- c >= 'A'
-              | otherwise -> c - 48 -- c is numeric
-        go x
-          | BS.length x >= 2 = (16*hex 0 x + (hex 1 x)) : go (BS.drop 2 x)
-          | otherwise        = []
-    textish = [textType, timestampType, timeType, dateType, nameType, varcharType]
+    parseTimestamp = Dec.timestamptz_int <|> Dec.timestamptz_float
+    parseTime = Dec.timetz_int <|> Dec.timetz_float
+    toTime (tod, tz) = snd $ localToUTCTimeOfDay tz tod
+    toBS = LBS.toStrict . UUID.toByteString
+    textish = [textType, nameType, varcharType]
 
--- | Attempt to make sense of a bool-ish value.
---   Note that values should all be in lowercase.
-readBool :: BS.ByteString -> Bool
-readBool "f"     = False
-readBool "0"     = False
-readBool "false" = False
-readBool "n"     = False
-readBool "no"    = False
-readBool "off"   = False
-readBool _       = True
+parse :: Value a -> BS.ByteString -> a
+parse p x =
+  case valueParser p x of
+    Right x' -> x'
+    Left _   -> error "unable to decode value"
 
--- | Read an integer from a strict bytestring.
---   Assumes that the bytestring does, in fact, contain an integer.
+-- | Read an Int from a binary encoded pgint8.
 readInt :: BS.ByteString -> Int
-readInt s
-  | BS.head s == asciiDash = negate $! go 1 0
-  | otherwise              = go 0 0
+readInt = fromIntegral . parse (Dec.int :: Value Int64)
+
+readBool :: T.Text -> Bool
+readBool = go . T.map toLower
   where
-    !len = BS.length s
-    !asciiZero = 48
-    !asciiDash = 45
-    go !i !acc
-      | len > i   = go (i+1) (acc * 10 + fromIntegral (BS.index s i - asciiZero))
-      | otherwise = acc
+    go "f"     = False
+    go "0"     = False
+    go "false" = False
+    go "n"     = False
+    go "no"    = False
+    go "off"   = False
+    go _       = True
 
--- | Reify a builder to a strict bytestring.
-toBS :: Builder -> BS.ByteString
-toBS = unChunk . toLazyByteString
-
--- | Convert a lazy bytestring to a strict one.
---   Avoids the copying overhead of 'LBS.toStrict' when there's only a single
---   chunk, which should always be the case when serializing single parameters.
-unChunk :: LBS.ByteString -> BS.ByteString
-unChunk bs =
-  case LBS.toChunks bs of
-    [bs'] -> bs'
-    bss   -> BS.concat bss
 #endif

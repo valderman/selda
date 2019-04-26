@@ -17,20 +17,23 @@ import Data.Proxy
 import Data.Text (Text, pack, unpack)
 import Data.Time
 import Data.Typeable
-import Data.UUID.Types (UUID, toString, toByteString, fromByteString, nil)
+import Data.UUID.Types (UUID, toString, fromByteString, nil)
 
 -- | Format string used to represent date and time when
---   talking to the database backend.
+--   representing timestamps as text.
+--   If at all possible, use 'SqlUTCTime' instead.
 sqlDateTimeFormat :: String
 sqlDateTimeFormat = "%F %H:%M:%S%Q%z"
 
 -- | Format string used to represent date when
---   talking to the database backend.
+--   representing dates as text.
+--   If at all possible, use 'SqlDate' instead.
 sqlDateFormat :: String
 sqlDateFormat = "%F"
 
 -- | Format string used to represent time of day when
---   talking to the database backend.
+--   representing time as text.
+--   If at all possible, use 'SqlTime' instead.
 sqlTimeFormat :: String
 sqlTimeFormat = "%H:%M:%S%Q%z"
 
@@ -92,14 +95,14 @@ data Lit a where
   LInt      :: !Int        -> Lit Int
   LDouble   :: !Double     -> Lit Double
   LBool     :: !Bool       -> Lit Bool
-  LDateTime :: !Text       -> Lit UTCTime
-  LDate     :: !Text       -> Lit Day
-  LTime     :: !Text       -> Lit TimeOfDay
+  LDateTime :: !UTCTime    -> Lit UTCTime
+  LDate     :: !Day        -> Lit Day
+  LTime     :: !TimeOfDay  -> Lit TimeOfDay
   LJust     :: SqlType a => !(Lit a) -> Lit (Maybe a)
   LBlob     :: !ByteString -> Lit ByteString
   LNull     :: SqlType a => Lit (Maybe a)
   LCustom   :: Lit a       -> Lit b
-  LUUID     :: !ByteString -> Lit UUID
+  LUUID     :: !UUID       -> Lit UUID
 
 -- | The SQL type representation for the given literal.
 litType :: Lit a -> SqlTypeRep
@@ -157,20 +160,26 @@ compLit a             b              = litConTag a `compare` litConTag b
 
 -- | Some value that is representable in SQL.
 data SqlValue where
-  SqlInt    :: !Int        -> SqlValue
-  SqlFloat  :: !Double     -> SqlValue
-  SqlString :: !Text       -> SqlValue
-  SqlBool   :: !Bool       -> SqlValue
-  SqlBlob   :: !ByteString -> SqlValue
-  SqlNull   :: SqlValue
+  SqlInt     :: !Int        -> SqlValue
+  SqlFloat   :: !Double     -> SqlValue
+  SqlString  :: !Text       -> SqlValue
+  SqlBool    :: !Bool       -> SqlValue
+  SqlBlob    :: !ByteString -> SqlValue
+  SqlUTCTime :: !UTCTime    -> SqlValue
+  SqlTime    :: !TimeOfDay  -> SqlValue
+  SqlDate    :: !Day        -> SqlValue
+  SqlNull    :: SqlValue
 
 instance Show SqlValue where
-  show (SqlInt n)    = "SqlInt " ++ show n
-  show (SqlFloat f)  = "SqlFloat " ++ show f
-  show (SqlString s) = "SqlString " ++ show s
-  show (SqlBool b)   = "SqlBool " ++ show b
-  show (SqlBlob b)   = "SqlBlob " ++ show b
-  show (SqlNull)     = "SqlNull"
+  show (SqlInt n)     = "SqlInt " ++ show n
+  show (SqlFloat f)   = "SqlFloat " ++ show f
+  show (SqlString s)  = "SqlString " ++ show s
+  show (SqlBool b)    = "SqlBool " ++ show b
+  show (SqlBlob b)    = "SqlBlob " ++ show b
+  show (SqlUTCTime t) = "SqlUTCTime " ++ show t
+  show (SqlTime t)    = "SqlTime " ++ show t
+  show (SqlDate d)    = "SqlDate " ++ show d
+  show (SqlNull)      = "SqlNull"
 
 instance Show (Lit a) where
   show (LText s)     = show s
@@ -184,7 +193,7 @@ instance Show (Lit a) where
   show (LJust x)     = "Just " ++ show x
   show (LNull)       = "Nothing"
   show (LCustom l)   = show l
-  show (LUUID u)     = toString $ fromJust $ fromByteString (BSL.fromStrict u)
+  show (LUUID u)     = toString u
 
 -- | A row identifier for some table.
 --   This is the type of auto-incrementing primary keys.
@@ -285,34 +294,37 @@ instance SqlType Bool where
   defaultValue = LBool False
 
 instance SqlType UTCTime where
-  mkLit = LDateTime . pack . formatTime defaultTimeLocale sqlDateTimeFormat
-  sqlType _             = TDateTime
+  mkLit = LDateTime
+  sqlType _ = TDateTime
+  fromSql (SqlUTCTime t) = t
   fromSql (SqlString s) =
     case withWeirdTimeZone sqlDateTimeFormat (unpack s) of
       Just t -> t
       _      -> error $ "fromSql: bad datetime string: " ++ unpack s
-  fromSql v             = error $ "fromSql: datetime column with non-datetime value: " ++ show v
-  defaultValue = LDateTime "1970-01-01 00:00:00+0000"
+  fromSql v = error $ "fromSql: datetime column with non-datetime value: " ++ show v
+  defaultValue = LDateTime $ UTCTime (ModifiedJulianDay 40587) 0
 
 instance SqlType Day where
-  mkLit = LDate . pack . formatTime defaultTimeLocale sqlDateFormat
-  sqlType _             = TDate
+  mkLit = LDate
+  sqlType _ = TDate
+  fromSql (SqlDate d) = d
   fromSql (SqlString s) =
     case parseTimeM True defaultTimeLocale sqlDateFormat (unpack s) of
       Just t -> t
       _      -> error $ "fromSql: bad date string: " ++ unpack s
-  fromSql v             = error $ "fromSql: date column with non-date value: " ++ show v
-  defaultValue = LDate "1970-01-01"
+  fromSql v = error $ "fromSql: date column with non-date value: " ++ show v
+  defaultValue = LDate $ ModifiedJulianDay 40587
 
 instance SqlType TimeOfDay where
-  mkLit = LTime . pack . formatTime defaultTimeLocale sqlTimeFormat
-  sqlType _             = TTime
+  mkLit = LTime
+  sqlType _ = TTime
+  fromSql (SqlTime s) = s
   fromSql (SqlString s) =
     case withWeirdTimeZone sqlTimeFormat (unpack s) of
       Just t -> t
       _      -> error $ "fromSql: bad time string: " ++ unpack s
-  fromSql v             = error $ "fromSql: time column with non-time value: " ++ show v
-  defaultValue = LTime "00:00:00+0000"
+  fromSql v = error $ "fromSql: time column with non-time value: " ++ show v
+  defaultValue = LTime $ TimeOfDay 0 0 0
 
 -- | Both PostgreSQL and SQLite to weird things with time zones.
 --   Long term solution is to use proper binary types internally for
@@ -339,11 +351,11 @@ instance SqlType BSL.ByteString where
 
 -- | @defaultValue@ for UUIDs is the all-zero RFC4122 nil UUID.
 instance SqlType UUID where
-  mkLit = LUUID . BSL.toStrict . toByteString
+  mkLit = LUUID
   sqlType _ = TUUID
   fromSql (SqlBlob x) = fromJust . fromByteString $ BSL.fromStrict x
   fromSql v           = error $ "fromSql: UUID column with non-blob value: " ++ show v
-  defaultValue = LUUID $ BSL.toStrict $ toByteString nil
+  defaultValue = LUUID nil
 
 instance SqlType a => SqlType (Maybe a) where
   mkLit (Just x) = LJust $ mkLit x

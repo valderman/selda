@@ -15,6 +15,7 @@ import Data.List (foldl')
 import Database.Selda.SqlType
 import Data.IORef
 import System.IO.Unsafe
+import Data.Time
 #endif
 import Data.Text (Text)
 import Database.Selda.SQL (Param (..))
@@ -48,14 +49,25 @@ instance Hashable (Lit a) where
   hashWithSalt s (LInt x)      = hashWithSalt s x
   hashWithSalt s (LDouble x)   = hashWithSalt s x
   hashWithSalt s (LBool x)     = hashWithSalt s x
-  hashWithSalt s (LDateTime x) = hashWithSalt s x
-  hashWithSalt s (LDate x)     = hashWithSalt s x
-  hashWithSalt s (LTime x)     = hashWithSalt s x
+  hashWithSalt s (LDateTime x) = hashUTCTime s x
+  hashWithSalt s (LDate x)     = hashWithSalt s (toModifiedJulianDay x)
+  hashWithSalt s (LTime x)     = hashTimeOfDay s x
   hashWithSalt s (LBlob x)     = hashWithSalt s x
   hashWithSalt s (LJust x)     = hashWithSalt s x
   hashWithSalt _ (LNull)       = 0
   hashWithSalt s (LCustom l)   = hashWithSalt s l
   hashWithSalt s (LUUID x)     = hashWithSalt s x
+
+hashUTCTime :: Int -> UTCTime -> Int
+hashUTCTime s (UTCTime d t) =
+  hashWithSalt s (toModifiedJulianDay d) * 1987 +
+  hashWithSalt s (hashWithSalt s (toRational t))
+
+hashTimeOfDay :: Int -> TimeOfDay -> Int
+hashTimeOfDay s (TimeOfDay h m sec) =
+  hashWithSalt s h * 1987 +
+  hashWithSalt s m * (1987^2) +
+  hashWithSalt s sec * (1987^3)
 
 data ResultCache = ResultCache
   { -- | Query to result mapping.

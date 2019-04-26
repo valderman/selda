@@ -6,7 +6,8 @@ module Database.Selda.PostgreSQL
   , pgOpen, pgOpen', seldaClose
   , pgConnString, pgPPConfig
   ) where
-import qualified Data.ByteString.Char8 as BS
+import qualified Data.ByteString.Char8 as BS (pack, unpack)
+import qualified Data.ByteString as BS (foldl', ByteString)
 import Data.Dynamic
 import Data.Foldable (for_)
 #if !MIN_VERSION_base(4, 11, 0)
@@ -312,7 +313,7 @@ pgGetTableInfo c tbl = do
         { colName = mkColName name
         , colType = mkTypeRep ty'
         , colIsAutoPrimary = ty' == "bigserial"
-        , colIsNullable = readBool (encodeUtf8 (T.toLower nullable))
+        , colIsNullable = readBool nullable
         , colHasIndex = name `elem` ixs
         , colFKs =
             [ (mkTableName tblname, mkColName col)
@@ -326,7 +327,7 @@ pgGetTableInfo c tbl = do
 
 pgQueryRunner :: Connection -> Bool -> T.Text -> [Param] -> IO (Either Int (Int, [[SqlValue]]))
 pgQueryRunner c return_lastid q ps = do
-    mres <- execParams c (encodeUtf8 q') [fromSqlValue p | Param p <- ps] Text
+    mres <- execParams c (encodeUtf8 q') [fromSqlValue p | Param p <- ps] Binary
     unlessError c errmsg mres $ \res -> do
       if return_lastid
         then Left <$> getLastId res
@@ -336,12 +337,12 @@ pgQueryRunner c return_lastid q ps = do
     q' | return_lastid = q <> " RETURNING LASTVAL();"
        | otherwise     = q
 
-    getLastId res = (readInt . maybe "0" id) <$> getvalue res 0 0
+    getLastId res = (maybe 0 id . fmap readInt) <$> getvalue res 0 0
 
 pgRun :: Connection -> Dynamic -> [Param] -> IO (Int, [[SqlValue]])
 pgRun c hdl ps = do
     let Just sid = fromDynamic hdl :: Maybe StmtID
-    mres <- execPrepared c (BS.pack $ show sid) (map mkParam ps) Text
+    mres <- execPrepared c (BS.pack $ show sid) (map mkParam ps) Binary
     unlessError c errmsg mres $ getRows
   where
     errmsg = "error executing prepared statement"
@@ -352,15 +353,18 @@ pgRun c hdl ps = do
 -- | Get all rows from a result.
 getRows :: Result -> IO (Int, [[SqlValue]])
 getRows res = do
-  rows <- ntuples res
-  cols <- nfields res
-  types <- mapM (ftype res) [0..cols-1]
-  affected <- cmdTuples res
-  result <- mapM (getRow res types cols) [0..rows-1]
-  pure $ case affected of
-    Just "" -> (0, result)
-    Just s  -> (readInt s, result)
-    _       -> (0, result)
+    rows <- ntuples res
+    cols <- nfields res
+    types <- mapM (ftype res) [0..cols-1]
+    affected <- cmdTuples res
+    result <- mapM (getRow res types cols) [0..rows-1]
+    pure $ case affected of
+      Just "" -> (0, result)
+      Just s  -> (bsToPositiveInt s, result)
+      _       -> (0, result)
+  where
+    bsToPositiveInt = BS.foldl' (\a x -> a*10+fromIntegral x-48) 0
+
 
 -- | Get all columns for the given row.
 getRow :: Result -> [Oid] -> Column -> Row -> IO [SqlValue]
