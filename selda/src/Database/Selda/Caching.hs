@@ -60,14 +60,11 @@ instance Hashable (Lit a) where
 
 hashUTCTime :: Int -> UTCTime -> Int
 hashUTCTime s (UTCTime d t) =
-  hashWithSalt s (toModifiedJulianDay d) * 1987 +
-  hashWithSalt s (hashWithSalt s (toRational t))
+  s `hashWithSalt` toModifiedJulianDay d `hashWithSalt` toRational t
 
 hashTimeOfDay :: Int -> TimeOfDay -> Int
 hashTimeOfDay s (TimeOfDay h m sec) =
-  hashWithSalt s h * 1987 +
-  hashWithSalt s m * (1987^2) +
-  hashWithSalt s sec * (1987^3)
+  s `hashWithSalt` h `hashWithSalt` m `hashWithSalt` sec
 
 data ResultCache = ResultCache
   { -- | Query to result mapping.
