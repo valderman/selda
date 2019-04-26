@@ -1,5 +1,5 @@
 cabal-version: >=1.10
-name:          selda-dev-tools
+name:          selda-build-tools
 version:       0.1.0.0
 license:       MIT
 author:        Anton Ekblad
