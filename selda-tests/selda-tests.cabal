@@ -23,6 +23,7 @@ test-suite selda-testsuite
   main-is:
     RunTests.hs
   other-modules:
+    PGConnectInfo
     Tables
     Utils
     Tests.MultiConn
