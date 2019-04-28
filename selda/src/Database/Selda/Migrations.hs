@@ -7,6 +7,7 @@ module Database.Selda.Migrations
 import Control.Monad (void, when)
 import Control.Monad.Catch
 import Database.Selda hiding (from)
+import Database.Selda.Frontend (createTableWithoutIndexes, createTableIndexes)
 import Database.Selda.Backend.Internal
 import Database.Selda.Table.Type (tableName)
 import Database.Selda.Table.Validation (ValidationError (..))
@@ -119,10 +120,11 @@ migrateInternal t1 t2 upg = do
     validateTable t1
     validateSchema t2
     backend <- seldaBackend
-    createTable t2'
+    createTableWithoutIndexes Fail t2'
     void . queryInto t2' $ select t1 >>= upg
     void . liftIO $ runStmt backend (dropQuery (tableName t1)) []
     void . liftIO $ runStmt backend renameQuery []
+    createTableIndexes Fail t2
   where
     t2' = t2 {tableName = mkTableName newName} `asTypeOf` t2
     newName = mconcat ["__selda_migration_", rawTableName (tableName t2)]

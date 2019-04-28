@@ -19,9 +19,9 @@ data OnError = Fail | Ignore
 
 -- | Compile a sequence of queries to create the given table, including indexes.
 --   The first query in the sequence is always @CREATE TABLE@.
-compileCreateTable :: PPConfig -> OnError -> Table a -> [Text]
+compileCreateTable :: PPConfig -> OnError -> Table a -> Text
 compileCreateTable cfg ifex tbl =
-    ensureValid `seq` (createTable : createIndexes)
+    ensureValid `seq` createTable
   where
     createTable = mconcat
       [ "CREATE TABLE ", ifNotExists ifex, fromTableName (tableName tbl), "("
@@ -39,11 +39,6 @@ compileCreateTable cfg ifex tbl =
       [ mconcat ["UNIQUE(", intercalate ", " (colNames ixs), ")"]
       | (ixs, Unique) <- tableAttrs tbl
       ]
-    createIndexes =
-      [ compileCreateIndex cfg (tableName tbl) (colName col) mmethod
-      | col <- tableCols tbl
-      , Indexed mmethod <- colAttrs col
-      ]
     colNames ixs = [fromColName (colName (tableCols tbl !! ix)) | ix <- ixs]
     ifNotExists Fail   = ""
     ifNotExists Ignore = "IF NOT EXISTS "
@@ -51,16 +46,32 @@ compileCreateTable cfg ifex tbl =
     compFKs = zipWith (uncurry compileFK) allFKs [0..]
     ensureValid = validateOrThrow (tableName tbl) (tableCols tbl)
 
+-- | Compile the @CREATE INDEX@ queries for all indexes on the given table.
+compileCreateIndexes :: PPConfig -> OnError -> Table a -> [Text]
+compileCreateIndexes cfg ifex tbl =
+  [ compileCreateIndex cfg ifex (tableName tbl) col mmethod
+  | (col, mmethod) <- indexedCols tbl
+  ]
+
+-- | Get the name to use for an index on the given column in the given table.
+indexNameFor :: TableName -> ColName -> Text
+indexNameFor t c =
+  fromColName $ addColPrefix c ("ix" <> rawTableName t <> "_")
+
 -- | Compile a @CREATE INDEX@ query for the given index.
-compileCreateIndex :: PPConfig -> TableName -> ColName -> Maybe IndexMethod -> Text
-compileCreateIndex cfg tbl col mmethod = mconcat
-  [ "CREATE INDEX "
-  , fromColName $ addColPrefix col ("ix" <> rawTableName tbl <> "_")
-  , " ON ", fromTableName tbl
+compileCreateIndex :: PPConfig
+                   -> OnError
+                   -> TableName
+                   -> ColName
+                   -> Maybe IndexMethod
+                   -> Text
+compileCreateIndex cfg ifex tbl col mmethod = mconcat
+  [ "CREATE INDEX ", indexNameFor tbl col, " ON ", fromTableName tbl
   , case mmethod of
       Just method -> " " <> ppIndexMethodHook cfg method
       _           -> ""
   , " (", fromColName col, ")"
+  , if ifex == Ignore then " IF NOT EXISTS" else ""
   ]
 
 -- | Compile a foreign key constraint.

@@ -13,7 +13,7 @@ module Database.Selda.Table
   , table, tableFieldMod
   , primary, autoPrimary, untypedAutoPrimary, unique
   , index, indexUsing
-  , tableExpr
+  , tableExpr, indexedCols
   ) where
 import Data.Text (Text)
 #if MIN_VERSION_base(4, 10, 0)

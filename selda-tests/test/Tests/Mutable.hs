@@ -12,6 +12,7 @@ import Data.Time
 import Database.Selda
 import Database.Selda.Backend hiding (disableForeignKeys)
 import Database.Selda.Migrations
+import Database.Selda.Validation (validateTable)
 import Database.Selda.Unsafe (unsafeSelector)
 import Test.HUnit
 import Utils
@@ -70,6 +71,7 @@ mutableTests freshEnv = test
   , "multi-unique insert"            ~: freshEnv multiUnique
   , "uuid inserts"                   ~: freshEnv uuidInserts
   , "uuid queries"                   ~: freshEnv uuidQueries
+  , "migrate table with index"       ~: freshEnv migrateIndex
   ]
 
 tryDropNeverFails = teardown
@@ -824,3 +826,18 @@ uuidQueries = do
     restrict (x ! unsafeSelector 0 .== literal a)
     return x
   assEq "wrong uuid returned" a a'
+
+migrateIndex = do
+    tryDropTable tbl1
+    createTable tbl1
+    migrate tbl1 tbl2 (\x -> new [a2 := x ! a1, b := 0])
+    validateTable tbl2
+    migrate tbl2 tbl1 (\x -> new [a1 := x ! a2])
+    validateTable tbl1
+    dropTable tbl1
+  where
+    tbl1 :: Table (Only Int)
+    (tbl1, a1) = tableWithSelectors "foo" [a1 :- index]
+
+    tbl2 :: Table (Int, Int)
+    (tbl2, a2 :*: b) = tableWithSelectors "foo" [a2 :- index]
