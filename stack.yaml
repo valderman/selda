@@ -40,7 +40,6 @@ packages:
 - selda-postgresql
 - selda-sqlite
 - selda-tests
-- examples/shopping-list
 
 # Dependency packages to be pulled from upstream that are not in the resolver
 # (e.g., acme-missiles-0.3)
