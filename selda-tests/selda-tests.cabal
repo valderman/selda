@@ -23,7 +23,6 @@ test-suite selda-testsuite
   main-is:
     RunTests.hs
   other-modules:
-    PGConnectInfo
     Tables
     Utils
     Tests.MultiConn
@@ -43,6 +42,7 @@ test-suite selda-testsuite
     , random     >=1.1  && <1.2
     , uuid-types >=1.0  && <1.1
   if flag(postgres)
+    other-modules: PGConnectInfo
     build-depends: selda-postgresql
     cpp-options:   -DPOSTGRES
   else
