@@ -13,6 +13,7 @@ import Test.HUnit
 import Utils
 import Tables
 
+validationTests :: (SeldaM b () -> IO ()) -> [Test]
 validationTests freshEnv =
   [ "nul identifiers fail"                ~: freshEnv nulIdentifiersFail
   , "empty identifiers are caught"        ~: freshEnv emptyIdentifiersFail
@@ -30,8 +31,8 @@ validationTests freshEnv =
   ]
 
 nulIdentifiersFail = do
-  e1 <- try (createTable nulTable) :: SeldaM (Either ValidationError ())
-  e2 <- try (createTable nulColTable) :: SeldaM (Either ValidationError ())
+  e1 <- try (createTable nulTable) :: SeldaM b (Either ValidationError ())
+  e2 <- try (createTable nulColTable) :: SeldaM b (Either ValidationError ())
   case (e1, e2) of
     (Left _, Left _) -> return ()
     _                -> liftIO $ assertFailure "ValidationError not thrown"
@@ -43,8 +44,8 @@ nulIdentifiersFail = do
     nulColTable = tableFieldMod "nul_col_table" [] (const "col_\0")
 
 emptyIdentifiersFail = do
-  e1 <- try (createTable noNameTable) :: SeldaM (Either ValidationError ())
-  e2 <- try (createTable noColNameTable) :: SeldaM (Either ValidationError ())
+  e1 <- try (createTable noNameTable) :: SeldaM b (Either ValidationError ())
+  e2 <- try (createTable noColNameTable) :: SeldaM b (Either ValidationError ())
   case (e1, e2) of
     (Left _, Left _)   -> return ()
     (Right _, Left _)  -> liftIO $ assertFailure "empty table name not caught"
@@ -58,7 +59,7 @@ emptyIdentifiersFail = do
     noColNameTable = tableFieldMod "table with empty col name" [] (const "")
 
 duplicateColsFail = do
-  e <- try (createTable dupes) :: SeldaM (Either ValidationError ())
+  e <- try (createTable dupes) :: SeldaM b (Either ValidationError ())
   case e of
     Left _ -> return ()
     _      -> liftIO $ assertFailure "ValidationError not thrown"
@@ -73,8 +74,8 @@ sel_snd :: (SqlType a, SqlType b) => Selector (a, b) b
 sel_snd = unsafeSelector 1
 
 duplicatePKsFail = do
-  e1 <- try (createTable dupes1) :: SeldaM (Either ValidationError ())
-  e2 <- try (createTable dupes2) :: SeldaM (Either ValidationError ())
+  e1 <- try (createTable dupes1) :: SeldaM b (Either ValidationError ())
+  e2 <- try (createTable dupes2) :: SeldaM b (Either ValidationError ())
   case (e1, e2) of
     (Left _, Left _) -> return ()
     _                -> liftIO $ assertFailure "ValidationError not thrown"
@@ -91,7 +92,7 @@ duplicatePKsFail = do
       ]
 
 nonUniqueFKFails = do
-    res <- try (createTable addressesWithFK) :: SeldaM (Either ValidationError ())
+    res <- try (createTable addressesWithFK) :: SeldaM b (Either ValidationError ())
     case res of
       Left _  -> return ()
       Right _ -> liftIO $ assertFailure "ValidationError not thrown"
@@ -101,6 +102,7 @@ nonUniqueFKFails = do
       [ sel_fst :- foreignKey comments cComment
       ]
 
+nonPrimaryUniqueFK :: SeldaM b ()
 nonPrimaryUniqueFK = do
     createTable uniquePeople
     createTable addressesWithFK
@@ -115,6 +117,7 @@ nonPrimaryUniqueFK = do
       [ sel_fst :- foreignKey uniquePeople upName
       ]
 
+nullableUnique :: SeldaM b ()
 nullableUnique = do
     createTable uniquePeople
     dropTable uniquePeople
@@ -267,6 +270,7 @@ validateMultiPk = do
 
     (one :*: two) = selectors tbl1
 
+validateTimestamp :: SeldaM b ()
 validateTimestamp = do
     tryDropTable tbl
     createTable tbl

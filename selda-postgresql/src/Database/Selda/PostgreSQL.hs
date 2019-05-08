@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings, RecordWildCards, GADTs, CPP #-}
 -- | PostgreSQL backend for Selda.
 module Database.Selda.PostgreSQL
-  ( PGConnectInfo (..)
+  ( PG, PGConnectInfo (..)
   , withPostgreSQL, on, auth
   , pgOpen, pgOpen', seldaClose
   , pgConnString, pgPPConfig
@@ -12,6 +12,8 @@ import Data.Monoid
 import Data.ByteString (ByteString)
 import qualified Data.Text as T
 import Database.Selda.Backend hiding (toText)
+import Database.Selda.JSON
+import Database.Selda.Unsafe (cast, operator)
 import Control.Monad.Catch
 import Control.Monad.IO.Class
 
@@ -25,6 +27,12 @@ import Data.Text.Encoding
 import Database.Selda.PostgreSQL.Encoding
 import Database.PostgreSQL.LibPQ hiding (user, pass, db, host)
 #endif
+
+data PG
+
+instance JSONBackend PG where
+  (~>) = operator "->"
+  jsonToText = cast
 
 -- | PostgreSQL connection information.
 data PGConnectInfo = PGConnectInfo
@@ -96,7 +104,9 @@ pgConnString PGConnectInfo{..} = mconcat
 --   The database connection is guaranteed to be closed when the computation
 --   terminates.
 withPostgreSQL :: (MonadIO m, MonadMask m)
-               => PGConnectInfo -> SeldaT m a -> m a
+               => PGConnectInfo
+               -> SeldaT PG m a
+               -> m a
 #ifdef __HASTE__
 withPostgreSQL _ _ = return $ error "withPostgreSQL called in JS context"
 #else
@@ -106,11 +116,14 @@ withPostgreSQL ci m = bracket (pgOpen ci) seldaClose (runSeldaT m)
 -- | Open a new PostgreSQL connection. The connection will persist across
 --   calls to 'runSeldaT', and must be explicitly closed using 'seldaClose'
 --   when no longer needed.
-pgOpen :: (MonadIO m, MonadMask m) => PGConnectInfo -> m SeldaConnection
+pgOpen :: (MonadIO m, MonadMask m) => PGConnectInfo -> m (SeldaConnection PG)
 pgOpen ci = pgOpen' (pgSchema ci) (pgConnString ci)
 
 pgPPConfig :: PPConfig
-pgOpen' :: (MonadIO m, MonadMask m) => Maybe T.Text -> ByteString -> m SeldaConnection
+pgOpen' :: (MonadIO m, MonadMask m)
+        => Maybe T.Text
+        -> ByteString
+        -> m (SeldaConnection PG)
 #ifdef __HASTE__
 pgOpen' _ _ = return $ error "pgOpen' called in JS context"
 pgPPConfig = error "pgPPConfig evaluated in JS context"
@@ -155,7 +168,6 @@ pgPPConfig = defPPConfig
 
     pgTypeRenameHook _ TDateTime = "timestamp with time zone"
     pgTypeRenameHook _ TTime     = "time with time zone"
-    pgTypeRenameHook _ TUUID     = "uuid"
     pgTypeRenameHook f ty        = f ty
 
     pgColAttrsHook :: SqlTypeRep -> [ColAttr] -> ([ColAttr] -> T.Text) -> T.Text
@@ -172,7 +184,7 @@ pgPPConfig = defPPConfig
 
 -- | Create a `SeldaBackend` for PostgreSQL `Connection`
 pgBackend :: Connection   -- ^ PostgreSQL connection object.
-          -> SeldaBackend
+          -> SeldaBackend PG
 pgBackend c = SeldaBackend
   { runStmt         = \q ps -> right <$> pgQueryRunner c False q ps
   , runStmtWithPK   = \q ps -> left <$> pgQueryRunner c True q ps
@@ -423,6 +435,7 @@ mkTypeRep "boolean"                  = Right TBool
 mkTypeRep "date"                     = Right TDate
 mkTypeRep "time with time zone"      = Right TTime
 mkTypeRep "uuid"                     = Right TUUID
+mkTypeRep "jsonb"                    = Right TJSON
 mkTypeRep typ                        = Left typ
 
 -- | Custom column types for postgres.
@@ -432,6 +445,8 @@ pgColType _ TInt      = "INT8"
 pgColType _ TFloat    = "FLOAT8"
 pgColType _ TDateTime = "TIMESTAMP"
 pgColType _ TBlob     = "BYTEA"
+pgColType _ TUUID     = "UUID"
+pgColType _ TJSON     = "JSONB"
 pgColType cfg t       = ppType cfg t
 
 -- | Custom attribute types for postgres.

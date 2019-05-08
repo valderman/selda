@@ -62,7 +62,7 @@ commentItems =
   , (def, Nothing     , "Anonymous spam comment")
   ]
 
-setup :: SeldaT IO ()
+setup :: MonadSelda m => m ()
 setup = do
   createTable people
   createTable modPeople
@@ -73,7 +73,7 @@ setup = do
   insert_ addresses addressItems
   insert_ comments commentItems
 
-teardown :: SeldaT IO ()
+teardown :: MonadSelda m => m ()
 teardown = do
   tryDropTable people
   tryDropTable modPeople

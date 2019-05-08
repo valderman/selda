@@ -26,7 +26,7 @@ type family NonNull a where
 -- | Unconditionally convert a nullable value into a non-nullable one,
 --   using the standard SQL null-coalescing behavior.
 fromNullable :: SqlType (NonNull a) => Col s a -> Col s (NonNull a)
-fromNullable = cast
+fromNullable = unsafeCoerce
 
 (?==), (?/=) :: (a :?~ b, SqlType a) => Col s a -> Col s b -> Col s (Maybe Bool)
 
@@ -72,9 +72,9 @@ infixl 9 ?!
 nonNull :: SqlType a => Col s (Maybe a) -> Query s (Col s a)
 nonNull x = do
   restrict (not_ $ isNull x)
-  return (cast x)
+  return (fromNullable x)
 
 -- | Restrict a query using a nullable expression.
 --   Equivalent to @restrict . ifNull false@.
 restrict' :: Col s (Maybe Bool) -> Query s ()
-restrict' = restrict . cast
+restrict' = restrict . fromNullable

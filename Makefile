@@ -1,4 +1,4 @@
-PACKAGES=selda selda-sqlite selda-postgresql
+PACKAGES=selda selda-sqlite selda-postgresql selda-json
 .PHONY: help build license deps travischeck haddock check test selda pgtest sqlite postgres repl upload-selda upload
 
 help:
@@ -17,13 +17,7 @@ help:
 	@echo "haddock      - build Haddock docs"
 	@echo "tags         - build tags file for emacs"
 
-build: selda sqlite postgres
-
-selda:
-	cp -f LICENSE ./selda/LICENSE
-	cp -f README.md ./selda/README.md
-	cabal v2-build selda
-	make tags ; true
+build: selda sqlite postgres json
 
 travischeck:
 	echo '{-# LANGUAGE OverloadedStrings #-}' > selda-tests/PGConnectInfo.hs
@@ -58,13 +52,26 @@ pgtest: selda postgres
 	cd ./selda-tests && cabal v2-configure --enable-tests -fpostgres
 	cd ./selda-tests && cabal v2-test
 
+selda:
+	cp -f LICENSE ./selda/LICENSE
+	cp -f README.md ./selda/README.md
+	cabal v2-build selda
+	make tags ; true
+
+json:
+	cp -f LICENSE ./selda/LICENSE
+	cabal v2-build selda-json
+	make tags ; true
+
 sqlite:
 	cp -f LICENSE ./selda-sqlite/LICENSE
 	cabal v2-build selda-sqlite
+	make tags ; true
 
 postgres:
 	cp -f LICENSE ./selda-postgresql/LICENSE
 	cabal v2-build selda-postgresql
+	make tags ; true
 
 repl:
 	cabal v2-repl --ghc-options="-XOverloadedStrings" selda

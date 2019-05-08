@@ -1,7 +1,8 @@
 {-# LANGUAGE GADTs, CPP, OverloadedStrings #-}
 -- | SQLite3 backend for Selda.
 module Database.Selda.SQLite
-  ( withSQLite
+  ( SQLite
+  , withSQLite
   , sqliteOpen, seldaClose
   , sqliteBackend
   ) where
@@ -19,10 +20,12 @@ import Database.SQLite3
 import System.Directory (makeAbsolute)
 #endif
 
+data SQLite
+
 -- | Open a new connection to an SQLite database.
 --   The connection is reusable across calls to `runSeldaT`, and must be
 --   explicitly closed using 'seldaClose' when no longer needed.
-sqliteOpen :: (MonadIO m, MonadMask m) => FilePath -> m SeldaConnection
+sqliteOpen :: (MonadIO m, MonadMask m) => FilePath -> m (SeldaConnection SQLite)
 #ifdef __HASTE__
 sqliteOpen _ = error "sqliteOpen called in JS context"
 #else
@@ -41,7 +44,7 @@ sqliteOpen file = do
 
 -- | Perform the given computation over an SQLite database.
 --   The database is guaranteed to be closed when the computation terminates.
-withSQLite :: (MonadIO m, MonadMask m) => FilePath -> SeldaT m a -> m a
+withSQLite :: (MonadIO m, MonadMask m) => FilePath -> SeldaT SQLite m a -> m a
 #ifdef __HASTE__
 withSQLite _ _ = return $ error "withSQLite called in JS context"
 
@@ -58,7 +61,7 @@ withSQLite file m = bracket (sqliteOpen file) seldaClose (runSeldaT m)
 --   any and all safety guarantees made by the Selda API.
 --   Caching functionality in particular WILL break.
 --   Proceed with extreme caution.
-sqliteBackend :: Database -> SeldaBackend
+sqliteBackend :: Database -> SeldaBackend SQLite
 sqliteBackend db = SeldaBackend
   { runStmt         = \q ps -> snd <$> sqliteQueryRunner db q ps
   , runStmtWithPK   = \q ps -> fst <$> sqliteQueryRunner db q ps
@@ -198,7 +201,7 @@ toSqlData (LBool b)     = SQLInteger $ if b then 1 else 0
 toSqlData (LBlob b)     = SQLBlob b
 toSqlData (LNull)       = SQLNull
 toSqlData (LJust x)     = toSqlData x
-toSqlData (LCustom l)   = toSqlData l
+toSqlData (LCustom _ l) = toSqlData l
 toSqlData (LUUID x)     = SQLBlob (toStrict $ toByteString x)
 
 fromSqlData :: SQLData -> SqlValue

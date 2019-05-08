@@ -27,7 +27,7 @@ hideRenaming (Some c)    = Untyped c
 data Exp sql a where
   Col     :: !ColName -> Exp sql a
   Lit     :: !(Lit a) -> Exp sql a
-  BinOp   :: !(BinOp a b) -> !(Exp sql a) -> !(Exp sql a) -> Exp sql b
+  BinOp   :: !(BinOp a b c) -> !(Exp sql a) -> !(Exp sql b) -> Exp sql c
   UnOp    :: !(UnOp a b) -> !(Exp sql a) -> Exp sql b
   NulOp   :: !(NulOp a) -> Exp sql a
   Fun2    :: !Text -> !(Exp sql a) -> !(Exp sql b) -> Exp sql c
@@ -38,7 +38,7 @@ data Exp sql a where
   InQuery :: !(Exp sql a) -> !sql -> Exp sql Bool
 
 data NulOp a where
-  Fun0   :: Text -> NulOp a
+  Fun0 :: !Text -> NulOp a
 
 data UnOp a b where
   Abs    :: UnOp a a
@@ -46,22 +46,23 @@ data UnOp a b where
   Neg    :: UnOp a a
   Sgn    :: UnOp a a
   IsNull :: UnOp (Maybe a) Bool
-  Fun    :: Text -> UnOp a b
+  Fun    :: !Text -> UnOp a b
 
-data BinOp a b where
-  Gt    :: BinOp a Bool
-  Lt    :: BinOp a Bool
-  Gte   :: BinOp a Bool
-  Lte   :: BinOp a Bool
-  Eq    :: BinOp a Bool
-  Neq   :: BinOp a Bool
-  And   :: BinOp Bool Bool
-  Or    :: BinOp Bool Bool
-  Add   :: BinOp a a
-  Sub   :: BinOp a a
-  Mul   :: BinOp a a
-  Div   :: BinOp a a
-  Like  :: BinOp Text Bool
+data BinOp a b c where
+  Gt   :: BinOp a a Bool
+  Lt   :: BinOp a a Bool
+  Gte  :: BinOp a a Bool
+  Lte  :: BinOp a a Bool
+  Eq   :: BinOp a a Bool
+  Neq  :: BinOp a a Bool
+  And  :: BinOp Bool Bool Bool
+  Or   :: BinOp Bool Bool Bool
+  Add  :: BinOp a a a
+  Sub  :: BinOp a a a
+  Mul  :: BinOp a a a
+  Div  :: BinOp a a a
+  Like :: BinOp Text Text Bool
+  CustomOp :: !Text -> BinOp a b c
 
 -- | Any type which may contain column names.
 class Names a where

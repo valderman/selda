@@ -13,6 +13,11 @@ import Tests.NonDB (noDBTests)
 import Tests.MultiConn (multiConnTests)
 import Tables (teardown)
 
+#ifdef TEST_JSON
+import Tests.JSON (jsonQueryTests)
+#endif
+import Tests.JSON (jsonTests)
+
 #ifdef POSTGRES
 -- To test the PostgreSQL backend, specify the connection info for the server
 -- as PGConnectInfo.pgConnectInfo :: PGConnectInfo.
@@ -21,7 +26,6 @@ import PGConnectInfo (pgConnectInfo)
 #else
 import Database.Selda.SQLite
 #endif
-
 
 main = do
   tmpdir <- getTemporaryDirectory
@@ -34,10 +38,11 @@ main = do
 
 -- | Run the given computation over the given SQLite file. If the file exists,
 --   it will be removed first.
-freshEnv :: FilePath -> SeldaM a -> IO a
 #ifdef POSTGRES
+freshEnv :: FilePath -> SeldaM PG a -> IO a
 freshEnv _ m = withPostgreSQL pgConnectInfo $ teardown >> m
 #else
+freshEnv :: FilePath -> SeldaM SQLite a -> IO a
 freshEnv file m = do
   exists <- doesFileExist file
   when exists $ removeFile file
@@ -54,6 +59,10 @@ allTests f = TestList
   , "mutable tests (caching)"  ~: mutableTests caching
   , "cache + transaction race" ~: invalidateCacheAfterTransaction run
   , "multi-connection tests"   ~: multiConnTests open
+  , "mandatory json tests"     ~: jsonTests (freshEnv f)
+#ifdef TEST_JSON
+  , "json query tests"         ~: jsonQueryTests (freshEnv f)
+#endif
   ]
   where
     caching m = freshEnv f (setLocalCache 1000 >> m)

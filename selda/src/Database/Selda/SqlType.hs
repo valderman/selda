@@ -49,6 +49,7 @@ data SqlTypeRep
   | TTime
   | TBlob
   | TUUID
+  | TJSON
     deriving (Show, Eq, Ord)
 
 -- | Any datatype representable in (Selda's subset of) SQL.
@@ -56,7 +57,7 @@ class Typeable a => SqlType a where
   -- | Create a literal of this type.
   mkLit :: a -> Lit a
   default mkLit :: (Typeable a, SqlEnum a) => a -> Lit a
-  mkLit = LCustom . LText . toText
+  mkLit = LCustom TText . LText . toText
 
   -- | The SQL representation for this type.
   sqlType :: Proxy a -> SqlTypeRep
@@ -70,7 +71,7 @@ class Typeable a => SqlType a where
   -- | Default value when using 'def' at this type.
   defaultValue :: Lit a
   default defaultValue :: (Typeable a, SqlEnum a) => Lit a
-  defaultValue = LCustom $ mkLit (toText (minBound :: a))
+  defaultValue = mkLit (minBound :: a)
 
 -- | Any type that's bounded, enumerable and has a text representation, and
 --   thus representable as a Selda enumerable.
@@ -101,7 +102,7 @@ data Lit a where
   LJust     :: SqlType a => !(Lit a) -> Lit (Maybe a)
   LBlob     :: !ByteString -> Lit ByteString
   LNull     :: SqlType a => Lit (Maybe a)
-  LCustom   :: Lit a       -> Lit b
+  LCustom   :: SqlTypeRep  -> Lit a -> Lit b
   LUUID     :: !UUID       -> Lit UUID
 
 -- | The SQL type representation for the given literal.
@@ -119,7 +120,7 @@ litType (x@LNull)     = sqlType (proxyFor x)
   where
     proxyFor :: Lit (Maybe a) -> Proxy a
     proxyFor _ = Proxy
-litType (LCustom x)   = litType x
+litType (LCustom t _) = t
 litType (LUUID{})     = TUUID
 
 instance Eq (Lit a) where
@@ -154,7 +155,7 @@ compLit (LDate x)     (LDate x')     = x `compare` x'
 compLit (LTime x)     (LTime x')     = x `compare` x'
 compLit (LBlob x)     (LBlob x')     = x `compare` x'
 compLit (LJust x)     (LJust x')     = x `compLit` x'
-compLit (LCustom x)   (LCustom x')   = x `compLit` x'
+compLit (LCustom _ x) (LCustom _ x') = x `compLit` x'
 compLit (LUUID x)     (LUUID x')     = x `compare` x'
 compLit a             b              = litConTag a `compare` litConTag b
 
@@ -192,7 +193,7 @@ instance Show (Lit a) where
   show (LBlob b)     = show b
   show (LJust x)     = "Just " ++ show x
   show (LNull)       = "Nothing"
-  show (LCustom l)   = show l
+  show (LCustom _ l) = show l
   show (LUUID u)     = toString u
 
 -- | A row identifier for some table.
@@ -251,14 +252,14 @@ isInvalidId :: ID a -> Bool
 isInvalidId = isInvalidRowId . untyped
 
 instance SqlType RowID where
-  mkLit (RowID n) = LCustom $ LInt n
+  mkLit (RowID n) = LCustom TRowID (LInt n)
   sqlType _ = TRowID
   fromSql (SqlInt x) = RowID x
   fromSql v          = error $ "fromSql: RowID column with non-int value: " ++ show v
   defaultValue = mkLit invalidRowId
 
 instance Typeable a => SqlType (ID a) where
-  mkLit (ID n) = LCustom $ mkLit n
+  mkLit (ID n) = LCustom TRowID (mkLit n)
   sqlType _ = TRowID
   fromSql = ID . fromSql
   defaultValue = mkLit (ID invalidRowId)
@@ -343,11 +344,11 @@ instance SqlType ByteString where
   defaultValue = LBlob empty
 
 instance SqlType BSL.ByteString where
-  mkLit = LCustom . LBlob . BSL.toStrict
+  mkLit = LCustom TBlob . LBlob . BSL.toStrict
   sqlType _ = TBlob
   fromSql (SqlBlob x) = BSL.fromStrict x
   fromSql v           = error $ "fromSql: blob column with non-blob value: " ++ show v
-  defaultValue = LCustom $ LBlob empty
+  defaultValue = LCustom TBlob (LBlob empty)
 
 -- | @defaultValue@ for UUIDs is the all-zero RFC4122 nil UUID.
 instance SqlType UUID where

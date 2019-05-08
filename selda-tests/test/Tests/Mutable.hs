@@ -21,6 +21,7 @@ import Tables
 import Data.Monoid
 #endif
 
+mutableTests :: (SeldaM b () -> IO ()) -> Test
 mutableTests freshEnv = test
   [ "tryDrop never fails"            ~: freshEnv tryDropNeverFails
   , "tryCreate never fails"          ~: freshEnv tryCreateNeverFails
@@ -74,8 +75,12 @@ mutableTests freshEnv = test
   , "migrate table with index"       ~: freshEnv migrateIndex
   ]
 
+tryDropNeverFails :: SeldaM b ()
 tryDropNeverFails = teardown
+
+tryCreateNeverFails :: SeldaM b ()
 tryCreateNeverFails = tryCreateTable comments >> tryCreateTable comments
+
 dropFailsOnMissing = assertFail $ dropTable comments
 createFailsOnDuplicate = createTable people >> assertFail (createTable people)
 
@@ -158,6 +163,7 @@ transactionCompletes = do
     c1 = "チョロゴン"
     c2 = "メイド最高！"
 
+transactionRollsBack :: SeldaM b ()
 transactionRollsBack = do
   setup
   res <- try $ transaction $ do
@@ -282,6 +288,7 @@ dupeInsertThrowsSeldaError = do
     comments' = table "comments" [Single cId :- primary]
     cId :*: cName :*: cComment = selectors comments'
 
+dupeInsert2ThrowsSeldaError :: SeldaM b ()
 dupeInsert2ThrowsSeldaError = do
   setup
   insert_ comments [(def, Just "Kobayashi", "チョロゴン")]
@@ -291,6 +298,7 @@ dupeInsert2ThrowsSeldaError = do
     Left _ -> return ()
     _      -> liftIO $ assertFailure "SeldaError not thrown"
 
+dupeUpdateThrowsSeldaError :: SeldaM b ()
 dupeUpdateThrowsSeldaError = do
   setup
   insert_ comments
@@ -825,8 +833,10 @@ uuidQueries = do
     x <- select uuidTable
     restrict (x ! unsafeSelector 0 .== literal a)
     return x
+  dropTable uuidTable
   assEq "wrong uuid returned" a a'
 
+migrateIndex :: SeldaM b ()
 migrateIndex = do
     tryDropTable tbl1
     createTable tbl1

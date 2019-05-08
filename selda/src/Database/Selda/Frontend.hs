@@ -30,7 +30,7 @@ import Control.Monad.IO.Class
 --   transformer on top of some other monad.
 --   Selda transformers are entered using backend-specific @withX@ functions,
 --   such as 'withSQLite' from the SQLite backend.
-query :: (MonadSelda m, Result a) => Query s a -> m [Res a]
+query :: (MonadSelda m, Result a) => Query (Backend m) a -> m [Res a]
 query q = do
   backend <- seldaBackend
   queryWith (runStmt backend) q
@@ -39,7 +39,7 @@ query q = do
 --   Returns the number of inserted rows.
 queryInto :: (MonadSelda m, Relational a)
           => Table a
-          -> Query s (Row s a)
+          -> Query (Backend m) (Row (Backend m) a)
           -> m Int
 queryInto tbl q = do
     backend <- seldaBackend
@@ -109,12 +109,10 @@ tryInsert tbl row = do
 --
 --   Note that this may perform two separate queries: one update, potentially
 --   followed by one insert.
-upsert :: ( MonadSelda m
-          , Relational a
-          )
+upsert :: (MonadSelda m, Relational a)
        => Table a
-       -> (Row s a -> Col s Bool)
-       -> (Row s a -> Row s a)
+       -> (Row (Backend m) a -> Col (Backend m) Bool)
+       -> (Row (Backend m) a -> Row (Backend m) a)
        -> [a]
        -> m (Maybe (ID a))
 upsert tbl check upd rows = transaction $ do
@@ -130,22 +128,18 @@ upsert tbl check upd rows = transaction $ do
 --   If called on a table which doesn't have an auto-incrementing primary key,
 --   @Just id@ is always returned on successful insert, where @id@ is a row
 --   identifier guaranteed to not match any row in any table.
-insertUnless :: ( MonadSelda m
-                , Relational a
-                )
+insertUnless :: (MonadSelda m, Relational a)
              => Table a
-             -> (Row s a -> Col s Bool)
+             -> (Row (Backend m) a -> Col (Backend m) Bool)
              -> [a]
              -> m (Maybe (ID a))
 insertUnless tbl check rows = upsert tbl check id rows
 
 -- | Like 'insertUnless', but performs the insert when at least one row matches
 --   the predicate.
-insertWhen :: ( MonadSelda m
-              , Relational a
-              )
+insertWhen :: (MonadSelda m, Relational a)
            => Table a
-           -> (Row s a -> Col s Bool)
+           -> (Row (Backend m) a -> Col (Backend m) Bool)
            -> [a]
            -> m (Maybe (ID a))
 insertWhen tbl check rows = transaction $ do
@@ -179,9 +173,9 @@ insertWithPK t cs = do
 -- | Update the given table using the given update function, for all rows
 --   matching the given predicate. Returns the number of updated rows.
 update :: (MonadSelda m, Relational a)
-       => Table a                 -- ^ Table to update.
-       -> (Row s a -> Col s Bool) -- ^ Predicate.
-       -> (Row s a -> Row s a)    -- ^ Update function.
+       => Table a                                     -- ^ Table to update.
+       -> (Row (Backend m) a -> Col (Backend m) Bool) -- ^ Predicate.
+       -> (Row (Backend m) a -> Row (Backend m) a)    -- ^ Update function.
        -> m Int
 update tbl check upd = do
   cfg <- ppConfig <$> seldaBackend
@@ -192,8 +186,8 @@ update tbl check upd = do
 -- | Like 'update', but doesn't return the number of updated rows.
 update_ :: (MonadSelda m, Relational a)
        => Table a
-       -> (Row s a -> Col s Bool)
-       -> (Row s a -> Row s a)
+       -> (Row (Backend m) a -> Col (Backend m) Bool)
+       -> (Row (Backend m) a -> Row (Backend m) a)
        -> m ()
 update_ tbl check upd = void $ update tbl check upd
 
@@ -201,7 +195,7 @@ update_ tbl check upd = void $ update tbl check upd
 --   Returns the number of deleted rows.
 deleteFrom :: (MonadSelda m, Relational a)
            => Table a
-           -> (Row s a -> Col s Bool)
+           -> (Row (Backend m) a -> Col (Backend m) Bool)
            -> m Int
 deleteFrom tbl f = do
   cfg <- ppConfig <$> seldaBackend
@@ -212,7 +206,7 @@ deleteFrom tbl f = do
 -- | Like 'deleteFrom', but does not return the number of deleted rows.
 deleteFrom_ :: (MonadSelda m, Relational a)
             => Table a
-            -> (Row s a -> Col s Bool)
+            -> (Row (Backend m) a -> Col (Backend m) Bool)
             -> m ()
 deleteFrom_ tbl f = void $ deleteFrom tbl f
 
@@ -288,8 +282,8 @@ setLocalCache :: MonadIO m => Int -> m ()
 setLocalCache = liftIO . setMaxItems
 
 -- | Build the final result from a list of result columns.
-queryWith :: forall s m a. (MonadSelda m, Result a)
-          => QueryRunner (Int, [[SqlValue]]) -> Query s a -> m [Res a]
+queryWith :: forall m a. (MonadSelda m, Result a)
+          => QueryRunner (Int, [[SqlValue]]) -> Query (Backend m) a -> m [Res a]
 queryWith qr q = do
   conn <- seldaConnection
   let backend = connBackend conn
@@ -325,5 +319,5 @@ exec q ps = do
   liftIO $ execIO backend q ps
 
 -- | Like 'exec', but in 'IO'.
-execIO :: SeldaBackend -> Text -> [Param] -> IO Int
+execIO :: SeldaBackend b -> Text -> [Param] -> IO Int
 execIO backend q ps = fmap fst $ runStmt backend q ps

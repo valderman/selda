@@ -29,7 +29,8 @@ import Data.Int (Int16, Int32, Int64)
 
 -- | OIDs for all types used by Selda.
 blobType, boolType, intType, int32Type, int16Type, textType, doubleType,
-  dateType, timeType, timestampType, nameType, varcharType, uuidType :: Oid
+  dateType, timeType, timestampType, nameType, varcharType, uuidType,
+  jsonbType :: Oid
 boolType      = Oid 16
 intType       = Oid 20
 int32Type     = Oid 23
@@ -43,6 +44,7 @@ timestampType = Oid 1184
 blobType      = Oid 17
 varcharType   = Oid 1043
 uuidType      = Oid 2950
+jsonbType     = Oid 3802
 
 bytes :: Enc.Encoding -> BS.ByteString
 bytes = Enc.encodingBytes
@@ -64,7 +66,10 @@ fromSqlValue (LUUID x)     = Just (uuidType, bytes $ Enc.uuid x, Binary)
 fromSqlValue (LBlob b)     = Just (blobType, bytes $ Enc.bytea_strict b, Binary)
 fromSqlValue (LNull)       = Nothing
 fromSqlValue (LJust x)     = fromSqlValue x
-fromSqlValue (LCustom l)   = fromSqlValue l
+fromSqlValue (LCustom TJSON (LBlob b)) = Just ( jsonbType
+                                              , bytes $ Enc.jsonb_bytes b
+                                              , Binary)
+fromSqlValue (LCustom _ l) = fromSqlValue l
 
 -- | Get the corresponding OID for an SQL type representation.
 fromSqlType :: SqlTypeRep -> Oid
@@ -78,6 +83,7 @@ fromSqlType TTime     = timeType
 fromSqlType TBlob     = blobType
 fromSqlType TRowID    = intType
 fromSqlType TUUID     = uuidType
+fromSqlType TJSON     = jsonbType
 
 -- | Convert the given postgres return value and type to an @SqlValue@.
 toSqlValue :: Oid -> BS.ByteString -> SqlValue
@@ -88,17 +94,18 @@ toSqlValue t val
   | t == int16Type     = SqlInt     $ fromIntegral $ parse (Dec.int :: Value Int16) val
   | t == doubleType    = SqlFloat   $ parse Dec.float8 val
   | t == blobType      = SqlBlob    $ parse Dec.bytea_strict val
-  | t == uuidType      = SqlBlob    $ toBS $ parse Dec.uuid val
+  | t == uuidType      = SqlBlob    $ uuid2bs $ parse Dec.uuid val
   | t == timestampType = SqlUTCTime $ parse parseTimestamp val
   | t == timeType      = SqlTime    $ toTime $ parse parseTime val
   | t == dateType      = SqlDate    $ parse Dec.date val
+  | t == jsonbType     = SqlBlob    $ parse (Dec.jsonb_bytes pure) val
   | t `elem` textish   = SqlString  $ parse Dec.text_strict val
   | otherwise          = error $ "BUG: result with unknown type oid: " ++ show t
   where
     parseTimestamp = Dec.timestamptz_int <|> Dec.timestamptz_float
     parseTime = Dec.timetz_int <|> Dec.timetz_float
     toTime (tod, tz) = snd $ localToUTCTimeOfDay tz tod
-    toBS = LBS.toStrict . UUID.toByteString
+    uuid2bs = LBS.toStrict . UUID.toByteString
     textish = [textType, nameType, varcharType]
 
 parse :: Value a -> BS.ByteString -> a

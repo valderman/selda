@@ -22,16 +22,16 @@ import Database.Selda.Validation
 -- >   , Migration m2_from m2_to m2_upgrade
 -- >   , ...
 -- >   ]
-data Migration where
+data Migration backend where
   Migration :: (Relational a, Relational b)
             => Table a
             -> Table b
-            -> (Row s a -> Query s (Row s b))
-            -> Migration
+            -> (Row backend a -> Query backend (Row backend b))
+            -> Migration backend
 
 -- | A migration step is zero or more migrations that need to be performed in
 --   a single transaction in order to keep the database consistent.
-type MigrationStep = [Migration]
+type MigrationStep backend = [Migration backend]
 
 -- | Migrate the first table into the second, using the given function to
 --   migrate all records to the new schema.
@@ -43,17 +43,17 @@ type MigrationStep = [Migration]
 migrate :: (MonadSelda m, MonadMask m, Relational a, Relational b)
         => Table a -- ^ Table to migrate from.
         -> Table b -- ^ Table to migrate to.
-        -> (Row () a -> Row () b)
+        -> (Row (Backend m) a -> Row (Backend m) b)
                    -- ^ Mapping from old to new table.
         -> m ()
-migrate t1 t2 upg = migrateM t1 t2 ((pure :: a -> Query () a) . upg)
+migrate t1 t2 upg = migrateM t1 t2 (pure . upg)
 
 -- | Like 'migrate', but allows the column upgrade to access
 --   the entire database.
 migrateM :: (MonadSelda m, MonadMask m, Relational a, Relational b)
          => Table a
          -> Table b
-         -> (Row s a -> Query s (Row s b))
+         -> (Row (Backend m) a -> Query (Backend m) (Row (Backend m) b))
          -> m ()
 migrateM t1 t2 upg = migrateAll True [Migration t1 t2 upg]
 
@@ -65,7 +65,7 @@ wrap enforceFKs
 -- | Perform all given migrations as a single transaction.
 migrateAll :: (MonadSelda m, MonadMask m)
            => Bool -- ^ Enforce foreign keys during migration?
-           -> MigrationStep -- ^ Migration step to perform.
+           -> MigrationStep (Backend m) -- ^ Migration step to perform.
            -> m ()
 migrateAll fks =
   wrap fks . mapM_ (\(Migration t1 t2 upg) -> migrateInternal t1 t2 upg)
@@ -85,7 +85,7 @@ migrateAll fks =
 --   @c2@ is indexed with index method @bar@.
 autoMigrate :: (MonadSelda m, MonadMask m)
             => Bool -- ^ Enforce foreign keys during migration?
-            -> [MigrationStep] -- ^ Migration steps to perform.
+            -> [MigrationStep (Backend m)] -- ^ Migration steps to perform.
             -> m ()
 autoMigrate _ [] = do
   return ()
@@ -114,7 +114,7 @@ autoMigrate fks steps = wrap fks $ do
 migrateInternal :: (MonadSelda m, MonadThrow m, Relational a, Relational b)
                 => Table a
                 -> Table b
-                -> (Row s a -> Query s (Row s b))
+                -> (Row (Backend m) a -> Query (Backend m) (Row (Backend m) b))
                 -> m ()
 migrateInternal t1 t2 upg = do
     validateTable t1

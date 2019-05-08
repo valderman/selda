@@ -260,7 +260,7 @@ ppUnOp op c = do
     IsNull -> "(" <> c' <> ") IS NULL"
     Fun f  -> f <> "(" <> c' <> ")"
 
-ppBinOp :: BinOp a b -> Exp SQL a -> Exp SQL a -> PP Text
+ppBinOp :: BinOp a b c -> Exp SQL a -> Exp SQL b -> PP Text
 ppBinOp op a b = do
     a' <- ppCol a
     b' <- ppCol b
@@ -271,17 +271,18 @@ ppBinOp op a b = do
     paren (Lit{}) c = c
     paren _ c       = "(" <> c <> ")"
 
-    ppOp :: BinOp a b -> Text
-    ppOp Gt    = ">"
-    ppOp Lt    = "<"
-    ppOp Gte   = ">="
-    ppOp Lte   = "<="
-    ppOp Eq    = "="
-    ppOp Neq   = "!="
-    ppOp And   = "AND"
-    ppOp Or    = "OR"
-    ppOp Add   = "+"
-    ppOp Sub   = "-"
-    ppOp Mul   = "*"
-    ppOp Div   = "/"
-    ppOp Like  = "LIKE"
+    ppOp :: BinOp a b c -> Text
+    ppOp Gt   = ">"
+    ppOp Lt   = "<"
+    ppOp Gte  = ">="
+    ppOp Lte  = "<="
+    ppOp Eq   = "="
+    ppOp Neq  = "!="
+    ppOp And  = "AND"
+    ppOp Or   = "OR"
+    ppOp Add  = "+"
+    ppOp Sub  = "-"
+    ppOp Mul  = "*"
+    ppOp Div  = "/"
+    ppOp Like = "LIKE"
+    ppOp (CustomOp s) = s

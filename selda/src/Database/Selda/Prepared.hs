@@ -34,7 +34,7 @@ type family ResultT f where
 
 type family Equiv q f where
   Equiv (Col s a -> q) (a -> f) = Equiv q f
-  Equiv (Query s a)    (m [b])  = Res a ~ b
+  Equiv (Query s a)    (m [b])  = (Res a ~ b, Backend m ~ s)
 
 type CompResult = (Text, [Either Int Param], [SqlTypeRep], [TableName])
 
@@ -114,8 +114,10 @@ instance (Typeable a, MonadSelda m, a ~ Res (ResultT q), Result (ResultT q)) =>
             return $ map (buildResult (Proxy :: Proxy (ResultT q))) (snd res)
 
 instance (SqlType a, Preparable b) => Preparable (Col s a -> b) where
-  mkQuery n f ts = mkQuery (n+1) (f x) (sqlType (Proxy :: Proxy a) : ts)
-    where x = One $ Lit $ LCustom (throw (Placeholder n) :: Lit a)
+  mkQuery n f ts = mkQuery (n+1) (f x) (t : ts)
+    where
+      t = sqlType (Proxy :: Proxy a)
+      x = One $ Lit $ LCustom t (throw (Placeholder n) :: Lit a)
 
 instance Result a => Preparable (Query s a) where
   mkQuery _ q types = do
@@ -145,16 +147,20 @@ instance Result a => Preparable (Query s a) where
 --   queries aren't re-prepared more than absolutely necessary,
 --   consider adding a @NOINLINE@ annotation to each prepared function.
 --
+--   Note that when using a constrained backend type variable (i.e.
+--   @foo :: Bar b => SeldaM b [Int]@), optimizations must be enabled for
+--   prepared statements to be effective.
+--
 --   A usage example:
 --
--- > ages :: Table (Text :*: Int)
--- > ages = table "ages" $ primary "name" :*: required "age"
+-- > persons :: Table (Text, Int)
+-- > (persons, name :*: age) = tableWithSelectors "ages" [name :- primary]
 -- >
 -- > {-# NOINLINE ageOf #-}
 -- > ageOf :: Text -> SeldaM [Int]
 -- > ageOf = prepared $ \n -> do
--- >   (name :*: age) <- select ages
--- >   restrict $ name .== n
+-- >   person <- select ages
+-- >   restrict $ (person!name .== n)
 -- >   return age
 {-# NOINLINE prepared #-}
 prepared :: (Preparable q, Prepare q f, Equiv q f) => q -> f
@@ -192,5 +198,5 @@ inspectParams _ [] = do
 
 -- | Force a parameter deep enough to determine whether it is a placeholder.
 forceParam :: Param -> Param
-forceParam p@(Param (LCustom x)) | x `seq` True = p
-forceParam p                                    = p
+forceParam p@(Param (LCustom _ x)) | x `seq` True = p
+forceParam p                                      = p

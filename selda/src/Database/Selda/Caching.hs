@@ -55,7 +55,7 @@ instance Hashable (Lit a) where
   hashWithSalt s (LBlob x)     = hashWithSalt s x
   hashWithSalt s (LJust x)     = hashWithSalt s x
   hashWithSalt _ (LNull)       = 0
-  hashWithSalt s (LCustom l)   = hashWithSalt s l
+  hashWithSalt s (LCustom _ l) = hashWithSalt s l
   hashWithSalt s (LUUID x)     = hashWithSalt s x
 
 hashUTCTime :: Int -> UTCTime -> Int

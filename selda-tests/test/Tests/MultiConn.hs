@@ -10,7 +10,7 @@ import Test.HUnit
 import Utils
 import Tables
 
-multiConnTests :: IO SeldaConnection -> Test
+multiConnTests :: IO (SeldaConnection b) -> Test
 multiConnTests open = test
   [ "setup with runSeldaT" ~: open >>= runSeldaT (teardown >> setup)
   , "connection unusable post-close" ~: postClose open
@@ -24,7 +24,7 @@ multiConnTests open = test
   , "teardown with runSeldaT" ~: open >>= runSeldaT teardown
   ]
 
-postClose :: IO SeldaConnection -> IO ()
+postClose :: IO (SeldaConnection b) -> IO ()
 postClose open = do
   conn <- open
   seldaClose conn
@@ -34,7 +34,7 @@ postClose open = do
     Left (DbError{}) -> return ()
     _                -> liftIO $ assertFailure "post-close error not thrown"
 
-reuse :: IO SeldaConnection -> IO ()
+reuse :: IO (SeldaConnection b) -> IO ()
 reuse open = do
   conn <- open
   res1 <- flip runSeldaT conn $ do
@@ -46,7 +46,7 @@ reuse open = do
   assertEqual "wrong result from second query" ["Kobayashi"] res2
   seldaClose conn
 
-simultaneousConnections :: IO SeldaConnection -> IO ()
+simultaneousConnections :: IO (SeldaConnection b) -> IO ()
 simultaneousConnections open = do
   [c1, c2] <- sequence [open, open]
   res1 <- flip runSeldaT c1 $ do
@@ -58,7 +58,7 @@ simultaneousConnections open = do
   assertEqual "wrong result from second query" ["Kobayashi"] res2
   mapM_ seldaClose [c1, c2]
 
-simultaneousWrites :: IO SeldaConnection -> IO ()
+simultaneousWrites :: IO (SeldaConnection b) -> IO ()
 simultaneousWrites open = do
     c1 <- open
     c2 <- open
@@ -78,7 +78,7 @@ simultaneousWrites open = do
   where
     withC c1 c2 f = f c1 >> f c2
 
-serialized :: IO SeldaConnection -> IO ()
+serialized :: IO (SeldaConnection b) -> IO ()
 serialized open = do
   conn <- open
   ref <- newIORef 0
@@ -94,7 +94,7 @@ serialized open = do
   seldaClose conn
   assertEqual "concurrent use of the same connection" 0 res
 
-twoConnsNotSerialized :: IO SeldaConnection -> IO ()
+twoConnsNotSerialized :: IO (SeldaConnection b) -> IO ()
 twoConnsNotSerialized open = do
   [c1, c2] <- sequence [open, open]
   ref <- newIORef 0
@@ -110,7 +110,7 @@ twoConnsNotSerialized open = do
   mapM_ seldaClose [c1, c2]
   assertEqual "unrelated connections were serialized" 1 res
 
-reuseAfterException :: IO SeldaConnection -> IO ()
+reuseAfterException :: IO (SeldaConnection b) -> IO ()
 reuseAfterException open = do
   conn <- open
   res <- try $ flip runSeldaT conn $ do
@@ -124,7 +124,7 @@ reuseAfterException open = do
       assertEqual "got wrong result after exception" ["Miyu"] res'
 
 {-# NOINLINE allNamesLike #-}
-allNamesLike :: Int -> Text -> SeldaM [Text]
+allNamesLike :: Int -> Text -> SeldaM b [Text]
 allNamesLike = prepared $ \len s -> do
   p <- select people
   restrict (length_ (p ! pName) .> 0)
@@ -136,7 +136,7 @@ allNamesLike = prepared $ \len s -> do
   order (p ! pName) ascending
   return (p ! pName)
 
-reusePrepared :: IO SeldaConnection -> IO ()
+reusePrepared :: IO (SeldaConnection b) -> IO ()
 reusePrepared open = do
   [c1, c2] <- sequence [open, open]
   r11 <- runSeldaT (allNamesLike 4 "%L%") c1

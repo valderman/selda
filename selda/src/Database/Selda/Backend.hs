@@ -27,7 +27,7 @@ import Database.Selda.Types
 --   Closing a connection while in use is undefined.
 --   Passing a closed connection to 'runSeldaT' results in a 'SeldaError'
 --   being thrown. Closing a connection more than once is a no-op.
-seldaClose :: MonadIO m => SeldaConnection -> m ()
+seldaClose :: MonadIO m => SeldaConnection b -> m ()
 seldaClose c = liftIO $ mask_ $ do
   closed <- atomicModifyIORef' (connClosed c) $ \closed -> (True, closed)
   unless closed $ closeConnection (connBackend c) c

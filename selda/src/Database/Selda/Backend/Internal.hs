@@ -1,4 +1,4 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving, DefaultSignatures, CPP #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, DefaultSignatures, CPP, TypeFamilies #-}
 -- | Internal backend API.
 --   Using anything exported from this module may or may not invalidate any
 --   safety guarantees made by Selda; use at your own peril.
@@ -94,9 +94,9 @@ data SeldaStmt = SeldaStmt
  , stmtTables :: ![TableName]
  }
 
-data SeldaConnection = SeldaConnection
+data SeldaConnection b = SeldaConnection
   { -- | The backend used by the current connection.
-    connBackend :: !SeldaBackend
+    connBackend :: !(SeldaBackend b)
 
     -- | A string uniquely identifying the database used by this connection.
     --   This could be, for instance, a PostgreSQL connection
@@ -116,7 +116,7 @@ data SeldaConnection = SeldaConnection
 
 -- | Create a new Selda connection for the given backend and database
 --   identifier string.
-newConnection :: MonadIO m => SeldaBackend -> Text -> m SeldaConnection
+newConnection :: MonadIO m => SeldaBackend b -> Text -> m (SeldaConnection b)
 newConnection back dbid =
   liftIO $ SeldaConnection back dbid <$> newIORef M.empty
                                      <*> newIORef False
@@ -124,7 +124,7 @@ newConnection back dbid =
 
 -- | Get all statements and their corresponding identifiers for the current
 --   connection.
-allStmts :: SeldaConnection -> IO [(StmtID, Dynamic)]
+allStmts :: SeldaConnection b -> IO [(StmtID, Dynamic)]
 allStmts =
   fmap (map (\(k, v) -> (k, stmtHandle v)) . M.toList) . readIORef . connStmts
 
@@ -186,7 +186,7 @@ tableInfo t = TableInfo
       ]
 
 -- | A collection of functions making up a Selda backend.
-data SeldaBackend = SeldaBackend
+data SeldaBackend b = SeldaBackend
   { -- | Execute an SQL statement.
     runStmt :: Text -> [Param] -> IO (Int, [[SqlValue]])
 
@@ -210,7 +210,7 @@ data SeldaBackend = SeldaBackend
   , ppConfig :: PPConfig
 
     -- | Close the currently open connection.
-  , closeConnection :: SeldaConnection -> IO ()
+  , closeConnection :: SeldaConnection b -> IO ()
 
     -- | Unique identifier for this backend.
   , backendId :: BackendID
@@ -225,9 +225,9 @@ data SeldaBackend = SeldaBackend
   , disableForeignKeys :: Bool -> IO ()
   }
 
-data SeldaState = SeldaState
+data SeldaState b = SeldaState
   { -- | Connection in use by the current computation.
-    stConnection :: !SeldaConnection
+    stConnection :: !(SeldaConnection b)
 
     -- | Tables modified by the current transaction.
     --   Invariant: always @Just xs@ during a transaction, and always
@@ -242,9 +242,12 @@ data SeldaState = SeldaState
 --   invoked. If you want to use Selda's built-in caching mechanism, you will
 --   need to implement these operations yourself.
 class MonadIO m => MonadSelda m where
+  -- | Type of database backend used by @m@.
+  type Backend m
+
   -- | Get the connection in use by the computation.
   --   Must always return the same connection during a transaction.
-  seldaConnection :: m SeldaConnection
+  seldaConnection :: m (SeldaConnection (Backend m))
 
   -- | Invalidate the given table as soon as the current transaction finishes.
   --   Invalidate the table immediately if no transaction is ongoing.
@@ -277,19 +280,21 @@ class MonadIO m => MonadSelda m where
   {-# MINIMAL seldaConnection #-}
 
 -- | Get the backend in use by the computation.
-seldaBackend :: MonadSelda m => m SeldaBackend
+seldaBackend :: MonadSelda m => m (SeldaBackend (Backend m))
 seldaBackend = connBackend <$> seldaConnection
 
 -- | Monad transformer adding Selda SQL capabilities.
-newtype SeldaT m a = S {unS :: StateT SeldaState m a}
+newtype SeldaT b m a = S {unS :: StateT (SeldaState b) m a}
   deriving ( Functor, Applicative, Monad, MonadIO
-           , MonadThrow, MonadCatch, MonadMask, MonadTrans
+           , MonadThrow, MonadCatch, MonadMask
 #if MIN_VERSION_base(4, 9, 0)
            , MonadFail
 #endif
            )
 
-instance (MonadIO m, MonadMask m) => MonadSelda (SeldaT m) where
+instance (MonadIO m, MonadMask m) => MonadSelda (SeldaT b m) where
+  type Backend (SeldaT b m) = b
+
   seldaConnection = S $ fmap stConnection get
 
   invalidateTable tbl = S $ do
@@ -311,11 +316,14 @@ instance (MonadIO m, MonadMask m) => MonadSelda (SeldaT m) where
     return x
 
 -- | The simplest form of Selda computation; 'SeldaT' specialized to 'IO'.
-type SeldaM = SeldaT IO
+type SeldaM b = SeldaT b IO
 
 -- | Run a Selda transformer. Backends should use this to implement their
 --   @withX@ functions.
-runSeldaT :: (MonadIO m, MonadMask m) => SeldaT m a -> SeldaConnection -> m a
+runSeldaT :: (MonadIO m, MonadMask m)
+          => SeldaT b m a
+          -> SeldaConnection b
+          -> m a
 runSeldaT m c =
     bracket (liftIO $ takeMVar (connLock c))
             (const $ liftIO $ putMVar (connLock c) ())

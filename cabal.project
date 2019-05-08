@@ -3,4 +3,5 @@ packages:
   selda-sqlite/
   selda-postgresql/
   selda-tests/
+  selda-json/
   ./

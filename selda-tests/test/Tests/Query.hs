@@ -10,6 +10,7 @@ import Test.HUnit
 import Utils
 import Tables
 
+queryTests :: (SeldaM b () -> IO ()) -> Test
 queryTests run = test
   [ "setup succeeds" ~: run setup
   , "simple select" ~: run simpleSelect
@@ -301,7 +302,7 @@ testSuchThat = do
   assEq "got wrong result" ["Link" :*: "Velvet"] res
 
 {-# NOINLINE allShortNames #-}
-allShortNames :: SeldaM [Text]
+allShortNames :: SeldaM b [Text]
 allShortNames = prepared $ do
   p <- select people
   restrict (length_ (p ! pName) .<= 4)
@@ -319,7 +320,7 @@ preparedNoArgs = do
 
 {-# NOINLINE allNamesLike #-}
 -- Extra restricts to force the presence of a few non-argument parameters.
-allNamesLike :: Int -> Text -> SeldaM [Text]
+allNamesLike :: Int -> Text -> SeldaM b [Text]
 allNamesLike = prepared $ \len s -> do
   p <- select people
   restrict (length_ (p ! pName) .> 0)
@@ -533,7 +534,7 @@ coalesceRow = do
       , Just "Velvet"
       ]
 
-
+coalesceEquality :: SeldaM b ()
 coalesceEquality = do
   ["Link"] <- query $ do
     person <- select people
@@ -545,6 +546,7 @@ coalesceEquality = do
     return (person ! pName)
   return ()
 
+coalesceNum :: SeldaM b ()
 coalesceNum = do
   [Just 250 :*: Just 126 :*: Just 124] <- query $ do
     _ <- selectValues [Only (1 :: Int)]

@@ -66,6 +66,7 @@ defPPConfig = PPConfig
     }
 
 -- | Default compilation for SQL types.
+--   By default, anything we don't know is just a blob.
 defType :: SqlTypeRep -> Text
 defType TText     = "TEXT"
 defType TRowID    = "INTEGER"
@@ -77,6 +78,7 @@ defType TDate     = "DATE"
 defType TTime     = "TIME"
 defType TBlob     = "BLOB"
 defType TUUID     = "BLOB"
+defType TJSON     = "BLOB"
 
 -- | Default compilation for a column attribute.
 defColAttr :: ColAttr -> Text
