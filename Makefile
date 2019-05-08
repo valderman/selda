@@ -77,9 +77,8 @@ upload-selda: check
 	git push --tags
 
 upload: check
-	false # fix selda-* aliasing selda-sqlite etc.
 	cabal v2-run selda-changelog validate
 	cabal v2-run selda-changelog tag
-	cabal upload $$(for pkg in $(PACKAGES) ; do echo ./dist-newstyle/sdist/$$pkg-*.tar.gz ; done)
+	cabal upload $$(for pkg in $(PACKAGES) ; do echo ./dist-newstyle/sdist/$$pkg-0.*.tar.gz ; done)
 	git push
 	git push --tags

@@ -307,15 +307,19 @@ validateChangeLog changelog = do
 
     today <- utctDay <$> getCurrentTime
     when (show today /= date) $ do
-      putStrLn ("Release date does not match today's date.")
+      putStrLn "Release date does not match today's date."
       exitFailure
 
     when (null $ vSummary $ latestEntry changeLog) $ do
-      putStrLn ("Changelog has no summary.")
+      putStrLn "Changelog has no summary."
       exitFailure
 
     when (null $ vChanges $ latestEntry changeLog) $ do
-      putStrLn ("Changelog has no list of changes.")
+      putStrLn "Changelog has no list of changes."
+      exitFailure
+
+    when (head version /= '0') $ do
+      putStrLn "Major version is not 0; make upload will complain."
       exitFailure
 
 main = do
