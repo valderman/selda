@@ -12,7 +12,6 @@ maintainer:          anton@ekblad.cc
 -- copyright:
 category:            Database
 build-type:          Simple
-extra-source-files:  CHANGELOG.md
 
 library
   exposed-modules:

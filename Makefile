@@ -1,5 +1,5 @@
 PACKAGES=selda selda-sqlite selda-postgresql selda-json
-.PHONY: help build license deps travischeck haddock check test selda pgtest sqlite postgres repl upload-selda upload
+.PHONY: help build license deps travischeck haddock check test selda pgtest sqlite postgres repl upload-selda upload travis-pgconnectinfo
 
 help:
 	@echo "Available targets:"
@@ -19,12 +19,19 @@ help:
 
 build: selda sqlite postgres json
 
-travischeck:
+travis-pgconnectinfo:
 	echo '{-# LANGUAGE OverloadedStrings #-}' > selda-tests/PGConnectInfo.hs
 	echo 'module PGConnectInfo where' >> selda-tests/PGConnectInfo.hs
 	echo 'import Database.Selda.PostgreSQL' >> selda-tests/PGConnectInfo.hs
 	echo 'pgConnectInfo = ("test" `on` "localhost"){pgUsername = Just "postgres"}'  >> selda-tests/PGConnectInfo.hs
+
+travischeck: travis-pgconnectinfo
 	make check
+
+license:
+	for package in $(PACKAGES) ; do \
+		cp -f ./LICENSE ./$$package/LICENSE ; \
+	done
 
 haddock:
 	cabal v2-haddock $(PACKAGES)
@@ -52,24 +59,20 @@ pgtest: selda postgres
 	cd ./selda-tests && cabal v2-configure --enable-tests -fpostgres
 	cd ./selda-tests && cabal v2-test
 
-selda:
-	cp -f LICENSE ./selda/LICENSE
+selda: license
 	cp -f README.md ./selda/README.md
 	cabal v2-build selda
 	make tags ; true
 
-json:
-	cp -f LICENSE ./selda/LICENSE
+json: license
 	cabal v2-build selda-json
 	make tags ; true
 
-sqlite:
-	cp -f LICENSE ./selda-sqlite/LICENSE
+sqlite: license
 	cabal v2-build selda-sqlite
 	make tags ; true
 
-postgres:
-	cp -f LICENSE ./selda-postgresql/LICENSE
+postgres: license
 	cabal v2-build selda-postgresql
 	make tags ; true
 
