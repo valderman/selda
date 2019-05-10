@@ -27,6 +27,7 @@ flags or through separate add-on packages.
 * Minimal dependencies
 * In-process caching
 * Backends for PostgreSQL and SQLite
+* JSON processing on supported backends
 * ...and much more!
 
 </div>

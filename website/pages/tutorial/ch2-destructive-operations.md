@@ -47,7 +47,7 @@ primary key that `def` ensures the uniqueness of the value; in all other cases
 it is simply the "least" value of the type, such as `False`, `""` or `Nothing`.
 
 ```language-haskell
-insertSara :: SeldaM ()
+insertSara :: SeldaM b ()
 insertSara = insert_ people [Person def "Sara" 14 Nothing]
 ```
 
@@ -55,7 +55,7 @@ If we perform the insert and then select all table rows, we'll find that Sara
 was added to the table with a unique identifier.
 
 ```language-haskell
-insertThenInspect :: SeldaM [Person]
+insertThenInspect :: SeldaM b [Person]
 insertThenInspect = do
   insertSara
   query (select people)
@@ -75,7 +75,7 @@ a particular row got when we inserted it.
 The `insertWithPK` function is handy for this.
 
 ```language-haskell
-insertAndPrintPk :: SeldaM ()
+insertAndPrintPk :: SeldaM b ()
 insertAndPrintPk = do
   pk <- insertWithPK people [Person def Sara 14 Nothing]
   liftIO (print pk)
@@ -108,7 +108,7 @@ Let's assume, for instance, that we're feeling sorry for anyone who hasn't got
 a pet, and decide to give every pet-less person a dog:
 
 ```language-haskell
-petsForEveryone :: SeldaM Int
+petsForEveryone :: SeldaM b Int
 petsForEveryone = do
   update people
          (\person -> isNull (person ! #pet))
@@ -126,7 +126,7 @@ convenient shortcuts for common operations such as incrementing or decrementing
 values:
 
 ```language-haskell
-ageEveryone :: SeldaM Int
+ageEveryone :: SeldaM b Int
 ageEveryone = do
   update people (const true) (\person -> person `with` [#age += 1])
 ```
@@ -158,7 +158,7 @@ To grant a horse to any person named Miyu, and to create a horse owner by that
 name if none exists, we would do the following:
 
 ```language-haskell
-horseForMiyu :: SeldaM ()
+horseForMiyu :: SeldaM b ()
 horseForMiyu = do
   result <- upsert people
                    (\person -> person ! #name .== "Miyu")
@@ -199,7 +199,7 @@ Let's say, for instance, that we want to delete all dragon owners from the
 table (they've probably gotten eaten already anyway):
 
 ```language-haskell
-deleteDragonOwners :: SeldaM Int
+deleteDragonOwners :: SeldaM b Int
 deleteDragonOwners = do
   deleteFrom persons (\person -> person ! #pet .== just (literal Dragon))
 ```

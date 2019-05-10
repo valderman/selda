@@ -118,37 +118,35 @@ compQueryWithFreshScope q = unsafePerformIO $ do
 buildResult :: Result r => Proxy r -> [SqlValue] -> Res r
 buildResult p = runResultReader (toRes p)
 
+type family Res r where
+  Res (Col s a :*: b) = a :*: Res b
+  Res (Row s a :*: b) = a :*: Res b
+  Res (Col s a)       = a
+  Res (Row s a)       = a
+
 -- | An acceptable query result type; one or more columns stitched together
 --   with @:*:@.
 class Typeable (Res r) => Result r where
-  type Res r
   -- | Converts the given list of @SqlValue@s into an tuple of well-typed
   --   results.
   --   See 'querySQLite' for example usage.
-  --   The given list must contain exactly as many elements as dictated by
-  --   the @Res r@. If the result is @a :*: b :*: c@, then the list must
-  --   contain exactly three values, for instance.
   toRes :: Proxy r -> ResultReader (Res r)
 
   -- | Produce a list of all columns present in the result.
   finalCols :: r -> [SomeCol SQL]
 
 instance (SqlType a, Result b) => Result (Col s a :*: b) where
-  type Res (Col s a :*: b) = a :*: Res b
   toRes _ = liftM2 (:*:) (fromSql <$> next) (toRes (Proxy :: Proxy b))
   finalCols (a :*: b) = finalCols a ++ finalCols b
 
 instance (SqlRow a, Result b) => Result (Row s a :*: b) where
-  type Res (Row s a :*: b) = a :*: Res b
   toRes _ = liftM2 (:*:) nextResult (toRes (Proxy :: Proxy b))
   finalCols (a :*: b) = finalCols a ++ finalCols b
 
 instance SqlType a => Result (Col s a) where
-  type Res (Col s a) = a
   toRes _ = fromSql <$> next
   finalCols (One c) = [Some c]
 
 instance SqlRow a => Result (Row s a) where
-  type Res (Row s a) = a
   toRes _ = nextResult
   finalCols (Many cs) = [Some c | Untyped c <- cs]

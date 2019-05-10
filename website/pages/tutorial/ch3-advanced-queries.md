@@ -106,7 +106,7 @@ Using this function, we can remedy the homelessness situation by simply granting
 a cheap home in Tokyo to any homeless persons in the `people` table.
 
 ```language-haskell
-homesForEveryone :: SeldaM Int
+homesForEveryone :: SeldaM s Int
 homesForEveryone = queryInto homes $ do
   person <- select people
   restrict (not_ $ (person ! #name) `isIn` (#ownerName `from` select homes))

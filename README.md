@@ -50,7 +50,7 @@ also come in handy.
 Requirements
 ============
 
-Selda requires GHC 7.10+, as well as SQLite 3.7.11+ or PostgreSQL 9.6+.
+Selda requires GHC 7.10+, as well as SQLite 3.7.11+ or PostgreSQL 9.4+.
 To build the SQLite backend, you need a C compiler installed.
 To build the PostgreSQL backend, you need the `libpq` development libraries
 installed (`libpq-dev` on Debian-based Linux distributions).
