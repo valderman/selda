@@ -13,7 +13,7 @@ import Data.ByteString (ByteString)
 import qualified Data.Text as T
 import Database.Selda.Backend hiding (toText)
 import Database.Selda.JSON
-import Database.Selda.Unsafe (cast, operator)
+import Database.Selda.Unsafe as Selda (cast, operator)
 import Control.Monad.Catch
 import Control.Monad.IO.Class
 
@@ -32,7 +32,7 @@ data PG
 
 instance JSONBackend PG where
   (~>) = operator "->"
-  jsonToText = cast
+  jsonToText = Selda.cast
 
 -- | PostgreSQL connection information.
 data PGConnectInfo = PGConnectInfo
