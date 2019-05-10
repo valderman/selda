@@ -3,8 +3,6 @@ language: c
 sudo: false
 
 services: postgresql
-addons:
-  postgresql: "9.4"
 
 cache:
   directories:
@@ -19,16 +17,16 @@ matrix:
   include:
     - env: CABALVER=2.4 GHCVER=7.10.3
       compiler: ": #GHC 7.10.3"
-      addons: {apt: {packages: [cabal-install-2.4,ghc-7.10.3,libpq-dev], sources: [hvr-ghc]}}
+      addons: {postgresql: "9.6", apt: {packages: [cabal-install-2.4,ghc-7.10.3,libpq-dev, postgresql-9.6, postgresql-client-9.6], sources: [hvr-ghc]}}
     - env: CABALVER=2.4 GHCVER=8.0.2
       compiler: ": #GHC 8.0.2"
-      addons: {apt: {packages: [cabal-install-2.4,ghc-8.0.2,libpq-dev], sources: [hvr-ghc]}}
+      addons: {postgresql: "9.6", apt: {packages: [cabal-install-2.4,ghc-8.0.2,libpq-dev, postgresql-9.6, postgresql-client-9.6], sources: [hvr-ghc]}}
     - env: CABALVER=2.4 GHCVER=8.4.2
       compiler: ": #GHC 8.4.2"
-      addons: {apt: {packages: [cabal-install-2.4,ghc-8.4.2,libpq-dev], sources: [hvr-ghc]}}
+      addons: {postgresql: "9.6", apt: {packages: [cabal-install-2.4,ghc-8.4.2,libpq-dev, postgresql-9.6, postgresql-client-9.6], sources: [hvr-ghc]}}
     - env: CABALVER=2.4 GHCVER=8.6.3
       compiler: ": #GHC 8.6.3"
-      addons: {apt: {packages: [cabal-install-2.4,ghc-8.6.3,libpq-dev], sources: [hvr-ghc]}}
+      addons: {postgresql: "9.6", apt: {packages: [cabal-install-2.4,ghc-8.6.3,libpq-dev, postgresql-9.6, postgresql-client-9.6], sources: [hvr-ghc]}}
 
 before_script:
  - psql -c 'create database test;' -U postgres
