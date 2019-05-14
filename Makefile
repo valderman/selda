@@ -1,5 +1,5 @@
 PACKAGES=selda selda-sqlite selda-postgresql selda-json
-.PHONY: help build license deps travischeck haddock check test selda pgtest sqlite postgres repl upload-selda upload travis-pgconnectinfo
+.PHONY: help build license deps travischeck haddock check test selda json pgtest sqlite postgres repl upload-selda upload travis-pgconnectinfo tags
 
 help:
 	@echo "Available targets:"
@@ -11,6 +11,7 @@ help:
 	@echo "travischeck  - like check, but with appropriate PGConnectInfo"
 	@echo "selda        - build core Selda package"
 	@echo "sqlite       - build sqlite backend"
+	@echo "json         - build json extensions"
 	@echo "postgres     - build postgres backend"
 	@echo "upload       - upload packages to Hackage"
 	@echo "upload-selda - upload only the main selda package"
@@ -49,7 +50,7 @@ check: test pgtest haddock
 	cabal v2-build selda
 
 tags:
-	hasktags --etags selda selda-sqlite selda-postgresql selda-tests
+	hasktags --etags selda/src selda-sqlite/src selda-postgresql/src selda-json/src selda-tests/test
 
 test: selda sqlite
 	cd ./selda-tests && cabal v2-configure --enable-tests
