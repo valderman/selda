@@ -5,6 +5,7 @@
 -- | Tables for reuse by most tests, and functions for their setup and teardown.
 module Tables where
 import Database.Selda
+import Database.Selda.MakeSelectors
 #if !MIN_VERSION_base(4, 11, 0)
 import Data.Monoid
 #endif
@@ -27,15 +28,11 @@ people = table "people"
   , pName :- index
   , pCash :- indexUsing HashIndex
   ]
-#if MIN_VERSION_base(4, 9, 0)
 pName = #name :: Selector Person Text
 pAge :: HasField "age" t => Selector t (FieldType "age" t)
 pAge  = #age
 pPet  = #pet  :: Selector Person (Maybe Text)
 pCash = #cash :: HasField "cash" t => Selector t (FieldType "cash" t)
-#else
-pName :*: pAge :*: pPet :*: pCash = selectors people
-#endif
 
 addresses :: Table (Text, Text)
 (addresses, aName :*: aCity) = tableWithSelectors "addresses" []

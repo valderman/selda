@@ -2,8 +2,10 @@
 {-# LANGUAGE TypeFamilies, FlexibleInstances, MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleContexts, UndecidableInstances #-}
 -- | Utilities for creating selectors for non-record types.
---   Importing this module may significantly increase compilation times.
-module Database.Selda.Selectors.MakeSelectors
+--   In general, you should really use record types for your tables and
+--   their record labels (i.e. #label) as selectors using
+--   the @OverloadedLabels@ extension instead.
+module Database.Selda.MakeSelectors
  ( Selectors, GSelectors
  , selectors, tableWithSelectors
  ) where

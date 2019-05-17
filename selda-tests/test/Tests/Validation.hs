@@ -8,6 +8,7 @@ import Data.Time
 import Database.Selda
 import Database.Selda.Unsafe
 import Database.Selda.Validation
+import Database.Selda.MakeSelectors
 import Database.Selda.Backend
 import Test.HUnit
 import Utils

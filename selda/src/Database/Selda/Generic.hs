@@ -16,11 +16,9 @@ import Data.Typeable
 #endif
 import GHC.Generics hiding (R, (:*:), Selector)
 import qualified GHC.Generics as G ((:*:)(..), Selector)
-#if MIN_VERSION_base(4, 9, 0)
 import qualified GHC.TypeLits as TL
 import qualified GHC.Generics as G ((:+:)(..))
 import qualified Database.Selda.Column as C (Col)
-#endif
 import Control.Exception (Exception (..), try, throw)
 import System.IO.Unsafe
 import Database.Selda.Types
@@ -143,7 +141,6 @@ instance (GRelation a, GRelation b) => GRelation (a G.:*: b) where
       b = Proxy :: Proxy b
   gNew _ = gNew (Proxy :: Proxy a) ++ gNew (Proxy :: Proxy b)
 
-#if MIN_VERSION_base(4, 9, 0)
 instance
   (TL.TypeError
     ( 'TL.Text "Selda currently does not support creating tables from sum types."
@@ -163,4 +160,3 @@ instance {-# OVERLAPS #-}
   gParams = error "unreachable"
   gTblCols = error "unreachable"
   gNew = error "unreachable"
-#endif

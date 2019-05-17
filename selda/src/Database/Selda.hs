@@ -43,9 +43,7 @@ module Database.Selda
 
     -- * Working with selectors
   , Selector, Coalesce
-#if MIN_VERSION_base(4, 9, 0)
   , HasField, FieldType, IsLabel
-#endif
   , (!), (?), Assignment ((:=)), with
   , (+=), (-=), (*=), (||=), (&&=), ($=)
 
@@ -81,9 +79,9 @@ module Database.Selda
     -- * Defining schemas
   , Generic
   , TableName, ColName, Attr (..), Attribute
-  , Selectors, GSelectors, ForeignKey (..)
+  , ForeignKey (..)
   , SelectorLike, Group (..), sel
-  , table, tableFieldMod, tableWithSelectors, selectors
+  , table, tableFieldMod
   , primary, autoPrimary, untypedAutoPrimary, unique
   , IndexMethod (..), index, indexUsing
 
@@ -110,6 +108,7 @@ import Data.Typeable (Typeable)
 import Database.Selda.Backend
 import Database.Selda.Column
 import Database.Selda.Compile
+import Database.Selda.FieldSelectors
 import Database.Selda.Frontend
 import Database.Selda.Generic
 import Database.Selda.Inner
@@ -117,7 +116,6 @@ import Database.Selda.Prepared
 import Database.Selda.Query
 import Database.Selda.Query.Type
 import Database.Selda.Selectors
-import Database.Selda.Selectors.MakeSelectors
 import Database.Selda.SQL hiding (distinct)
 import Database.Selda.SqlRow
 import Database.Selda.Table
@@ -132,14 +130,8 @@ import Data.Time (Day, TimeOfDay, UTCTime)
 import Data.Typeable (eqT, (:~:)(..))
 import GHC.Generics (Rep)
 import Unsafe.Coerce
-
--- For UUID generation
 import System.Random (randomIO)
-
-#if MIN_VERSION_base(4, 9, 0)
-import Database.Selda.Selectors.FieldSelectors
 import GHC.TypeLits as TL
-#endif
 
 -- | Any column type that can be used with the 'min_' and 'max_' functions.
 class SqlType a => SqlOrd a
@@ -171,7 +163,6 @@ newtype Only a = Only a
     )
 instance SqlType a => SqlRow (Only a)
 
-#if MIN_VERSION_base(4, 9, 0)
 instance (TypeError
   ( 'TL.Text "'Only " ':<>: 'ShowType a ':<>: 'TL.Text "' is not a proper SQL type."
     ':$$: 'TL.Text "Use 'the' to access the value of the column."
@@ -180,7 +171,6 @@ instance (TypeError
   sqlType = error "unreachable"
   fromSql = error "unreachable"
   defaultValue = error "unreachable"
-#endif
 
 -- | Generate a new random UUID using the system's random number generator.
 --   UUIDs generated this way are (astronomically likely to be) unique,

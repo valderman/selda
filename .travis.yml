@@ -15,9 +15,6 @@ before_cache:
 
 matrix:
   include:
-    - env: CABALVER=2.4 GHCVER=7.10.3
-      compiler: ": #GHC 7.10.3"
-      addons: {postgresql: "9.6", apt: {packages: [cabal-install-2.4,ghc-7.10.3,libpq-dev, postgresql-9.6, postgresql-client-9.6], sources: [hvr-ghc]}}
     - env: CABALVER=2.4 GHCVER=8.0.2
       compiler: ": #GHC 8.0.2"
       addons: {postgresql: "9.6", apt: {packages: [cabal-install-2.4,ghc-8.0.2,libpq-dev, postgresql-9.6, postgresql-client-9.6], sources: [hvr-ghc]}}

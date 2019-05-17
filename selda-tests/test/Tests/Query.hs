@@ -481,8 +481,10 @@ validateTableValidates = do
     assertFail $ validateTable bad
   where
     bad :: Table (RowID, RowID)
-    bad = table "bad" [Single one :- primary, Single two :- primary]
-    one :*: two = selectors bad
+    bad = table "bad"
+      [ Single (unsafeSelector 0 :: Selector (RowID, RowID) RowID) :- primary
+      , Single (unsafeSelector 1 :: Selector (RowID, RowID) RowID) :- primary
+      ]
 
 aggregateEmptyTable = do
     [res] <- query $ do

@@ -50,14 +50,10 @@ upd (Many xs) (Modify (Selector i) f) =
 
 -- | A selector-value assignment pair.
 data Assignment s a where
-#if MIN_VERSION_base(4, 9, 0)
   -- | Set the given column to the given value.
-#endif
   (:=) :: Selector t a -> Col s a -> Assignment s t
 
-#if MIN_VERSION_base(4, 9, 0)
   -- | Modify the given column by the given function.
-#endif
   Modify :: Selector t a -> (Col s a -> Col s a) -> Assignment s t
 infixl 2 :=
 

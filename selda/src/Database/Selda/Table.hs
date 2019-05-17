@@ -20,6 +20,7 @@ import Data.Text (Text)
 import Data.Typeable
 #else
 import Data.Proxy
+import GHC.Prim
 #endif
 import Database.Selda.Types
 import Database.Selda.Selectors
@@ -28,20 +29,13 @@ import Database.Selda.Column (Row (..))
 import Database.Selda.Generic
 import Database.Selda.Table.Type
 import Database.Selda.Table.Validation (snub)
-
-#if MIN_VERSION_base(4, 9, 0)
 import GHC.OverloadedLabels
-#if !MIN_VERSION_base(4, 10, 0)
-import GHC.Prim
-#endif
 
 instance forall x t a. IsLabel x (Selector t a) => IsLabel x (Group t a) where
 #if MIN_VERSION_base(4, 10, 0)
   fromLabel = Single (fromLabel @x)
 #else
   fromLabel _ = Single (fromLabel (proxy# :: Proxy# x))
-#endif
-
 #endif
 
 -- | A non-empty list of selectors, where the element selectors need not have

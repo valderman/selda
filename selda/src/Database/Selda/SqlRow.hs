@@ -12,9 +12,7 @@ import Control.Monad.State.Strict
 import Database.Selda.SqlType
 import Data.Typeable
 import GHC.Generics
-#if MIN_VERSION_base(4, 9, 0)
 import qualified GHC.TypeLits as TL
-#endif
 
 newtype ResultReader a = R (State [SqlValue] a)
   deriving (Functor, Applicative, Monad)
@@ -54,7 +52,6 @@ instance (GSqlRow a, GSqlRow b) => GSqlRow (a :*: b) where
   gNextResult = liftM2 (:*:) gNextResult gNextResult
   gNestedCols _ = gNestedCols (Proxy :: Proxy a) + gNestedCols (Proxy :: Proxy b)
 
-#if MIN_VERSION_base(4, 9, 0)
 instance
   (TL.TypeError
     ( 'TL.Text "Selda currently does not support creating tables from sum types."
@@ -63,7 +60,6 @@ instance
     )) => GSqlRow (a :+: b) where
   gNextResult = error "unreachable"
   gNestedCols = error "unreachable"
-#endif
 
 -- * Various instances
 instance SqlRow a => SqlRow (Maybe a) where

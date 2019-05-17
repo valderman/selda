@@ -20,7 +20,7 @@ category:            Database
 build-type:          Simple
 extra-source-files:  ChangeLog.md
 cabal-version:       >=1.10
-tested-with:         GHC == 7.10.3, GHC == 8.0.2, GHC == 8.4.1, GHC == 8.6.3
+tested-with:         GHC == 8.0.2, GHC == 8.4.1, GHC == 8.6.3
 
 extra-source-files:
   README.md
@@ -47,6 +47,7 @@ library
     Database.Selda
     Database.Selda.Backend
     Database.Selda.Backend.Internal
+    Database.Selda.MakeSelectors
     Database.Selda.Migrations
     Database.Selda.Nullable
     Database.Selda.SqlType
@@ -58,13 +59,13 @@ library
     Database.Selda.Compile
     Database.Selda.Exp
     Database.Selda.Frontend
+    Database.Selda.FieldSelectors
     Database.Selda.Generic
     Database.Selda.Inner
     Database.Selda.Prepared
     Database.Selda.Query
     Database.Selda.Query.Type
     Database.Selda.Selectors
-    Database.Selda.Selectors.MakeSelectors
     Database.Selda.SQL
     Database.Selda.SQL.Print
     Database.Selda.SQL.Print.Config
@@ -75,9 +76,6 @@ library
     Database.Selda.Table.Validation
     Database.Selda.Transform
     Database.Selda.Types
-  if impl(ghc >= 7.11)
-    other-modules:
-      Database.Selda.Selectors.FieldSelectors
   other-extensions:
     OverloadedStrings
     GADTs
@@ -91,7 +89,7 @@ library
     GeneralizedNewtypeDeriving
     FlexibleContexts
   build-depends:
-      base                 >=4.8   && <5
+      base                 >=4.9   && <5
     , bytestring           >=0.10  && <0.11
     , exceptions           >=0.8   && <0.11
     , hashable             >=1.1   && <1.3

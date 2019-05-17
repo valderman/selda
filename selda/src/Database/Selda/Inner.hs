@@ -9,9 +9,7 @@ import Database.Selda.SqlType (SqlType)
 import Database.Selda.Types
 import Data.Text (Text)
 import Data.Typeable
-#if MIN_VERSION_base(4, 9, 0)
 import GHC.TypeLits as TL
-#endif
 
 -- | A single aggregate column.
 --   Aggregate columns may not be used to restrict queries.
@@ -52,7 +50,6 @@ type family OuterCols a where
   OuterCols (Col (Inner s) a)        = Col s a
   OuterCols (Row (Inner s) a :*: b)  = Row s a :*: OuterCols b
   OuterCols (Row (Inner s) a)        = Row s a
-#if MIN_VERSION_base(4, 9, 0)
   OuterCols (Col s a) = TypeError
     ( 'TL.Text "An inner query can only return rows and columns from its own scope."
     )
@@ -63,12 +60,10 @@ type family OuterCols a where
     ( 'TL.Text "Only (inductive tuples of) row and columns can be returned from" ':$$:
       'TL.Text "an inner query."
     )
-#endif
 
 type family AggrCols a where
   AggrCols (Aggr (Inner s) a :*: b) = Col s a :*: AggrCols b
   AggrCols (Aggr (Inner s) a)       = Col s a
-#if MIN_VERSION_base(4, 9, 0)
   AggrCols (Aggr s a) = TypeError
     ( 'TL.Text "An aggregate query can only return columns from its own" ':$$:
       'TL.Text "scope."
@@ -77,7 +72,6 @@ type family AggrCols a where
     ( 'TL.Text "Only (inductive tuples of) aggregates can be returned from" ':$$:
       'TL.Text "an aggregate query."
     )
-#endif
 
 -- | The results of a left join are always nullable, as there is no guarantee
 --   that all joined columns will be non-null.
@@ -97,12 +91,10 @@ type family LeftCols a where
   LeftCols (Row (Inner s) a :*: b)         = Row s (Maybe a) :*: LeftCols b
   LeftCols (Row (Inner s) (Maybe a))       = Row s (Maybe a)
   LeftCols (Row (Inner s) a)               = Row s (Maybe a)
-#if MIN_VERSION_base(4, 9, 0)
   LeftCols a = TypeError
     ( 'TL.Text "Only (inductive tuples of) rows and columns can be returned" ':$$:
       'TL.Text "from a join."
     )
-#endif
 
 -- | One or more aggregate columns.
 class Aggregates a where

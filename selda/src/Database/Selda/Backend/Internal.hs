@@ -36,10 +36,7 @@ import qualified Data.HashMap.Strict as M
 import Data.IORef
 import Data.Text (Text)
 import System.IO.Unsafe (unsafePerformIO)
-
-#if MIN_VERSION_base(4, 9, 0)
 import Control.Monad.Fail (MonadFail)
-#endif
 
 -- | Uniquely identifies some particular backend.
 --
@@ -286,10 +283,7 @@ seldaBackend = connBackend <$> seldaConnection
 -- | Monad transformer adding Selda SQL capabilities.
 newtype SeldaT b m a = S {unS :: StateT (SeldaState b) m a}
   deriving ( Functor, Applicative, Monad, MonadIO
-           , MonadThrow, MonadCatch, MonadMask
-#if MIN_VERSION_base(4, 9, 0)
-           , MonadFail
-#endif
+           , MonadThrow, MonadCatch, MonadMask , MonadFail
            )
 
 instance (MonadIO m, MonadMask m) => MonadSelda (SeldaT b m) where

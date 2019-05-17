@@ -12,6 +12,7 @@ import Data.Time
 import Database.Selda
 import Database.Selda.Backend hiding (disableForeignKeys)
 import Database.Selda.Migrations
+import Database.Selda.MakeSelectors
 import Database.Selda.Validation (validateTable)
 import Database.Selda.Unsafe (unsafeSelector)
 import Test.HUnit

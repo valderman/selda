@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveGeneric, OverloadedStrings #-}
+{-# LANGUAGE DeriveGeneric, OverloadedStrings, OverloadedLabels #-}
 module Tests.JSON (jsonTests, jsonQueryTests) where
 import Database.Selda hiding (Result)
 import Database.Selda.JSON
@@ -26,8 +26,7 @@ flipWithM_ :: Monad m => [a] -> [b] -> (a -> b -> m c) -> m ()
 flipWithM_ xs ys f = zipWithM_ f xs ys
 
 jsonPeople :: Table JSONPerson
-jsonPeople = table "jsonPeople" [s_id :- autoPrimary]
-s_id :*: s_nameKey :*: s_json = selectors jsonPeople
+jsonPeople = table "jsonPeople" [#id :- autoPrimary]
 
 jsonTests :: (SeldaM b () -> IO ()) -> Test
 jsonTests freshEnv = test
@@ -64,7 +63,7 @@ insertJson =
   withJsonTable $ assEq "wrong number of rows inserted" numPeopleItems
 
 selectJson = withJsonTable' $ do
-  vals <- query $ s_json `from` select jsonPeople
+  vals <- query $ #json `from` select jsonPeople
   let vals' = [v | Success v <- map fromJSON vals]
   assEq "wrong number of rows returned" numPeopleItems (length vals)
   assEq "some json conversions failed" (length vals) (length vals')
@@ -74,7 +73,7 @@ selectJson = withJsonTable' $ do
 selectJsonProp :: JSONBackend b => SeldaM b ()
 selectJsonProp = withJsonTable' $ do
   vals <- query $ do
-    json_person <- s_json `from` select jsonPeople
+    json_person <- #json `from` select jsonPeople
     return $ json_person ~> "name"
   let vals' = [s | Just (String s) <- vals]
   assEq "wrong number of rows returned" numPeopleItems (length vals)
@@ -85,7 +84,7 @@ selectJsonPropDynamic :: JSONBackend b => SeldaM b ()
 selectJsonPropDynamic = withJsonTable' $ do
   vals <- query $ do
     person <- select jsonPeople
-    return $ person ! s_json ~> person ! s_nameKey
+    return $ person ! #json ~> person ! #nameKey
   let vals' = [s | Just (String s) <- vals]
   assEq "wrong number of rows returned" numPeopleItems (length vals)
   assEq "some json conversions failed" (length vals) (length vals')
@@ -94,7 +93,7 @@ selectJsonPropDynamic = withJsonTable' $ do
 json2String :: JSONBackend b => SeldaM b ()
 json2String = withJsonTable' $ do
   vals <- query $ do
-    json_person <- s_json `from` select jsonPeople
+    json_person <- #json `from` select jsonPeople
     return $ jsonToText json_person
   let vals' = [x | Just x <- map (decode . BSL.fromStrict . encodeUtf8) vals]
   assEq "wrong number of rows returned" numPeopleItems (length vals)
@@ -104,7 +103,7 @@ json2String = withJsonTable' $ do
 missingProp :: JSONBackend b => SeldaM b ()
 missingProp = withJsonTable' $ do
   vals <- query $ do
-    json_person <- s_json `from` select jsonPeople
+    json_person <- #json `from` select jsonPeople
     return $ json_person ~> "this property does not exist"
   assEq "wrong number of rows returned" numPeopleItems (length vals)
   forM_ vals $ \actual -> do
@@ -112,9 +111,9 @@ missingProp = withJsonTable' $ do
 
 chainedLookup :: JSONBackend b => SeldaM b ()
 chainedLookup = withJsonTable' $ do
-    update jsonPeople (const true) (`with` [s_json := literal newJson])
+    update jsonPeople (const true) (`with` [#json := literal newJson])
     val <- fmap head . query $ do
-      json_person <- s_json `from` select jsonPeople
+      json_person <- #json `from` select jsonPeople
       x <- nonNull (json_person ~> "foo" ~> "bar")
       return (jsonToText x)
     assEq "wrong value returned" "42" val
