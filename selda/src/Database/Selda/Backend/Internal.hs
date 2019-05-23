@@ -14,7 +14,7 @@ module Database.Selda.Backend.Internal
   , sqlDateTimeFormat, sqlDateFormat, sqlTimeFormat
   , freshStmtId
   , newConnection, allStmts
-  , runSeldaT, seldaBackend
+  , runSeldaT, withBackend
   ) where
 import Database.Selda.SQL (Param (..))
 import Database.Selda.SqlType
@@ -222,16 +222,29 @@ data SeldaBackend b = SeldaBackend
 --   invoked. If you want to use Selda's built-in caching mechanism, you will
 --   need to implement these operations yourself.
 class MonadIO m => MonadSelda m where
+  {-# MINIMAL withConnection #-}
+
   -- | Type of database backend used by @m@.
   type Backend m
 
-  -- | Get the connection in use by the computation.
-  --   Must always return the same connection during a transaction.
-  seldaConnection :: m (SeldaConnection (Backend m))
+  -- | Pass a Selda connection to the given computation and execute it.
+  --   After the computation finishes, @withConnection@ is free to do anything
+  --   it likes to the connection, including closing it or giving it to another
+  --   Selda computation.
+  --   Thus, the computation must take care never to return or otherwise
+  --   access the connection after returning.
+  withConnection :: (SeldaConnection (Backend m) -> m a) -> m a
+
+  -- | Perform the given computation as a transaction.
+  --   Implementations must ensure that subsequent calls to 'withConnection'
+  --   within the same transaction always passes the same connection
+  --   to its argument.
+  transact :: m a -> m a
+  transact = id
 
 -- | Get the backend in use by the computation.
-seldaBackend :: MonadSelda m => m (SeldaBackend (Backend m))
-seldaBackend = connBackend <$> seldaConnection
+withBackend :: MonadSelda m => (SeldaBackend (Backend m) -> m a) -> m a
+withBackend m = withConnection (m . connBackend)
 
 -- | Monad transformer adding Selda SQL capabilities.
 newtype SeldaT b m a = S {unS :: StateT (SeldaConnection b) m a}
@@ -241,7 +254,7 @@ newtype SeldaT b m a = S {unS :: StateT (SeldaConnection b) m a}
 
 instance (MonadIO m, MonadMask m) => MonadSelda (SeldaT b m) where
   type Backend (SeldaT b m) = b
-  seldaConnection = S get
+  withConnection m = S get >>= m
 
 -- | The simplest form of Selda computation; 'SeldaT' specialized to 'IO'.
 type SeldaM b = SeldaT b IO

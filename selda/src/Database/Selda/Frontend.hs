@@ -30,9 +30,7 @@ import Control.Monad.IO.Class
 --   Selda transformers are entered using backend-specific @withX@ functions,
 --   such as 'withSQLite' from the SQLite backend.
 query :: (MonadSelda m, Result a) => Query (Backend m) a -> m [Res a]
-query q = do
-  backend <- seldaBackend
-  queryWith (runStmt backend) q
+query q = withBackend (flip queryWith q . runStmt)
 
 -- | Perform the given query, and insert the result into the given table.
 --   Returns the number of inserted rows.
@@ -40,11 +38,10 @@ queryInto :: (MonadSelda m, Relational a)
           => Table a
           -> Query (Backend m) (Row (Backend m) a)
           -> m Int
-queryInto tbl q = do
-    backend <- seldaBackend
-    let (qry, ps) = compileWith (ppConfig backend) q
+queryInto tbl q = withBackend $ \b -> do
+    let (qry, ps) = compileWith (ppConfig b) q
         qry' = mconcat ["INSERT INTO ", tblName, " ", qry]
-    fmap fst . liftIO $ runStmt backend qry' ps
+    fmap fst . liftIO $ runStmt b qry' ps
   where
     tblName = fromTableName (tableName tbl)
 
@@ -79,10 +76,8 @@ queryInto tbl q = do
 insert :: (MonadSelda m, Relational a) => Table a -> [a] -> m Int
 insert _ [] = do
   return 0
-insert t cs = do
-  cfg <- ppConfig <$> seldaBackend
-  res <- mapM (uncurry exec) $ compileInsert cfg t cs
-  return (sum res)
+insert t cs = withBackend $ \b -> do
+  sum <$> mapM (uncurry exec) (compileInsert (ppConfig b) t cs)
 
 -- | Attempt to insert a list of rows into a table, but don't raise an error
 --   if the insertion fails. Returns @True@ if the insertion succeeded, otherwise
@@ -156,8 +151,7 @@ insert_ t cs = void $ insert t cs
 --   primary key will always return a row identifier that is guaranteed to not
 --   match any row in any table.
 insertWithPK :: (MonadSelda m, Relational a) => Table a -> [a] -> m (ID a)
-insertWithPK t cs = do
-  b <- seldaBackend
+insertWithPK t cs = withBackend $ \b -> do
   if tableHasAutoPK t
     then do
       res <- liftIO $ do
@@ -174,9 +168,8 @@ update :: (MonadSelda m, Relational a)
        -> (Row (Backend m) a -> Col (Backend m) Bool) -- ^ Predicate.
        -> (Row (Backend m) a -> Row (Backend m) a)    -- ^ Update function.
        -> m Int
-update tbl check upd = do
-  cfg <- ppConfig <$> seldaBackend
-  res <- uncurry exec $ compileUpdate cfg tbl upd check
+update tbl check upd = withBackend $ \b -> do
+  res <- uncurry exec $ compileUpdate (ppConfig b) tbl upd check
   return res
 
 -- | Like 'update', but doesn't return the number of updated rows.
@@ -193,9 +186,8 @@ deleteFrom :: (MonadSelda m, Relational a)
            => Table a
            -> (Row (Backend m) a -> Col (Backend m) Bool)
            -> m Int
-deleteFrom tbl f = do
-  cfg <- ppConfig <$> seldaBackend
-  res <- uncurry exec $ compileDelete cfg tbl f
+deleteFrom tbl f = withBackend $ \b -> do
+  res <- uncurry exec $ compileDelete (ppConfig b) tbl f
   return res
 
 -- | Like 'deleteFrom', but does not return the number of deleted rows.
@@ -213,16 +205,14 @@ createTable tbl = do
 
 -- | Create a table from the given schema, but don't create any indexes.
 createTableWithoutIndexes :: MonadSelda m => OnError -> Table a -> m ()
-createTableWithoutIndexes onerror tbl = do
-  cfg <- ppConfig <$> seldaBackend
-  void $ exec (compileCreateTable cfg onerror tbl) []
+createTableWithoutIndexes onerror tbl = withBackend $ \b -> do
+  void $ exec (compileCreateTable (ppConfig b) onerror tbl) []
 
 -- | Create all indexes for the given table. Fails if any of the table's indexes
 --   already exists.
 createTableIndexes :: MonadSelda m => OnError -> Table a -> m ()
-createTableIndexes ifex tbl = do
-  cfg <- ppConfig <$> seldaBackend
-  mapM_ (flip exec []) $ compileCreateIndexes cfg ifex tbl
+createTableIndexes ifex tbl = withBackend $ \b -> do
+  mapM_ (flip exec []) $ compileCreateIndexes (ppConfig b) ifex tbl
 
 -- | Create a table from the given schema, unless it already exists.
 tryCreateTable :: MonadSelda m => Table a -> m ()
@@ -243,7 +233,7 @@ tryDropTable = void . flip exec [] . compileDropTable Ignore
 --   will be rolled back and the exception re-thrown, even if the exception
 --   is caught and handled within the transaction.
 transaction :: (MonadSelda m, MonadMask m) => m a -> m a
-transaction m = mask $ \restore -> do
+transaction m = mask $ \restore -> transact $ do
   void $ exec "BEGIN TRANSACTION" []
   x <- restore m `onException` void (exec "ROLLBACK" [])
   void $ exec "COMMIT" []
@@ -258,8 +248,7 @@ transaction m = mask $ \restore -> do
 --
 --   On the PostgreSQL backend, at least PostgreSQL 9.6 is required.
 withoutForeignKeyEnforcement :: (MonadSelda m, MonadMask m) => m a -> m a
-withoutForeignKeyEnforcement m = do
-  b <- seldaBackend
+withoutForeignKeyEnforcement m = withBackend $ \b -> do
   bracket_ (liftIO $ disableForeignKeys b True)
            (liftIO $ disableForeignKeys b False)
            m
@@ -267,22 +256,20 @@ withoutForeignKeyEnforcement m = do
 -- | Build the final result from a list of result columns.
 queryWith :: forall m a. (MonadSelda m, Result a)
           => QueryRunner (Int, [[SqlValue]]) -> Query (Backend m) a -> m [Res a]
-queryWith run q = do
-  conn <- seldaConnection
-  let backend = connBackend conn
-  res <- fmap snd . liftIO . uncurry run $ compileWith (ppConfig backend) q
+queryWith run q = withBackend $ \b -> do
+  res <- fmap snd . liftIO . uncurry run $ compileWith (ppConfig b) q
   return $ mkResults (Proxy :: Proxy a) res
 
 -- | Generate the final result of a query from a list of untyped result rows.
 mkResults :: Result a => Proxy a -> [[SqlValue]] -> [Res a]
 mkResults p = map (buildResult p)
 
+{-# INLINE exec #-}
 -- | Execute a statement without a result.
 exec :: MonadSelda m => Text -> [Param] -> m Int
-exec q ps = do
-  backend <- seldaBackend
-  liftIO $ execIO backend q ps
+exec q ps = withBackend $ \b -> liftIO $ execIO b q ps
 
+{-# INLINE execIO #-}
 -- | Like 'exec', but in 'IO'.
 execIO :: SeldaBackend b -> Text -> [Param] -> IO Int
 execIO backend q ps = fmap fst $ runStmt backend q ps

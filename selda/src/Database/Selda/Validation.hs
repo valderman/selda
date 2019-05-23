@@ -158,9 +158,7 @@ showBoolDiff False what =
 
 -- | Get a description of the table by the given name currently in the database.
 describeTable :: MonadSelda m => TableName -> m TableInfo
-describeTable tbl = do
-  b <- seldaBackend
-  liftIO $ getTableInfo b tbl
+describeTable tbl = withBackend (liftIO . flip getTableInfo tbl)
 
 -- | Check the given table for consistency with the current database, returning
 --   a description of all inconsistencies found.

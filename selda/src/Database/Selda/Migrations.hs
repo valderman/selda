@@ -116,14 +116,13 @@ migrateInternal :: (MonadSelda m, MonadThrow m, Relational a, Relational b)
                 -> Table b
                 -> (Row (Backend m) a -> Query (Backend m) (Row (Backend m) b))
                 -> m ()
-migrateInternal t1 t2 upg = do
+migrateInternal t1 t2 upg = withBackend $ \b -> do
     validateTable t1
     validateSchema t2
-    backend <- seldaBackend
     createTableWithoutIndexes Fail t2'
     void . queryInto t2' $ select t1 >>= upg
-    void . liftIO $ runStmt backend (dropQuery (tableName t1)) []
-    void . liftIO $ runStmt backend renameQuery []
+    void . liftIO $ runStmt b (dropQuery (tableName t1)) []
+    void . liftIO $ runStmt b renameQuery []
     createTableIndexes Fail t2
   where
     t2' = t2 {tableName = mkTableName newName} `asTypeOf` t2

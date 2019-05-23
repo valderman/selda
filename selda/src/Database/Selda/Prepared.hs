@@ -64,8 +64,7 @@ instance (Typeable a, MonadSelda m, a ~ Res (ResultT q), Result (ResultT q)) =>
   -- For once, this is actually safe: the IORef points to a single compiled
   -- statement, so the only consequence of a race between the read and the write
   -- is that the statement gets compiled (note: NOT prepared) twice.
-  mkFun ref sid qry arguments = do
-    conn <- seldaConnection
+  mkFun ref sid qry arguments = withConnection $ \conn -> do
     let backend = connBackend conn
         args = reverse arguments
     stmts <- liftIO $ readIORef (connStmts conn)
@@ -109,8 +108,7 @@ instance (SqlType a, Preparable b) => Preparable (Col s a -> b) where
       x = One $ Lit $ LCustom t (throw (Placeholder n) :: Lit a)
 
 instance Result a => Preparable (Query s a) where
-  mkQuery _ q types = do
-    b <- seldaBackend
+  mkQuery _ q types = withBackend $ \b -> do
     case compileWith (ppConfig b) q of
       (q', ps) -> do
         (ps', types') <- liftIO $ inspectParams (reverse types) ps
