@@ -4,12 +4,10 @@
 -- | Building and executing prepared statements.
 module Database.Selda.Prepared (Preparable, Prepare, prepared) where
 import Database.Selda.Backend.Internal
-import Database.Selda.Caching
 import Database.Selda.Column
 import Database.Selda.Compile
 import Database.Selda.Query.Type
 import Database.Selda.SQL (param, paramType)
-import Database.Selda.Types (TableName)
 import Control.Exception
 import Control.Monad.IO.Class
 import qualified Data.HashMap.Strict as M
@@ -36,7 +34,7 @@ type family Equiv q f where
   Equiv (Col s a -> q) (a -> f) = Equiv q f
   Equiv (Query s a)    (m [b])  = (Res a ~ b, Backend m ~ s)
 
-type CompResult = (Text, [Either Int Param], [SqlTypeRep], [TableName])
+type CompResult = (Text, [Either Int Param], [SqlTypeRep])
 
 class Preparable q where
   -- | Prepare the query and parameter list.
@@ -79,7 +77,7 @@ instance (Typeable a, MonadSelda m, a ~ Res (ResultT q), Result (ResultT q)) =>
         -- Statement wasn't prepared for this connection; check if it was at
         -- least previously compiled for this backend.
         compiled <- liftIO $ readIORef ref
-        (q, params, reps, ts) <- case compiled of
+        (q, params, reps) <- case compiled of
           Just (bid, comp) | bid == backendId backend -> do
             return comp
           _ -> do
@@ -93,25 +91,16 @@ instance (Typeable a, MonadSelda m, a ~ Res (ResultT q), Result (ResultT q)) =>
           let stm = SeldaStmt
                 { stmtHandle = hdl
                 , stmtParams = params
-                , stmtTables = ts
                 , stmtText = q
                 }
           atomicModifyIORef' (connStmts conn) $ \m -> (M.insert sid stm m, ())
           restore $ runQuery conn stm args
     where
       runQuery conn stm args = do
-        let backend = connBackend conn
-            ps = replaceParams (stmtParams stm) args
-            key = (connDbId conn, stmtText stm, ps)
+        let ps = replaceParams (stmtParams stm) args
             hdl = stmtHandle stm
-        mres <- cached key
-        case mres of
-          Just res -> do
-            return res
-          _ -> do
-            res <- runPrepared backend hdl ps
-            cache (stmtTables stm) key res
-            return $ map (buildResult (Proxy :: Proxy (ResultT q))) (snd res)
+        res <- runPrepared (connBackend conn) hdl ps
+        return $ map (buildResult (Proxy :: Proxy (ResultT q))) (snd res)
 
 instance (SqlType a, Preparable b) => Preparable (Col s a -> b) where
   mkQuery n f ts = mkQuery (n+1) (f x) (t : ts)
@@ -122,10 +111,10 @@ instance (SqlType a, Preparable b) => Preparable (Col s a -> b) where
 instance Result a => Preparable (Query s a) where
   mkQuery _ q types = do
     b <- seldaBackend
-    case compileWithTables (ppConfig b) q of
-      (tables, (q', ps)) -> do
+    case compileWith (ppConfig b) q of
+      (q', ps) -> do
         (ps', types') <- liftIO $ inspectParams (reverse types) ps
-        return (q', ps', types', tables)
+        return (q', ps', types')
 
 -- | Create a prepared Selda function. A prepared function has zero or more
 --   arguments, and will get compiled into a prepared statement by the first

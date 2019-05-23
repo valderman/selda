@@ -25,7 +25,6 @@ flags or through separate add-on packages.
 * Typed migrations
 * Upserts, transactions, indexes and constraints
 * Minimal dependencies
-* In-process caching
 * Backends for PostgreSQL and SQLite
 * JSON processing on supported backends
 * ...and much more!

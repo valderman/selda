@@ -5,7 +5,7 @@
 module Database.Selda.Compile
   ( Result, Res
   , buildResult, compQuery, compQueryWithFreshScope
-  , compile, compileWith, compileWithTables
+  , compile, compileWith
   , compileInsert, compileUpdate, compileDelete
   )
   where
@@ -35,19 +35,11 @@ import System.IO.Unsafe
 --   The types given are tailored for SQLite. To translate SQLite types into
 --   whichever types are used by your backend, use 'compileWith'.
 compile :: Result a => Query s a -> (Text, [Param])
-compile = snd . compileWithTables defPPConfig
+compile = compileWith defPPConfig
 
 -- | Compile a query using the given type translation function.
 compileWith :: Result a => PPConfig -> Query s a -> (Text, [Param])
-compileWith cfg = snd . compileWithTables cfg
-
--- | Compile a query into a parameterised SQL statement. Also returns all
---   tables depended on by the query.
-compileWithTables :: Result a
-                  => PPConfig
-                  -> Query s a
-                  -> ([TableName], (Text, [Param]))
-compileWithTables cfg = compSql cfg . snd . compQuery 0
+compileWith cfg = compSql cfg . snd . compQuery 0
 
 -- | Compile an @INSERT@ query, given the keyword representing default values
 --   in the target SQL dialect, a table and a list of items corresponding

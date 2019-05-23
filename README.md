@@ -27,8 +27,8 @@ Features
 * Inserting, updating and deleting rows from tables.
 * Conditional insert/update.
 * Transactions, uniqueness constraints and foreign keys.
+* Type-safe, backend-specific functionality, such as JSON lookups.
 * Seamless prepared statements.
-* Configurable, automatic, consistent in-process caching of query results.
 * Lightweight and modular: few dependencies, and non-essential features are
   optional or split into add-on packages.
 

@@ -5,9 +5,9 @@ import System.Directory (doesFileExist, removeFile, getTemporaryDirectory)
 import System.Exit (exitFailure)
 import Test.HUnit
 import Test.HUnit.Text
-import Database.Selda (SeldaM, setLocalCache)
+import Database.Selda (SeldaM)
 import Tests.Query (queryTests)
-import Tests.Mutable (mutableTests, invalidateCacheAfterTransaction)
+import Tests.Mutable (mutableTests)
 import Tests.Validation (validationTests)
 import Tests.NonDB (noDBTests)
 import Tests.MultiConn (multiConnTests)
@@ -56,8 +56,6 @@ allTests f = TestList
   , "query tests"              ~: queryTests run
   , "validation tests"         ~: validationTests (freshEnv f)
   , "mutable tests"            ~: mutableTests (freshEnv f)
-  , "mutable tests (caching)"  ~: mutableTests caching
-  , "cache + transaction race" ~: invalidateCacheAfterTransaction run
   , "multi-connection tests"   ~: multiConnTests open
   , "mandatory json tests"     ~: jsonTests (freshEnv f)
 #ifdef TEST_JSON
@@ -65,7 +63,6 @@ allTests f = TestList
 #endif
   ]
   where
-    caching m = freshEnv f (setLocalCache 1000 >> m)
 #ifdef POSTGRES
     open = pgOpen pgConnectInfo
     run = withPostgreSQL pgConnectInfo

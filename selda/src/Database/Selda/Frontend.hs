@@ -8,10 +8,9 @@ module Database.Selda.Frontend
   , deleteFrom, deleteFrom_
   , createTable, tryCreateTable, createTableWithoutIndexes, createTableIndexes
   , dropTable, tryDropTable
-  , transaction, setLocalCache, withoutForeignKeyEnforcement
+  , transaction, withoutForeignKeyEnforcement
   ) where
 import Database.Selda.Backend.Internal
-import Database.Selda.Caching
 import Database.Selda.Column
 import Database.Selda.Compile
 import Database.Selda.Generic
@@ -83,7 +82,6 @@ insert _ [] = do
 insert t cs = do
   cfg <- ppConfig <$> seldaBackend
   res <- mapM (uncurry exec) $ compileInsert cfg t cs
-  invalidateTable t
   return (sum res)
 
 -- | Attempt to insert a list of rows into a table, but don't raise an error
@@ -109,7 +107,7 @@ tryInsert tbl row = do
 --
 --   Note that this may perform two separate queries: one update, potentially
 --   followed by one insert.
-upsert :: (MonadSelda m, Relational a)
+upsert :: (MonadSelda m, MonadMask m, Relational a)
        => Table a
        -> (Row (Backend m) a -> Col (Backend m) Bool)
        -> (Row (Backend m) a -> Row (Backend m) a)
@@ -128,7 +126,7 @@ upsert tbl check upd rows = transaction $ do
 --   If called on a table which doesn't have an auto-incrementing primary key,
 --   @Just id@ is always returned on successful insert, where @id@ is a row
 --   identifier guaranteed to not match any row in any table.
-insertUnless :: (MonadSelda m, Relational a)
+insertUnless :: (MonadSelda m, MonadMask m, Relational a)
              => Table a
              -> (Row (Backend m) a -> Col (Backend m) Bool)
              -> [a]
@@ -137,7 +135,7 @@ insertUnless tbl check rows = upsert tbl check id rows
 
 -- | Like 'insertUnless', but performs the insert when at least one row matches
 --   the predicate.
-insertWhen :: (MonadSelda m, Relational a)
+insertWhen :: (MonadSelda m, MonadMask m, Relational a)
            => Table a
            -> (Row (Backend m) a -> Col (Backend m) Bool)
            -> [a]
@@ -164,7 +162,6 @@ insertWithPK t cs = do
     then do
       res <- liftIO $ do
         mapM (uncurry (runStmtWithPK b)) $ compileInsert (ppConfig b) t cs
-      invalidateTable t
       return $ toId (last res)
     else do
       insert_ t cs
@@ -180,7 +177,6 @@ update :: (MonadSelda m, Relational a)
 update tbl check upd = do
   cfg <- ppConfig <$> seldaBackend
   res <- uncurry exec $ compileUpdate cfg tbl upd check
-  invalidateTable tbl
   return res
 
 -- | Like 'update', but doesn't return the number of updated rows.
@@ -200,7 +196,6 @@ deleteFrom :: (MonadSelda m, Relational a)
 deleteFrom tbl f = do
   cfg <- ppConfig <$> seldaBackend
   res <- uncurry exec $ compileDelete cfg tbl f
-  invalidateTable tbl
   return res
 
 -- | Like 'deleteFrom', but does not return the number of deleted rows.
@@ -237,20 +232,22 @@ tryCreateTable tbl = do
 
 -- | Drop the given table.
 dropTable :: MonadSelda m => Table a -> m ()
-dropTable = withInval $ void . flip exec [] . compileDropTable Fail
+dropTable = void . flip exec [] . compileDropTable Fail
 
 -- | Drop the given table, if it exists.
 tryDropTable :: MonadSelda m => Table a -> m ()
-tryDropTable = withInval $ void . flip exec [] . compileDropTable Ignore
+tryDropTable = void . flip exec [] . compileDropTable Ignore
 
 -- | Perform the given computation atomically.
 --   If an exception is raised during its execution, the entire transaction
 --   will be rolled back and the exception re-thrown, even if the exception
 --   is caught and handled within the transaction.
-transaction :: MonadSelda m => m a -> m a
-transaction m = do
-  wrapTransaction (void $ exec "COMMIT" []) (void $ exec "ROLLBACK" []) $ do
-    exec "BEGIN TRANSACTION" [] *> m
+transaction :: (MonadSelda m, MonadMask m) => m a -> m a
+transaction m = mask $ \restore -> do
+  void $ exec "BEGIN TRANSACTION" []
+  x <- restore m `onException` void (exec "ROLLBACK" [])
+  void $ exec "COMMIT" []
+  return x
 
 -- | Run the given computation as a transaction without enforcing foreign key
 --   constraints.
@@ -267,50 +264,18 @@ withoutForeignKeyEnforcement m = do
            (liftIO $ disableForeignKeys b False)
            m
 
--- | Set the maximum local cache size to @n@. A cache size of zero disables
---   local cache altogether. Changing the cache size will also flush all
---   entries. Note that the cache is shared among all Selda computations running
---   within the same process.
---
---   By default, local caching is turned off.
---
---   WARNING: local caching is guaranteed to be consistent with the underlying
---   database, ONLY under the assumption that no other process will modify it.
---   Also note that the cache is shared between ALL Selda computations running
---   within the same process.
-setLocalCache :: MonadIO m => Int -> m ()
-setLocalCache = liftIO . setMaxItems
-
 -- | Build the final result from a list of result columns.
 queryWith :: forall m a. (MonadSelda m, Result a)
           => QueryRunner (Int, [[SqlValue]]) -> Query (Backend m) a -> m [Res a]
-queryWith qr q = do
+queryWith run q = do
   conn <- seldaConnection
   let backend = connBackend conn
-      db = connDbId conn
-      cacheKey = (db, qs, ps)
-      (tables, qry@(qs, ps)) = compileWithTables (ppConfig backend) q
-  mres <- liftIO $ cached cacheKey
-  case mres of
-    Just res -> do
-      return res
-    _        -> do
-      res <- fmap snd . liftIO $ uncurry qr qry
-      let res' = mkResults (Proxy :: Proxy a) res
-      liftIO $ cache tables cacheKey res'
-      return res'
+  res <- fmap snd . liftIO . uncurry run $ compileWith (ppConfig backend) q
+  return $ mkResults (Proxy :: Proxy a) res
 
 -- | Generate the final result of a query from a list of untyped result rows.
 mkResults :: Result a => Proxy a -> [[SqlValue]] -> [Res a]
 mkResults p = map (buildResult p)
-
--- | Run the given computation over a table after invalidating all cached
---   results depending on that table.
-withInval :: MonadSelda m => (Table a -> m b) -> Table a -> m b
-withInval f t = do
-  res <- f t
-  invalidateTable t
-  return res
 
 -- | Execute a statement without a result.
 exec :: MonadSelda m => Text -> [Param] -> m Int

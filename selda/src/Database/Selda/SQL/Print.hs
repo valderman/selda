@@ -25,7 +25,6 @@ type PP = State PPState
 
 data PPState = PPState
   { ppParams  :: ![Param]
-  , ppTables  :: ![TableName]
   , ppParamNS :: !Int
   , ppQueryNS :: !Int
   , ppConfig  :: !PPConfig
@@ -34,20 +33,18 @@ data PPState = PPState
 -- | Run a pretty-printer.
 runPP :: PPConfig
       -> PP Text
-      -> ([TableName], (Text, [Param]))
+      -> (Text, [Param])
 runPP cfg pp =
-  case runState pp (PPState [] [] 1 0 cfg) of
-    (q, st) -> (snub $ ppTables st, (q, reverse (ppParams st)))
+  case runState pp (PPState [] 1 0 cfg) of
+    (q, st) -> (q, reverse (ppParams st))
 
 -- | Compile an SQL AST into a parameterized SQL query.
-compSql :: PPConfig
-        -> SQL
-        -> ([TableName], (Text, [Param]))
+compSql :: PPConfig -> SQL -> (Text, [Param])
 compSql cfg = runPP cfg . ppSql
 
 -- | Compile a single column expression.
 compExp :: PPConfig -> Exp SQL a -> (Text, [Param])
-compExp cfg = snd . runPP cfg . ppCol
+compExp cfg = runPP cfg . ppCol
 
 -- | Compile an @UPATE@ statement.
 compUpdate :: PPConfig
@@ -55,7 +52,7 @@ compUpdate :: PPConfig
            -> Exp SQL Bool
            -> [(ColName, SomeCol SQL)]
            -> (Text, [Param])
-compUpdate cfg tbl p cs = snd $ runPP cfg ppUpd
+compUpdate cfg tbl p cs = runPP cfg ppUpd
   where
     ppUpd = do
       updates <- mapM ppUpdate cs
@@ -81,7 +78,7 @@ compUpdate cfg tbl p cs = snd $ runPP cfg ppUpd
 
 -- | Compile a @DELETE@ statement.
 compDelete :: PPConfig -> TableName -> Exp SQL Bool -> (Text, [Param])
-compDelete cfg tbl p = snd $ runPP cfg ppDelete
+compDelete cfg tbl p = runPP cfg ppDelete
   where
     ppDelete = do
       c' <- ppCol p
@@ -93,20 +90,15 @@ ppLit :: Lit a -> PP Text
 ppLit LNull     = pure "NULL"
 ppLit (LJust l) = ppLit l
 ppLit l         = do
-  PPState ps ts ns qns tr <- get
-  put $ PPState (Param l : ps) ts (succ ns) qns tr
+  PPState ps ns qns tr <- get
+  put $ PPState (Param l : ps) (succ ns) qns tr
   return $ Text.pack ('$':show ns)
-
-dependOn :: TableName -> PP ()
-dependOn t = do
-  PPState ps ts ns qns tr <- get
-  put $ PPState ps (t:ts) ns qns tr
 
 -- | Generate a unique name for a subquery.
 freshQueryName :: PP Text
 freshQueryName = do
-  PPState ps ts ns qns tr <- get
-  put $ PPState ps ts ns (succ qns) tr
+  PPState ps ns qns tr <- get
+  put $ PPState ps ns (succ qns) tr
   return $ Text.pack ('q':show qns)
 
 -- | Pretty-print an SQL AST.
@@ -134,7 +126,6 @@ ppSql (SQL cs src r gs ord lim dist) = do
       qn <- freshQueryName
       pure $ " FROM (SELECT NULL LIMIT 0) AS " <> qn
     ppSrc (TableName n)  = do
-      dependOn n
       pure $ " FROM " <> fromTableName n
     ppSrc (Product [])   = do
       pure ""

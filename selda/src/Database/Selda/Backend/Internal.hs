@@ -5,7 +5,6 @@
 module Database.Selda.Backend.Internal
   ( StmtID, BackendID (..)
   , QueryRunner, SeldaBackend (..), SeldaConnection (..), SeldaStmt (..)
-  , SeldaState (..)
   , MonadSelda (..), SeldaT (..), SeldaM
   , SeldaError (..)
   , Param (..), Lit (..), ColAttr (..)
@@ -14,19 +13,16 @@ module Database.Selda.Backend.Internal
   , TableInfo (..), ColumnInfo (..), tableInfo, fromColInfo
   , sqlDateTimeFormat, sqlDateFormat, sqlTimeFormat
   , freshStmtId
-  , invalidate
   , newConnection, allStmts
   , runSeldaT, seldaBackend
   ) where
-import Database.Selda.Caching (invalidate, setMaxItems)
 import Database.Selda.SQL (Param (..))
 import Database.Selda.SqlType
-import Database.Selda.Table (Table (..), ColAttr (..), tableName)
+import Database.Selda.Table (Table (..), ColAttr (..))
 import qualified Database.Selda.Table as Table (ColInfo (..))
 import Database.Selda.SQL.Print.Config
 import Database.Selda.Types (TableName, ColName)
 import Control.Concurrent
-import Control.Exception (throw)
 import Control.Monad.Catch
 import Control.Monad.IO.Class
 import Control.Monad.State
@@ -86,9 +82,6 @@ data SeldaStmt = SeldaStmt
    --   starting at 0.
    --   Backends implementing @runPrepared@ should probably ignore this field.
  , stmtParams :: ![Either Int Param]
-
-   -- | All tables touched by the statement.
- , stmtTables :: ![TableName]
  }
 
 data SeldaConnection b = SeldaConnection
@@ -222,16 +215,6 @@ data SeldaBackend b = SeldaBackend
   , disableForeignKeys :: Bool -> IO ()
   }
 
-data SeldaState b = SeldaState
-  { -- | Connection in use by the current computation.
-    stConnection :: !(SeldaConnection b)
-
-    -- | Tables modified by the current transaction.
-    --   Invariant: always @Just xs@ during a transaction, and always
-    --   @Nothing@ when not in a transaction.
-  , stTouchedTables :: !(Maybe [TableName])
-  }
-
 -- | Some monad with Selda SQL capabilitites.
 --
 --   Note that the default implementations of 'invalidateTable' and
@@ -246,68 +229,19 @@ class MonadIO m => MonadSelda m where
   --   Must always return the same connection during a transaction.
   seldaConnection :: m (SeldaConnection (Backend m))
 
-  -- | Invalidate the given table as soon as the current transaction finishes.
-  --   Invalidate the table immediately if no transaction is ongoing.
-  invalidateTable :: Table a -> m ()
-  invalidateTable _ = liftIO $ setMaxItems 0
-
-  -- | Safely wrap a transaction. To ensure consistency of the in-process cache,
-  --   it is important that any cached tables modified during a transaction are
-  --   invalidated ONLY if that transaction succeeds, AFTER the changes become
-  --   visible in the database.
-  --
-  --   In order to be thread-safe in the presence of asynchronous exceptions,
-  --   instances should:
-  --
-  --   1. Mask async exceptions.
-  --   2. Start bookkeeping of tables invalidated during the transaction.
-  --   3. Perform the transaction, with async exceptions restored.
-  --   4. Commit transaction, invalidate tables, and disable bookkeeping; OR
-  --   5. If an exception was raised, rollback transaction,
-  --      disable bookkeeping, and re-throw the exception.
-  wrapTransaction :: m () -- ^ Signal transaction commit to SQL backend.
-                  -> m () -- ^ Signal transaction rollback to SQL backend.
-                  -> m a  -- ^ Transaction to perform.
-                  -> m a
-  default wrapTransaction :: MonadMask m => m () -> m () -> m a -> m a
-  wrapTransaction commit rollback act = do
-    bracketOnError (pure ())
-                   (const rollback)
-                   (const (act <* commit <* liftIO (setMaxItems 0)))
-  {-# MINIMAL seldaConnection #-}
-
 -- | Get the backend in use by the computation.
 seldaBackend :: MonadSelda m => m (SeldaBackend (Backend m))
 seldaBackend = connBackend <$> seldaConnection
 
 -- | Monad transformer adding Selda SQL capabilities.
-newtype SeldaT b m a = S {unS :: StateT (SeldaState b) m a}
+newtype SeldaT b m a = S {unS :: StateT (SeldaConnection b) m a}
   deriving ( Functor, Applicative, Monad, MonadIO
            , MonadThrow, MonadCatch, MonadMask , MonadFail
            )
 
 instance (MonadIO m, MonadMask m) => MonadSelda (SeldaT b m) where
   type Backend (SeldaT b m) = b
-
-  seldaConnection = S $ fmap stConnection get
-
-  invalidateTable tbl = S $ do
-    st <- get
-    case stTouchedTables st of
-      Nothing -> liftIO $ invalidate [tableName tbl]
-      Just ts -> put $ st {stTouchedTables = Just (tableName tbl : ts)}
-
-  wrapTransaction commit rollback m = mask $ \restore -> do
-    S $ modify' $ \st ->
-      case stTouchedTables st of
-        Nothing -> st {stTouchedTables = Just []}
-        Just _  -> throw $ SqlError "attempted to nest transactions"
-    x <- restore m `onException` rollback
-    commit
-    st <- S get
-    maybe (return ()) (liftIO . invalidate) (stTouchedTables st)
-    S $ put $ st {stTouchedTables = Nothing}
-    return x
+  seldaConnection = S get
 
 -- | The simplest form of Selda computation; 'SeldaT' specialized to 'IO'.
 type SeldaM b = SeldaT b IO
@@ -327,4 +261,4 @@ runSeldaT m c =
       closed <- liftIO $ readIORef (connClosed c)
       when closed $ do
         liftIO $ throwM $ DbError "runSeldaT called with a closed connection"
-      fst <$> runStateT (unS m) (SeldaState c Nothing)
+      fst <$> runStateT (unS m) c

@@ -1,7 +1,7 @@
 {-# LANGUAGE TypeOperators, OverloadedStrings, DeriveGeneric #-}
 {-# LANGUAGE ScopedTypeVariables, GeneralizedNewtypeDeriving, CPP #-}
 -- | Tests that modify the database.
-module Tests.Mutable (mutableTests, invalidateCacheAfterTransaction) where
+module Tests.Mutable (mutableTests) where
 import Control.Concurrent
 import Control.Monad.Catch
 import Data.ByteString (ByteString)
@@ -331,42 +331,6 @@ nulQueries = do
     return (count (t!cName))
   assEq "update returns wrong number of updated rows" 3 rows
   assEq "rows were not updated" 3 upd
-
-invalidateCacheAfterTransaction run = run $ do
-  setLocalCache 1000
-  tryDropTable comments
-  tryDropTable addresses
-  createTable comments
-  createTable addresses
-  lock <- liftIO $ newEmptyMVar
-
-  -- This thread repopulates the cache for the query before the transaction
-  -- in which it was invalidated finishes
-  liftIO $ forkIO $ run $ do
-    liftIO $ takeMVar lock
-    query $ do
-      c <- select comments
-      restrict (c ! cName .== just "Link")
-      return (c ! cComment)
-    liftIO $ putMVar lock ()
-
-  insert_ comments [(def, Just "Link", "spam")]
-  transaction $ do
-    update_ comments
-      (\c -> c ! cName .== just "Link")
-      (\c -> c `with` [cComment := "insightful comment"])
-    liftIO $ putMVar lock ()
-    liftIO $ takeMVar lock
-    insert_ addresses [(def, def)]
-
-  -- At this point, the comment in the database is "insightful comment", but
-  -- unless the cache is re-invalidated *after* the transaction finishes,
-  -- the cached comment will be "spam".
-  [comment] <- query $ do
-    c <- select comments
-    restrict (c ! cName .== just "Link")
-    return (c ! cComment)
-  assEq "" "insightful comment" comment
 
 fkViolationFails = do
     -- Note that this is intended to test that FKs are in place and enabled.

@@ -27,7 +27,7 @@ module Database.Selda
   , Relational, Only (..), The (..)
   , Table, Query, Row, Col, Res, Result
   , query, queryInto
-  , transaction, setLocalCache, withoutForeignKeyEnforcement
+  , transaction, withoutForeignKeyEnforcement
   , newUuid
 
     -- * Constructing queries
