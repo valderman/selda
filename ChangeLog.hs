@@ -23,7 +23,7 @@ changeLog =
     , "Expose SQLite connection handle. (#101)"
     , "Make MonadSelda more amenable to connection pooling. (#108)"
     , "Remove in-process cache. (#117)"
-    , "Officially support GHC 8.6."
+    , "Officially support GHC 8.6, 8.8 (SQLite only until postgres dependencies catch up with 8.8)."
     , "Drop support for GHC 7.10. (#118)"
     , "Manual (i.e. non record label) selectors are no longer exported by default; import Database.Selda.MakeSelectors is you need them. (#118)"
     , "Update toolchain to use v2-style cabal commands."

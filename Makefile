@@ -1,5 +1,6 @@
 PACKAGES=selda selda-sqlite selda-postgresql selda-json
 .PHONY: help build license deps travischeck haddock check test selda json pgtest sqlite postgres repl upload-selda upload travis-pgconnectinfo tags
+CABAL_BUILDFLAGS ?=
 
 help:
 	@echo "Available targets:"
@@ -53,32 +54,32 @@ tags:
 	hasktags --etags selda/src selda-sqlite/src selda-postgresql/src selda-json/src selda-tests/test
 
 test: selda sqlite
-	cd ./selda-tests && cabal v2-configure --enable-tests
-	cd ./selda-tests && cabal v2-test
+	cd ./selda-tests && cabal v2-configure --enable-tests $(CABAL_BUILDFLAGS)
+	cd ./selda-tests && cabal v2-test $(CABAL_BUILDFLAGS)
 
 pgtest: selda postgres
-	cd ./selda-tests && cabal v2-configure --enable-tests -fpostgres
-	cd ./selda-tests && cabal v2-test
+	cd ./selda-tests && cabal v2-configure --enable-tests -fpostgres $(CABAL_BUILDFLAGS)
+	cd ./selda-tests && cabal v2-test $(CABAL_BUILDFLAGS)
 
 selda: license
 	cp -f README.md ./selda/README.md
-	cabal v2-build selda
+	cabal v2-build selda $(CABAL_BUILDFLAGS)
 	make tags ; true
 
 json: license
-	cabal v2-build selda-json
+	cabal v2-build selda-json $(CABAL_BUILDFLAGS)
 	make tags ; true
 
 sqlite: license
-	cabal v2-build selda-sqlite
+	cabal v2-build selda-sqlite $(CABAL_BUILDFLAGS)
 	make tags ; true
 
 postgres: license
-	cabal v2-build selda-postgresql
+	cabal v2-build selda-postgresql $(CABAL_BUILDFLAGS)
 	make tags ; true
 
 repl:
-	cabal v2-repl --ghc-options="-XOverloadedStrings" selda
+	cabal v2-repl --ghc-options="-XOverloadedStrings" selda $(CABAL_BUILDFLAGS)
 
 upload-selda: check
 	cabal v2-run selda-changelog validate

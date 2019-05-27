@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, TupleSections #-}
+{-# LANGUAGE OverloadedStrings, TupleSections, CPP #-}
 -- | Utilities for validating and inspecting Selda tables.
 module Database.Selda.Validation
   ( TableDiff (..), ColumnDiff (..)
@@ -10,7 +10,9 @@ module Database.Selda.Validation
 import Control.Monad.Catch
 import Data.List ((\\))
 import Data.Maybe (catMaybes)
+#if !MIN_VERSION_base(4, 11, 0)
 import Data.Monoid ((<>))
+#endif
 import Data.Text (pack, unpack, intercalate)
 import Database.Selda
 import Database.Selda.Backend
