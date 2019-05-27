@@ -3,7 +3,7 @@
 --   Using anything exported from this module may or may not invalidate any
 --   safety guarantees made by Selda; use at your own peril.
 module Database.Selda.Backend.Internal
-  ( StmtID, BackendID (..)
+  ( StmtID (..), BackendID (..)
   , QueryRunner, SeldaBackend (..), SeldaConnection (..), SeldaStmt (..)
   , MonadSelda (..), SeldaT (..), SeldaM
   , SeldaError (..)
@@ -27,8 +27,7 @@ import Control.Monad.Catch
 import Control.Monad.IO.Class
 import Control.Monad.State
 import Data.Dynamic
-import Data.Hashable
-import qualified Data.HashMap.Strict as M
+import qualified Data.IntMap as M
 import Data.IORef
 import Data.Text (Text)
 import System.IO.Unsafe (unsafePerformIO)
@@ -51,7 +50,7 @@ instance Exception SeldaError
 
 -- | A prepared statement identifier. Guaranteed to be unique per application.
 newtype StmtID = StmtID Int
-  deriving (Show, Eq, Ord, Hashable)
+  deriving (Show, Eq, Ord)
 
 -- | A connection identifier. Guaranteed to be unique per application.
 newtype ConnID = ConnID Int
@@ -94,7 +93,7 @@ data SeldaConnection b = SeldaConnection
   , connDbId :: Text
 
     -- | All statements prepared for this connection.
-  , connStmts :: !(IORef (M.HashMap StmtID SeldaStmt))
+  , connStmts :: !(IORef (M.IntMap SeldaStmt))
 
     -- | Is the connection closed?
   , connClosed :: !(IORef Bool)
@@ -115,8 +114,9 @@ newConnection back dbid =
 -- | Get all statements and their corresponding identifiers for the current
 --   connection.
 allStmts :: SeldaConnection b -> IO [(StmtID, Dynamic)]
-allStmts =
-  fmap (map (\(k, v) -> (k, stmtHandle v)) . M.toList) . readIORef . connStmts
+allStmts = fmap (map (\(k, v) -> (StmtID k, stmtHandle v)) . M.toList)
+  . readIORef
+  . connStmts
 
 -- | Comprehensive information about a table.
 data TableInfo = TableInfo

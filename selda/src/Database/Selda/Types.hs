@@ -16,13 +16,6 @@ import Data.String
 import Data.Text (Text, replace, append)
 import GHC.Generics (Generic)
 
-#ifndef NO_LOCALCACHE
-import Data.Hashable
-
-instance Hashable TableName where
-  hashWithSalt s (TableName tn) = hashWithSalt s tn
-#endif
-
 -- | Name of a database column.
 newtype ColName = ColName Text
   deriving (Ord, Eq, Show, IsString)

@@ -10,7 +10,7 @@ import Database.Selda.Query.Type
 import Database.Selda.SQL (param, paramType)
 import Control.Exception
 import Control.Monad.IO.Class
-import qualified Data.HashMap.Strict as M
+import qualified Data.IntMap as M
 import Data.IORef
 import Data.Proxy
 import Data.Text (Text)
@@ -64,7 +64,7 @@ instance (Typeable a, MonadSelda m, a ~ Res (ResultT q), Result (ResultT q)) =>
   -- For once, this is actually safe: the IORef points to a single compiled
   -- statement, so the only consequence of a race between the read and the write
   -- is that the statement gets compiled (note: NOT prepared) twice.
-  mkFun ref sid qry arguments = withConnection $ \conn -> do
+  mkFun ref (StmtID sid) qry arguments = withConnection $ \conn -> do
     let backend = connBackend conn
         args = reverse arguments
     stmts <- liftIO $ readIORef (connStmts conn)
@@ -86,7 +86,7 @@ instance (Typeable a, MonadSelda m, a ~ Res (ResultT q), Result (ResultT q)) =>
 
         -- Prepare and execute
         liftIO $ mask $ \restore -> do
-          hdl <- prepareStmt backend sid reps q
+          hdl <- prepareStmt backend (StmtID sid) reps q
           let stm = SeldaStmt
                 { stmtHandle = hdl
                 , stmtParams = params
