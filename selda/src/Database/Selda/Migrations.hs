@@ -7,7 +7,10 @@ module Database.Selda.Migrations
 import Control.Monad (void, when)
 import Control.Monad.Catch
 import Database.Selda hiding (from)
-import Database.Selda.Frontend (createTableWithoutIndexes, createTableIndexes)
+import Database.Selda.Frontend
+  ( OnError (..)
+  , createTableWithoutIndexes, createTableIndexes
+  )
 import Database.Selda.Backend.Internal
 import Database.Selda.Table.Type (tableName)
 import Database.Selda.Table.Validation (ValidationError (..))

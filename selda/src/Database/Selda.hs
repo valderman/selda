@@ -91,12 +91,6 @@ module Database.Selda
   , createTable, tryCreateTable
   , dropTable, tryDropTable
 
-    -- * Compiling and inspecting queries
-  , OnError (..)
-  , compile
-  , compileCreateTable, compileDropTable
-  , compileInsert, compileUpdate
-
     -- * Tuple convenience functions
   , Tup, Head
   , first, second, third, fourth, fifth, sixth, seventh, eighth, ninth, tenth
@@ -121,7 +115,6 @@ import Database.Selda.Selectors
 import Database.Selda.SQL hiding (distinct)
 import Database.Selda.SqlRow
 import Database.Selda.Table
-import Database.Selda.Table.Compile
 import Database.Selda.Table.Validation
 import Database.Selda.Types
 import Database.Selda.Unsafe

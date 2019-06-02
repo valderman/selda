@@ -3,6 +3,7 @@ module Tests.NonDB where
 import Data.List hiding (groupBy, insert)
 import Data.Text (unpack)
 import Database.Selda
+import Database.Selda.Debug (compile)
 import Test.HUnit
 import Utils
 import Tables

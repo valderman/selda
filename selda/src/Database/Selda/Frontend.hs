@@ -1,7 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables, FlexibleContexts, OverloadedStrings #-}
 -- | API for running Selda operations over databases.
 module Database.Selda.Frontend
-  ( Result, Res, MonadIO (..), MonadSelda (..), SeldaT
+  ( Result, Res, MonadIO (..), MonadSelda (..), SeldaT, OnError (..)
   , query, queryInto
   , insert, insert_, insertWithPK, tryInsert, insertWhen, insertUnless
   , update, update_, upsert
