@@ -5,7 +5,7 @@
 --   only ever be invoked during validation.
 module Database.Selda.SQLite.Parser (colsFromQuery) where
 import Control.Applicative
-import Control.Monad (void)
+import Control.Monad (void, msum, MonadPlus (..))
 import Data.Char (isSpace, isAlpha, isAlphaNum)
 import Data.Maybe (isJust, catMaybes)
 import Data.Text (Text)
@@ -36,6 +36,10 @@ instance Monad Parser where
     case m s of
       Just (rest, x) -> unP (f x) rest
       _              -> Nothing
+
+instance MonadPlus Parser where
+  mzero = empty
+  mplus = (<|>)
 
 parse :: Parser a -> Text -> Maybe a
 parse (P f) t = snd <$> f t
@@ -75,6 +79,9 @@ sepBy1 sep p = do
 commaSeparated :: Parser a -> Parser [a]
 commaSeparated = sepBy1 (many space >> char ',' >> many space)
 
+keywords :: [Text]
+keywords = ["constraint", "unique", "primary key"]
+
 parseCreateQueryCols :: Parser [(Text, (Text, Bool))]
 parseCreateQueryCols = do
   lowerText "create table"
@@ -88,7 +95,7 @@ parseCreateQueryCols = do
 
 parseCol :: Parser (Maybe (Text, (Text, Bool)))
 parseCol = do
-    decl <- column <|> qualifier
+    decl <- constraint <|> column
     pure $ case decl of
       Right col -> Just col
       _         -> Nothing
@@ -105,12 +112,16 @@ parseCol = do
         void $ commaSeparated sqliteIdentifier
         void $ char ')'
       pure $ Right $ (name, (ty, isJust isAuto))
-    qualifier = do
-      void $ many $ charP (\c -> isAlphaNum c || isSpace c)
-      void $ do
-        void $ char '('
-        void $ commaSeparated sqliteIdentifier
-        void $ char ')'
+    constraint = do
+      msum (map lowerText keywords)
+      void $ many $ msum
+        [ void sqliteIdentifier
+        , void $ do
+            void $ char '('
+            void $ commaSeparated sqliteIdentifier
+            void $ char ')'
+        , spaces
+        ]
       pure $ Left ()
 
 sqliteIdentifier :: Parser Text
