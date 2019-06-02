@@ -84,7 +84,7 @@ sending a pull request:
 * Have you added any tests covering your code?
 
 If you want to contribute code but don't really know where to begin,
-issues tagged `good first issue` are a good start.
+issues tagged [good first issue](https://github.com/valderman/selda/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) are a good start.
 
 
 Setting up the build environment
