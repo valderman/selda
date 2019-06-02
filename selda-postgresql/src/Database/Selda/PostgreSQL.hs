@@ -172,11 +172,11 @@ pgPPConfig = defPPConfig
 
     pgColAttrsHook :: SqlTypeRep -> [ColAttr] -> ([ColAttr] -> T.Text) -> T.Text
     pgColAttrsHook ty attrs fun
-      | isGenericIntPrimaryKey ty attrs = fun [AutoPrimary]
+      | isGenericIntPrimaryKey ty attrs = fun [AutoPrimary Strong]
       | otherwise = fun attrs
 
     bigserialQue :: [ColAttr]
-    bigserialQue = [AutoPrimary,Required]
+    bigserialQue = [AutoPrimary Strong, Required]
 
     -- For when we use 'autoPrimaryGen' on 'Int' field
     isGenericIntPrimaryKey :: SqlTypeRep -> [ColAttr] -> Bool
@@ -451,12 +451,12 @@ pgColType cfg t       = ppType cfg t
 
 -- | Custom attribute types for postgres.
 pgColAttr :: ColAttr -> T.Text
-pgColAttr Primary     = ""
-pgColAttr AutoPrimary = "PRIMARY KEY"
-pgColAttr Required    = "NOT NULL"
-pgColAttr Optional    = "NULL"
-pgColAttr Unique      = "UNIQUE"
-pgColAttr (Indexed _) = ""
+pgColAttr Primary         = ""
+pgColAttr (AutoPrimary _) = "PRIMARY KEY"
+pgColAttr Required        = "NOT NULL"
+pgColAttr Optional        = "NULL"
+pgColAttr Unique          = "UNIQUE"
+pgColAttr (Indexed _)     = ""
 
 -- | Custom column types (primary key position) for postgres.
 pgColTypePK :: PPConfig -> SqlTypeRep -> T.Text

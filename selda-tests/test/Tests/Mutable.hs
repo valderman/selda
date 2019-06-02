@@ -28,7 +28,7 @@ mutableTests freshEnv = test
   , "tryCreate never fails"          ~: freshEnv tryCreateNeverFails
   , "drop fails on missing"          ~: freshEnv dropFailsOnMissing
   , "create fails on duplicate"      ~: freshEnv createFailsOnDuplicate
-  , "auto primary increments"        ~: freshEnv autoPrimaryIncrements
+  , "auto primary increments"        ~: freshEnv (autoPrimaryIncrements comments)
   , "insert returns number of rows"  ~: freshEnv insertReturnsNumRows
   , "update updates table"           ~: freshEnv updateUpdates
   , "update nothing"                 ~: freshEnv updateNothing
@@ -38,7 +38,7 @@ mutableTests freshEnv = test
   , "queries are consistent"         ~: freshEnv consistentQueries
   , "delete deletes"                 ~: freshEnv deleteDeletes
   , "delete everything"              ~: freshEnv deleteEverything
-  , "override auto-increment"        ~: freshEnv overrideAutoIncrement
+  , "override auto-increment"        ~: freshEnv (overrideAutoIncrement comments)
   , "insert all defaults"            ~: freshEnv insertAllDefaults
   , "insert some defaults"           ~: freshEnv insertSomeDefaults
   , "quoted weird names"             ~: freshEnv weirdNames
@@ -74,6 +74,8 @@ mutableTests freshEnv = test
   , "uuid inserts"                   ~: freshEnv uuidInserts
   , "uuid queries"                   ~: freshEnv uuidQueries
   , "migrate table with index"       ~: freshEnv migrateIndex
+  , "weak auto primary increments"   ~: freshEnv (autoPrimaryIncrements weakComments)
+  , "override weak auto-increment"   ~: freshEnv (overrideAutoIncrement weakComments)
   ]
 
 tryDropNeverFails :: SeldaM b ()
@@ -85,12 +87,12 @@ tryCreateNeverFails = tryCreateTable comments >> tryCreateTable comments
 dropFailsOnMissing = assertFail $ dropTable comments
 createFailsOnDuplicate = createTable people >> assertFail (createTable people)
 
-autoPrimaryIncrements = do
+autoPrimaryIncrements c = do
   setup
-  k <- untyped <$> insertWithPK comments [(def, Just "Kobayashi", "チョロゴン")]
-  k' <- untyped <$> insertWithPK comments [(def, Nothing, "more anonymous spam")]
+  k <- untyped <$> insertWithPK c [(def, Just "Kobayashi", "チョロゴン")]
+  k' <- untyped <$> insertWithPK c [(def, Nothing, "more anonymous spam")]
   [name] <- query $ do
-    t <- select comments
+    t <- select c
     restrict (t!cId .== literal k)
     return (t!cName)
   assEq "inserted key refers to wrong value" name (Just "Kobayashi")
@@ -225,11 +227,11 @@ deleteEverything = do
       restrict (round_ (t!pCash) .> (t!pAge))
       return (t!pName)
 
-overrideAutoIncrement = do
+overrideAutoIncrement c = do
   setup
-  insert_ comments [(toRowId 123, Nothing, "hello")]
+  insert_ c [(toRowId 123, Nothing, "hello")]
   num <- query $ aggregate $ do
-    t <- select comments
+    t <- select c
     restrict (t!cId .== literal (toRowId 123))
     return (count (t!cId))
   assEq "failed to override auto-incrementing column" [1] num

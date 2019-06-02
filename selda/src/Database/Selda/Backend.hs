@@ -5,9 +5,10 @@ module Database.Selda.Backend
   , StmtID, BackendID (..), QueryRunner, SeldaBackend (..), SeldaConnection
   , SqlValue (..)
   , IndexMethod (..)
-  , Param (..), ColAttr (..)
+  , Param (..), ColAttr (..), AutoIncType (..)
   , PPConfig (..), defPPConfig
   , TableName, ColName, TableInfo (..), ColumnInfo (..)
+  , isAutoPrimary, isPrimary, isUnique
   , tableInfo, fromColInfo
   , mkTableName, mkColName, fromTableName, fromColName, rawTableName
   , newConnection, allStmts, withBackend

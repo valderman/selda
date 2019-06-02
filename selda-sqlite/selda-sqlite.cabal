@@ -19,6 +19,8 @@ flag haste
 library
   exposed-modules:
     Database.Selda.SQLite
+  other-modules:
+    Database.Selda.SQLite.Parser
   other-extensions:
     GADTs
     CPP

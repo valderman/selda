@@ -95,7 +95,7 @@ compileTableCol cfg ci = Text.unwords
     cty = colType ci
     attrs = colAttrs ci
     ppType'
-      | cty == TRowID && AutoPrimary `elem` attrs = ppTypePK
+      | cty == TRowID && any isAutoPrimary attrs = ppTypePK
       | otherwise = ppType
 
 -- | Compile a @DROP TABLE@ query.
@@ -142,7 +142,7 @@ compInsert cfg tbl defs =
     -- primary keys.
     mkCol :: Int -> Either Param Param -> ColInfo -> [Param] -> (Int, Text, [Param])
     mkCol n (Left def) col ps
-      | AutoPrimary `elem` colAttrs col =
+      | any isAutoPrimary (colAttrs col) =
         (n, ppAutoIncInsert cfg, ps)
       | otherwise =
         (n+1, pack ('$':show n), def:ps)

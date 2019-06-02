@@ -7,10 +7,11 @@ module Database.Selda.Backend.Internal
   , QueryRunner, SeldaBackend (..), SeldaConnection (..), SeldaStmt (..)
   , MonadSelda (..), SeldaT (..), SeldaM
   , SeldaError (..)
-  , Param (..), Lit (..), ColAttr (..)
+  , Param (..), Lit (..), ColAttr (..), AutoIncType (..)
   , SqlType (..), SqlValue (..), SqlTypeRep (..)
   , PPConfig (..), defPPConfig
   , TableInfo (..), ColumnInfo (..), tableInfo, fromColInfo
+  , isAutoPrimary, isPrimary, isUnique
   , sqlDateTimeFormat, sqlDateFormat, sqlTimeFormat
   , freshStmtId
   , newConnection, allStmts
@@ -18,7 +19,7 @@ module Database.Selda.Backend.Internal
   ) where
 import Database.Selda.SQL (Param (..))
 import Database.Selda.SqlType
-import Database.Selda.Table (Table (..), ColAttr (..))
+import Database.Selda.Table hiding (colName, colType, colFKs)
 import qualified Database.Selda.Table as Table (ColInfo (..))
 import Database.Selda.SQL.Print.Config
 import Database.Selda.Types (TableName, ColName)
@@ -152,7 +153,7 @@ fromColInfo :: Table.ColInfo -> ColumnInfo
 fromColInfo ci = ColumnInfo
     { colName = Table.colName ci
     , colType = Right $ Table.colType ci
-    , colIsAutoPrimary = AutoPrimary `elem` Table.colAttrs ci
+    , colIsAutoPrimary = any isAutoPrimary (Table.colAttrs ci)
     , colIsNullable = Optional `elem` Table.colAttrs ci
     , colHasIndex = not $ null [() | Indexed _ <- Table.colAttrs ci]
     , colFKs = map fk (Table.colFKs ci)

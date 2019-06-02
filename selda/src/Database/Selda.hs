@@ -82,7 +82,9 @@ module Database.Selda
   , ForeignKey (..)
   , SelectorLike, Group (..), sel
   , table, tableFieldMod
-  , primary, autoPrimary, untypedAutoPrimary, unique
+  , primary, autoPrimary, weakAutoPrimary
+  , untypedAutoPrimary, weakUntypedAutoPrimary
+  , unique
   , IndexMethod (..), index, indexUsing
 
     -- * Creating and dropping tables

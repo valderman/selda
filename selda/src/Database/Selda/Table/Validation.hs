@@ -62,7 +62,7 @@ validate name cis = errs
       , (Table ftn fcs _ _, fcn) <- colFKs ci
       , fc <- fcs
       , colName fc == fcn
-      , not $ Prelude.any (`elem` colAttrs fc) [Primary, AutoPrimary, Unique]
+      , not $ Prelude.any isUnique (colAttrs fc)
       ]
 
     -- This should be impossible, but...
@@ -79,7 +79,7 @@ validate name cis = errs
     pkAttrs =
       [ attr
       | attr <- concatMap colAttrs cis
-      , attr `elem` [Primary, AutoPrimary]
+      , isPrimary attr
       ]
 
 -- | Return all columns of the given table if the table schema is valid,

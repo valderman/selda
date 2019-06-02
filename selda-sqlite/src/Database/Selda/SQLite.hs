@@ -8,12 +8,14 @@ module Database.Selda.SQLite
   ) where
 import Database.Selda
 import Database.Selda.Backend
+import Database.Selda.SQLite.Parser
+import Data.Maybe (fromJust)
 #ifndef __HASTE__
 import Control.Monad (void, when, unless)
 import Control.Monad.Catch
 import Data.ByteString.Lazy (toStrict)
 import Data.Dynamic
-import Data.Text as Text (pack, toLower, take, isSuffixOf)
+import Data.Text as Text (pack, toLower, take)
 import Data.Time (FormatTime, formatTime, defaultTimeLocale)
 import Data.UUID.Types (toByteString)
 import Database.SQLite3
@@ -82,8 +84,12 @@ sqliteGetTableInfo :: Database -> Text -> IO TableInfo
 sqliteGetTableInfo db tbl = do
     cols <- (snd . snd) <$> sqliteQueryRunner db tblinfo []
     fks <- (snd . snd) <$> sqliteQueryRunner db fklist []
+    createQuery <- (snd . snd) <$> sqliteQueryRunner db autos []
+    let cs = case createQuery of
+          [[SqlString q]] -> colsFromQuery q
+          _               -> []
     ixs <- mapM indexInfo . snd . snd =<< sqliteQueryRunner db indexes []
-    colInfos <- mapM (describe fks ixs) cols
+    colInfos <- mapM (describe fks ixs cs) cols
     return $ TableInfo
       { tableColumnInfos = colInfos
       , tableUniqueGroups =
@@ -99,6 +105,7 @@ sqliteGetTableInfo db tbl = do
     tblinfo = mconcat ["PRAGMA table_info(", tbl, ");"]
     indexes = mconcat ["PRAGMA index_list(", tbl, ");"]
     fklist = mconcat ["PRAGMA foreign_key_list(", tbl, ");"]
+    autos = mconcat ["SELECT sql FROM sqlite_master WHERE name = ", tbl, ";"]
     ixinfo name = mconcat ["PRAGMA index_info(", name, ");"]
 
     toTypeRep _ "text"                      = Right TText
@@ -119,11 +126,12 @@ sqliteGetTableInfo db tbl = do
     indexInfo _ = do
       error "unreachable"
 
-    describe fks ixs [_, SqlString name, SqlString ty, SqlInt nonnull, _, SqlInt pk] = do
+    describe fks ixs cs [_, SqlString name, SqlString ty, SqlInt nonnull, _, SqlInt pk] = do
+      let ty' = toLower ty
       return $ ColumnInfo
         { colName = mkColName name
-        , colType = toTypeRep (pk == 1) (toLower ty)
-        , colIsAutoPrimary = "auto_increment" `isSuffixOf` ty
+        , colType = toTypeRep (pk == 1) ty'
+        , colIsAutoPrimary = snd $ fromJust $ lookup name cs
         , colHasIndex = any (== ([name], "c")) ixs
         , colIsNullable = nonnull == 0
         , colFKs =
@@ -132,7 +140,7 @@ sqliteGetTableInfo db tbl = do
             , key == name
             ]
         }
-    describe _ _ result = do
+    describe _ _ _ result = do
       throwM $ SqlError $ "bad result from PRAGMA table_info: " ++ show result
 
 disableFKs :: Database -> Bool -> IO ()

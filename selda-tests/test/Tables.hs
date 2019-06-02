@@ -37,8 +37,9 @@ pCash = #cash :: HasField "cash" t => Selector t (FieldType "cash" t)
 addresses :: Table (Text, Text)
 (addresses, aName :*: aCity) = tableWithSelectors "addresses" []
 
-comments :: Table (RowID, Maybe Text, Text)
+comments, weakComments :: Table (RowID, Maybe Text, Text)
 comments = table "comments" [cId :- untypedAutoPrimary]
+weakComments = table "comments" [cId :- weakUntypedAutoPrimary]
 cId :*: cName :*: cComment = selectors comments
 
 peopleItems =

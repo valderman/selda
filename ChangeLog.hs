@@ -22,6 +22,7 @@ changeLog =
     , "Expose backend internals through Database.Selda.Backend.Internal. (#109)"
     , "Expose SQLite connection handle. (#101)"
     , "Make MonadSelda more amenable to connection pooling. (#108)"
+    , "Add weakly auto-incrementing primary keys. (#94)"
     , "Remove in-process cache. (#117)"
     , "Officially support GHC 8.6, 8.8 (SQLite only until postgres dependencies catch up with 8.8)."
     , "Drop support for GHC 7.10. (#118)"

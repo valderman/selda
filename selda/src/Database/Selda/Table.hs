@@ -8,12 +8,15 @@
 #endif
 module Database.Selda.Table
   ( SelectorLike, Group (..), Attr (..), Table (..), Attribute
-  , ColInfo (..), ColAttr (..), IndexMethod (..)
+  , ColInfo (..), AutoIncType (..), ColAttr (..), IndexMethod (..)
   , ForeignKey (..)
   , table, tableFieldMod
-  , primary, autoPrimary, untypedAutoPrimary, unique
+  , primary, autoPrimary, weakAutoPrimary
+  , untypedAutoPrimary, weakUntypedAutoPrimary
+  , unique
   , index, indexUsing
   , tableExpr, indexedCols
+  , isAutoPrimary, isPrimary, isUnique
   ) where
 import Data.Text (Text)
 #if MIN_VERSION_base(4, 10, 0)
@@ -129,7 +132,7 @@ tableFieldMod tn attrs fieldMod = Table
       , let ixs = indices sel
       ]
     cols = zipWith addAttrs [0..] (tblCols (Proxy :: Proxy a) fieldMod)
-    apk = or [AutoPrimary `elem` as | _ :- Attribute as <- attrs]
+    apk = or [any isAutoPrimary as | _ :- Attribute as <- attrs]
     addAttrs n ci = ci
       { colAttrs = colAttrs ci ++ concat
           [ as
@@ -180,12 +183,26 @@ indexUsing m = Attribute [Indexed (Just m)]
 
 -- | An auto-incrementing primary key.
 autoPrimary :: Attribute Selector t (ID t)
-autoPrimary = Attribute [AutoPrimary, Required]
+autoPrimary = Attribute [AutoPrimary Strong, Required]
+
+-- | A "weakly auto-incrementing" primary key.
+--   Behaves like 'autoPrimary', but the sequence of generated keys is not
+--   guaranteed to be monotonically increasing.
+--
+--   This gives better performance on some backends, but means that
+--   the relation @a > b <=> a was inserted at a later point in time than b@
+--   does not hold.
+weakAutoPrimary :: Attribute Selector t (ID t)
+weakAutoPrimary = Attribute [AutoPrimary Weak, Required]
 
 -- | An untyped auto-incrementing primary key.
 --   You should really only use this for ad hoc tables, such as tuples.
 untypedAutoPrimary :: Attribute Selector t RowID
-untypedAutoPrimary = Attribute [AutoPrimary, Required]
+untypedAutoPrimary = Attribute [AutoPrimary Strong, Required]
+
+-- | Like 'weakAutoPrimary', but for untyped IDs.
+weakUntypedAutoPrimary :: Attribute Selector t RowID
+weakUntypedAutoPrimary = Attribute [AutoPrimary Weak, Required]
 
 -- | A table-unique value.
 unique :: Attribute Group t a
