@@ -93,7 +93,7 @@ module Database.Selda
 
     -- * Tuple convenience functions
   , Tup, Head
-  , first, second, third, fourth, fifth, sixth, seventh, eighth, ninth, tenth
+  , first, second, third, fourth, fifth
 
     -- * Useful re-exports
   , MonadIO, MonadMask, liftIO

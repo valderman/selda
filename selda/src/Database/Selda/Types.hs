@@ -6,7 +6,7 @@
 -- | Basic Selda types.
 module Database.Selda.Types
   ( (:*:)(..), Head, Tup (..)
-  , first, second, third, fourth, fifth, sixth, seventh, eighth, ninth, tenth
+  , first, second, third, fourth, fifth
   , ColName, TableName
   , modColName, mkColName, mkTableName, addColSuffix, addColPrefix
   , fromColName, fromTableName, rawTableName
@@ -110,24 +110,3 @@ fourth (_ :*: _ :*: _ :*: d) = tupHead d
 -- | Get the fifth element of an inductive tuple.
 fifth :: Tup e => (a :*: b :*: c :*: d :*: e) -> Head e
 fifth (_ :*: _ :*: _ :*: _ :*: e) = tupHead e
-
--- | Get the sixth element of an inductive tuple.
-sixth :: Tup f => (a :*: b :*: c :*: d :*: e :*: f) -> Head f
-sixth (_ :*: _ :*: _ :*: _ :*: _ :*: f) = tupHead f
-
--- | Get the seventh element of an inductive tuple.
-seventh :: Tup g => (a :*: b :*: c :*: d :*: e :*: f :*: g) -> Head g
-seventh (_ :*: _ :*: _ :*: _ :*: _ :*: _ :*: g) = tupHead g
-
--- | Get the eighth element of an inductive tuple.
-eighth :: Tup h => (a :*: b :*: c :*: d :*: e :*: f :*: g :*: h) -> Head h
-eighth (_ :*: _ :*: _ :*: _ :*: _ :*: _ :*: _ :*: h) = tupHead h
-
--- | Get the ninth element of an inductive tuple.
-ninth :: Tup i => (a :*: b :*: c :*: d :*: e :*: f :*: h :*: h :*: i) -> Head i
-ninth (_ :*: _ :*: _ :*: _ :*: _ :*: _ :*: _ :*: _ :*: i) = tupHead i
-
--- | Get the tenth element of an inductive tuple.
-tenth :: Tup j => (a :*: b :*: c :*: d :*: e :*: f :*: g :*: h :*: i :*: j)
-      -> Head j
-tenth (_ :*: _ :*: _ :*: _ :*: _ :*: _ :*: _ :*: _ :*: _ :*: j) = tupHead j
