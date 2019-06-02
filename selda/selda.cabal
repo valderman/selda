@@ -25,11 +25,6 @@ tested-with:         GHC == 8.0.2, GHC == 8.4.1, GHC == 8.6.3, GHC == 8.8.1
 extra-source-files:
   README.md
 
-flag haste
-  default: False
-  description:
-    Automatically set when installing for the Haste compiler.
-
 source-repository head
   type:     git
   location: https://github.com/valderman/selda.git
