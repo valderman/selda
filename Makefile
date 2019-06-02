@@ -94,3 +94,5 @@ upload: check
 	cabal upload $$(for pkg in $(PACKAGES) ; do echo ./dist-newstyle/sdist/$$pkg-0.*.tar.gz ; done)
 	git push
 	git push --tags
+	echo "All done!"
+	echo "Don't forget to publish the package RCs and draft a GitHub release."
