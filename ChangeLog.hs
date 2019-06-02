@@ -10,7 +10,7 @@ import Text.Read
 
 changeLog :: ChangeLog
 changeLog =
-  [ Version "0.4.0.0" "TBD"
+  [ Version "0.4.0.0" "2019-06-02"
     "Major update."
     [ "Type-safe support for backend-specific functionality. Top level query definitions now require explicit type signature. (#80)"
     , "Native UUID support. (#47)"
@@ -24,6 +24,7 @@ changeLog =
     , "Make MonadSelda more amenable to connection pooling. (#108)"
     , "Add weakly auto-incrementing primary keys. (#94)"
     , "Move compile* functions to Database.Selda.Debug."
+    , "Remove half the tuple convenience functions."
     , "Remove in-process cache. (#117)"
     , "Officially support GHC 8.6, 8.8 (SQLite only until postgres dependencies catch up with 8.8)."
     , "Drop support for GHC 7.10. (#118)"
