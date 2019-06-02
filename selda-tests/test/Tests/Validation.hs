@@ -105,8 +105,15 @@ nonUniqueFKFails = do
 
 nonPrimaryUniqueFK :: SeldaM b ()
 nonPrimaryUniqueFK = do
+    tryDropTable addressesWithFK
+    tryDropTable uniquePeople
+
     createTable uniquePeople
     createTable addressesWithFK
+
+    validateTable uniquePeople
+    validateTable addressesWithFK
+
     dropTable addressesWithFK
     dropTable uniquePeople
   where
@@ -120,7 +127,9 @@ nonPrimaryUniqueFK = do
 
 nullableUnique :: SeldaM b ()
 nullableUnique = do
+    tryDropTable uniquePeople
     createTable uniquePeople
+    validateTable uniquePeople
     dropTable uniquePeople
   where
     uniquePeople :: Table (Text, Maybe Text)
@@ -129,10 +138,6 @@ nullableUnique = do
         [ Single upName :- unique
         , Single upPet :- unique
         ]
-    addressesWithFK :: Table (Text, Text)
-    addressesWithFK = table "addressesWithFK"
-      [ sel_fst :- foreignKey uniquePeople upName
-      ]
 
 validateWrongTable = do
     tryDropTable goodPeople

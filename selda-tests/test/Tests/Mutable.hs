@@ -398,6 +398,7 @@ multipleFKs = do
     one :*: two = selectors addressesWithFK
 
 uniqueViolation = do
+    tryDropTable uniquePeople
     createTable uniquePeople
     assertFail $ insert_ uniquePeople
       [ ("Link", Nothing)

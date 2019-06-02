@@ -286,7 +286,7 @@ pgGetTableInfo c tbl = do
       , "FROM pg_index i "
       , "JOIN pg_attribute a ON a.attrelid = i.indrelid "
       , "  AND a.attnum = ANY(i.indkey) "
-      , "WHERE i.indrelid = '", tbl, "'::regclass "
+      , "WHERE i.indrelid = '\"", tbl, "\"'::regclass "
       , "  AND i.indisprimary;"
       ]
     uniquequery = mconcat
@@ -294,7 +294,7 @@ pgGetTableInfo c tbl = do
       , "FROM pg_index i "
       , "JOIN pg_attribute a ON a.attrelid = i.indrelid "
       , "  AND a.attnum = ANY(i.indkey) "
-      , "WHERE i.indrelid = '", tbl, "'::regclass "
+      , "WHERE i.indrelid = '\"", tbl, "\"'::regclass "
       , "  AND i.indisunique "
       , "  AND NOT i.indisprimary "
       , "GROUP BY i.indkey;"
