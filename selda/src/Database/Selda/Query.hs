@@ -52,7 +52,7 @@ selectValues (row:rows) = Query $ do
     defToVal (Right x) = x
 
 -- | Restrict the query somehow. Roughly equivalent to @WHERE@.
-restrict :: Col s Bool -> Query s ()
+restrict :: Same s t => Col s Bool -> Query t ()
 restrict (One p) = Query $ do
     st <- get
     put $ case sources st of
@@ -168,7 +168,7 @@ someJoin jointype check q = Query $ do
 -- >   person <- select people
 -- >   name' <- groupBy (person ! name)
 -- >   return (name' :*: count(person ! pet_name) .> 0)
-groupBy :: SqlType a => Col (Inner s) a -> Query (Inner s) (Aggr (Inner s) a)
+groupBy :: (Same s t, SqlType a) => Col (Inner s) a -> Query (Inner t) (Aggr (Inner t) a)
 groupBy (One c) = Query $ do
   st <- get
   put $ st {groupCols = Some c : groupCols st}
@@ -176,7 +176,7 @@ groupBy (One c) = Query $ do
 
 -- | Drop the first @m@ rows, then get at most @n@ of the remaining rows from the
 --   given subquery.
-limit :: Int -> Int -> Query (Inner s) a -> Query s (OuterCols a)
+limit :: Same s t => Int -> Int -> Query (Inner s) a -> Query t (OuterCols a)
 limit from to q = Query $ do
   (lim_st, res) <- isolate q
   st <- get
@@ -208,7 +208,7 @@ limit from to q = Query $ do
 --   is buried somewhere deep in an earlier query.
 --   However, the ordering must always be stable, to ensure that previous
 --   calls to order are not simply erased.
-order :: SqlType a => Col s a -> Order -> Query s ()
+order :: (Same s t, SqlType a) => Col s a -> Order -> Query t ()
 order (One c) o = Query $ do
   st <- get
   case sources st of

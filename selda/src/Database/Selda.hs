@@ -32,7 +32,7 @@ module Database.Selda
 
     -- * Constructing queries
   , SqlType (..), SqlRow (..), SqlEnum (..)
-  , Columns
+  , Columns, Same
   , Order (..)
   , (:*:)(..)
   , select, selectValues, from, distinct
@@ -278,8 +278,8 @@ infixr 7 `suchThat`
 --   semantics are used. This means that comparing to a @NULL@ field will remove
 --   the row in question from the current set.
 --   To test for @NULL@, use 'isNull' instead of @.== literal Nothing@.
-(.==), (./=) :: SqlType a => Col s a -> Col s a -> Col s Bool
-(.>), (.<), (.>=), (.<=) :: SqlOrd a => Col s a -> Col s a -> Col s Bool
+(.==), (./=) :: (Same s t, SqlType a) => Col s a -> Col t a -> Col s Bool
+(.>), (.<), (.>=), (.<=) :: (Same s t, SqlOrd a) => Col s a -> Col t a -> Col s Bool
 (.==) = liftC2 $ BinOp Eq
 (./=) = liftC2 $ BinOp Neq
 (.>)  = liftC2 $ BinOp Gt
@@ -301,16 +301,16 @@ isNull = liftC $ UnOp IsNull
 --   and returns the given default value where it is.
 --
 --   This is the Selda equivalent of 'maybe'.
-matchNull :: (SqlType a, SqlType b)
+matchNull :: (SqlType a, SqlType b, Same s t)
           => Col s b
           -> (Col s a -> Col s b)
-          -> Col s (Maybe a)
+          -> Col t (Maybe a)
           -> Col s b
 matchNull nullvalue f x = ifThenElse (isNull x) nullvalue (f (cast x))
 
 -- | If the second value is Nothing, return the first value. Otherwise return
 --   the second value.
-ifNull :: SqlType a => Col s a -> Col s (Maybe a) -> Col s a
+ifNull :: (Same s t, SqlType a) => Col s a -> Col t (Maybe a) -> Col s a
 ifNull nullvalue x = ifThenElse (isNull x) nullvalue (cast x)
 
 -- | Any container type which can be mapped over.
@@ -334,7 +334,7 @@ instance Mappable Col where
 -- | Any container type for which we can check object membership.
 class Set set where
   -- | Is the given column contained in the given set?
-  isIn :: SqlType a => Col s a -> set (Col s a) -> Col s Bool
+  isIn :: (Same s t, SqlType a) => Col s a -> set (Col t a) -> Col s Bool
 infixl 4 `isIn`
 
 instance Set [] where
@@ -344,7 +344,7 @@ instance Set [] where
 instance Set (Query s) where
   isIn (One x) = One . InQuery x . snd . compQueryWithFreshScope
 
-(.&&), (.||) :: Col s Bool -> Col s Bool -> Col s Bool
+(.&&), (.||) :: Same s t => Col s Bool -> Col t Bool -> Col s Bool
 (.&&) = liftC2 $ BinOp And
 (.||) = liftC2 $ BinOp Or
 infixr 3 .&&
@@ -374,8 +374,8 @@ just = cast
 
 -- | Returns 'true' if the given field in the given row is equal to the given
 --   literal.
-is :: SqlType c => Selector r c -> c -> Row s r -> Col s Bool
-is s x r = r ! s .== literal x
+is :: forall r s c. SqlType c => Selector r c -> c -> Row s r -> Col s Bool
+is s x r = r ! s .== (literal x :: Col s c)
 
 -- | SQL NULL, at any type you like.
 null_ :: SqlType a => Col s (Maybe a)
@@ -402,7 +402,7 @@ false = literal False
 --   For instance:
 --
 -- > "%gon" `like` "dragon" .== true
-like :: Col s Text -> Col s Text -> Col s Bool
+like :: Same s t => Col s Text -> Col t Text -> Col s Bool
 like = liftC2 $ BinOp Like
 infixl 4 `like`
 
@@ -458,5 +458,5 @@ toString :: SqlType a => Col s a -> Col s Text
 toString = cast
 
 -- | Perform a conditional on a column
-ifThenElse :: SqlType a => Col s Bool -> Col s a -> Col s a -> Col s a
+ifThenElse :: (Same s t, Same t u, SqlType a) => Col s Bool -> Col t a -> Col u a -> Col s a
 ifThenElse = liftC3 If

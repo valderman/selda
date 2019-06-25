@@ -1,8 +1,9 @@
 {-# LANGUAGE GADTs, TypeFamilies, TypeOperators, PolyKinds #-}
 {-# LANGUAGE FlexibleInstances, OverloadedStrings, ScopedTypeVariables #-}
+{-# LANGUAGE DataKinds, UndecidableInstances, MultiParamTypeClasses #-}
 -- | Columns and associated utility functions, specialized to 'SQL'.
 module Database.Selda.Column
-  ( Columns
+  ( Columns, Same
   , Row (..), Col (..), SomeCol (..), UntypedCol (..)
   , Exp (..), NulOp (..), UnOp (..), BinOp (..)
   , toTup, fromTup, liftC, liftC2, liftC3
@@ -18,6 +19,7 @@ import Database.Selda.Types
 import Data.Proxy
 import Data.String
 import Data.Text (Text)
+import GHC.TypeLits as TL
 
 -- | Any column tuple.
 class Columns a where
@@ -66,8 +68,15 @@ liftC3 :: (Exp SQL a -> Exp SQL b -> Exp SQL c -> Exp SQL d)
        -> Col s d
 liftC3 f (One a) (One b) (One c) = One (f a b c)
 
-liftC2 :: (Exp SQL a -> Exp SQL b -> Exp SQL c) -> Col s a -> Col s b -> Col s c
-liftC2 f (One a) (One b) = One (f a b)
+-- | Denotes that scopes @s@ and @t@ are identical.
+class s ~ t => Same s t where
+  liftC2 :: (Exp SQL a -> Exp SQL b -> Exp SQL c) -> Col s a -> Col t b -> Col s c
+  liftC2 f (One a) (One b) = One (f a b)
+
+instance {-# OVERLAPPING #-} Same s s
+instance {-# OVERLAPPABLE #-} (s ~ t, TypeError
+  ('TL.Text "An identifier from an outer scope may not be used in an inner query."))
+  => Same s t
 
 liftC :: (Exp SQL a -> Exp SQL b) -> Col s a -> Col s b
 liftC f (One x) = One (f x)

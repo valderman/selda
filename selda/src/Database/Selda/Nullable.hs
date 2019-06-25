@@ -28,16 +28,16 @@ type family NonNull a where
 fromNullable :: SqlType (NonNull a) => Col s a -> Col s (NonNull a)
 fromNullable = unsafeCoerce
 
-(?==), (?/=) :: (a :?~ b, SqlType a) => Col s a -> Col s b -> Col s (Maybe Bool)
+(?==), (?/=) :: (a :?~ b, SqlType a, Same s t) => Col s a -> Col t b -> Col s (Maybe Bool)
 
-(?>), (?<), (?>=), (?<=) :: (a :?~ b, SqlOrd (NonNull a))
-                         => Col s a -> Col s b -> Col s (Maybe Bool)
+(?>), (?<), (?>=), (?<=) :: (a :?~ b, SqlOrd (NonNull a), Same s t)
+                         => Col s a -> Col t b -> Col s (Maybe Bool)
 
-(?+), (?-), (?*) :: (a :?~ b, Num (NonNull a))
-                 => Col s a -> Col s b -> Col s (Maybe (NonNull a))
+(?+), (?-), (?*) :: (a :?~ b, Num (NonNull a), Same s t)
+                 => Col s a -> Col t b -> Col s (Maybe (NonNull a))
 
-(?/) :: (a :?~ b, Fractional (Col s (NonNull a)))
-     => Col s a -> Col s b -> Col s (Maybe (NonNull a))
+(?/) :: (a :?~ b, Fractional (Col s (NonNull a)), Same s t)
+     => Col s a -> Col t b -> Col s (Maybe (NonNull a))
 
 a ?== b = cast $ fromNullable a .== fromNullable b
 a ?/= b = cast $ fromNullable a ./= fromNullable b
@@ -69,12 +69,12 @@ infixl 9 ?!
 
 -- | Converts a nullable column into a non-nullable one, yielding the empty
 --   result set if the column is null.
-nonNull :: SqlType a => Col s (Maybe a) -> Query s (Col s a)
+nonNull :: (Same s t, SqlType a) => Col s (Maybe a) -> Query t (Col t a)
 nonNull x = do
   restrict (not_ $ isNull x)
   return (fromNullable x)
 
 -- | Restrict a query using a nullable expression.
 --   Equivalent to @restrict . ifNull false@.
-restrict' :: Col s (Maybe Bool) -> Query s ()
+restrict' :: Same s t => Col s (Maybe Bool) -> Query t ()
 restrict' = restrict . fromNullable
