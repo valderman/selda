@@ -1,4 +1,4 @@
-{ pkgs ? import <nixpkgs> {}, compiler ? "ghc802" }:
+{ pkgs ? import <nixpkgs> {}, compiler ? "ghc863" }:
 let
   hps = pkgs.haskell.packages.${compiler}.override {
     overrides = self: super: with pkgs.haskell.lib; {

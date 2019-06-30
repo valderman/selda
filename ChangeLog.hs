@@ -10,7 +10,12 @@ import Text.Read
 
 changeLog :: ChangeLog
 changeLog =
-  [ Version "0.4.0.0" "2019-06-02"
+  [ Version "0.4.1.0" "2019-06-30"
+    "Better type errors and generic row identifiers"
+    [ "Custom type errors for scope mismatches."
+    , "Provide Generic instances for ID and RowID."
+    ]
+  , Version "0.4.0.0" "2019-06-02"
     "Major update."
     [ "Type-safe support for backend-specific functionality. Top level query definitions now require explicit type signature. (#80)"
     , "Native UUID support. (#47)"
