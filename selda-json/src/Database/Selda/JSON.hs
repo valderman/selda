@@ -3,7 +3,7 @@ module Database.Selda.JSON (JSONBackend (..)) where
 import Database.Selda (Text, Col, Inner)
 import Database.Selda.Backend
 import Database.Selda.Unsafe (sink, sink2)
-import Data.Aeson (Value (Null), encode, decode')
+import Data.Aeson (Value (Null), encode, decode', FromJSON (..), ToJSON (..))
 import qualified Data.ByteString.Lazy as BSL (ByteString, fromStrict, toStrict)
 import Data.Text.Encoding (encodeUtf8)
 
@@ -40,3 +40,13 @@ instance SqlType Value where
   fromSql (SqlBlob t)   = maybe (decodeError t) id (decode' $ BSL.fromStrict t)
   fromSql (SqlString t) = maybe (decodeError t) id (decode' $ textToLazyBS t)
   fromSql x             = typeError x
+
+instance FromJSON RowID where
+  parseJSON = fmap toRowId . parseJSON
+instance ToJSON RowID where
+  toJSON = toJSON . fromRowId
+
+instance FromJSON (ID a) where
+  parseJSON = fmap toId . parseJSON
+instance ToJSON (ID a) where
+  toJSON = toJSON . fromId
