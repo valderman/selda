@@ -1,5 +1,5 @@
 {-# LANGUAGE GADTs, OverloadedStrings, ScopedTypeVariables, FlexibleInstances #-}
-{-# LANGUAGE UndecidableInstances, DefaultSignatures #-}
+{-# LANGUAGE UndecidableInstances, DefaultSignatures, DeriveGeneric #-}
 -- | Types representable as columns in Selda's subset of SQL.
 module Database.Selda.SqlType
   ( SqlType (..), SqlEnum (..)
@@ -18,6 +18,7 @@ import Data.Text (Text, pack, unpack)
 import Data.Time
 import Data.Typeable
 import Data.UUID.Types (UUID, toString, fromByteString, nil)
+import GHC.Generics (Generic)
 
 -- | Format string used to represent date and time when
 --   representing timestamps as text.
@@ -199,7 +200,7 @@ instance Show (Lit a) where
 -- | A row identifier for some table.
 --   This is the type of auto-incrementing primary keys.
 newtype RowID = RowID Int
-  deriving (Eq, Ord, Typeable)
+  deriving (Eq, Ord, Typeable, Generic)
 instance Show RowID where
   show (RowID n) = show n
 
@@ -227,7 +228,7 @@ fromRowId (RowID n) = n
 --   "Database.Selda.Unsafe" module if you for some reason need to add a type
 --   to a row identifier.
 newtype ID a = ID {untyped :: RowID}
-  deriving (Eq, Ord, Typeable)
+  deriving (Eq, Ord, Typeable, Generic)
 instance Show (ID a) where
   show = show . untyped
 
