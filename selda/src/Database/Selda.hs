@@ -21,7 +21,7 @@
 --   basics.
 module Database.Selda
   ( -- * Running queries
-    MonadSelda
+    MonadSelda, Backend
   , SeldaError (..), ValidationError
   , SeldaT, SeldaM
   , Relational, Only (..), The (..)
