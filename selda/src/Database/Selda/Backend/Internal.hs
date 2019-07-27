@@ -259,6 +259,9 @@ instance (MonadIO m, MonadMask m) => MonadSelda (SeldaT b m) where
   type Backend (SeldaT b m) = b
   withConnection m = S get >>= m
 
+instance MonadTrans (SeldaT b) where
+  lift = S . lift
+
 -- | The simplest form of Selda computation; 'SeldaT' specialized to 'IO'.
 type SeldaM b = SeldaT b IO
 

@@ -10,11 +10,12 @@ import Text.Read
 
 changeLog :: ChangeLog
 changeLog =
-  [ Version "0.4.1.0" "2019-06-30"
+  [ Version "0.4.1.0" "TBD"
     "Better type errors and generic row identifiers"
     [ "Custom type errors for scope mismatches."
     , "Provide Generic instances for ID and RowID."
     , "Provide To/FromJSON instances for ID and RowID (selda-json)."
+    , "Add back MonadTrans instance for SeldaT."
     ]
   , Version "0.4.0.0" "2019-06-02"
     "Major update."
