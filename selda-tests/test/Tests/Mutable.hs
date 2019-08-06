@@ -815,7 +815,7 @@ migrateIndex = do
     dropTable tbl1
   where
     tbl1 :: Table (Only Int)
-    (tbl1, a1) = tableWithSelectors "foo" [a1 :- index]
+    (tbl1, a1) = tableWithSelectors "foo" [Single a1 :- index]
 
     tbl2 :: Table (Int, Int)
-    (tbl2, a2 :*: b) = tableWithSelectors "foo" [a2 :- index]
+    (tbl2, a2 :*: b) = tableWithSelectors "foo" [Single a2 :- index]

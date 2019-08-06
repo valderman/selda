@@ -23,14 +23,6 @@ data Table a = Table
   , tableAttrs :: [([Int], ColAttr)]
   }
 
--- | Get all table columns with an explicit index.
-indexedCols :: Table a -> [(ColName, Maybe IndexMethod)]
-indexedCols t =
-  [ (colName col, mmethod)
-  | col <- tableCols t
-  , Indexed mmethod <- colAttrs col
-  ]
-
 -- | A complete description of a database column.
 data ColInfo = ColInfo
   { colName  :: ColName

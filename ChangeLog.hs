@@ -10,7 +10,10 @@ import Text.Read
 
 changeLog :: ChangeLog
 changeLog =
-  [ Version "0.4.1.0" "TBD"
+  [ Version "0.5.0.0" "2019-08-05"
+    "Multi-column support"
+    ["index and indexUsing now accept a Group instead of a Selector"]
+  , Version "0.4.1.0" "2019-06-30"
     "Better type errors and generic row identifiers"
     [ "Custom type errors for scope mismatches."
     , "Provide Generic instances for ID and RowID."

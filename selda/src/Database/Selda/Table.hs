@@ -15,7 +15,7 @@ module Database.Selda.Table
   , untypedAutoPrimary, weakUntypedAutoPrimary
   , unique
   , index, indexUsing
-  , tableExpr, indexedCols
+  , tableExpr
   , isAutoPrimary, isPrimary, isUnique
   ) where
 import Data.Text (Text)
@@ -122,9 +122,10 @@ tableFieldMod tn attrs fieldMod = Table
       | sel :- Attribute [a] <- attrs
       , let ixs = indices sel
       , case ixs of
-          (_:_:_)           -> True
-          [_] | a == Unique -> True
-          _                 -> False
+          (_:_:_)              -> True
+          [_] | a == Unique    -> True
+          [_] | Indexed _ <- a -> True
+          _                    -> False
       ]
     pkAttrs = concat
       [ [(ixs, Primary), (ixs, Required)]
@@ -173,12 +174,12 @@ data Attribute (g :: * -> * -> *) t c
 primary :: Attribute Group t a
 primary = Attribute [Primary, Required]
 
--- | Create an index on this column.
-index :: Attribute Selector t c
+-- | Create an index on these column(s).
+index :: Attribute Group t c
 index = Attribute [Indexed Nothing]
 
 -- | Create an index using the given index method on this column.
-indexUsing :: IndexMethod -> Attribute Selector t c
+indexUsing :: IndexMethod -> Attribute Group t c
 indexUsing m = Attribute [Indexed (Just m)]
 
 -- | An auto-incrementing primary key.

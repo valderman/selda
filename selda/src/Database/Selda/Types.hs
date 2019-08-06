@@ -9,15 +9,15 @@ module Database.Selda.Types
   , first, second, third, fourth, fifth
   , ColName, TableName
   , modColName, mkColName, mkTableName, addColSuffix, addColPrefix
-  , fromColName, fromTableName, rawTableName
+  , fromColName, fromTableName, rawTableName, intercalateColNames
   ) where
 import Data.Dynamic
 import Data.String
-import Data.Text (Text, replace, append)
+import Data.Text (Text, replace, append, intercalate)
 import GHC.Generics (Generic)
 
 -- | Name of a database column.
-newtype ColName = ColName Text
+newtype ColName = ColName { unColName :: Text }
   deriving (Ord, Eq, Show, IsString)
 
 -- | Name of a database table.
@@ -39,6 +39,15 @@ addColSuffix (ColName cn) s = ColName $ Data.Text.append cn s
 -- | Convert a column name into a string, with quotes.
 fromColName :: ColName -> Text
 fromColName (ColName cn) = mconcat ["\"", escapeQuotes cn, "\""]
+
+-- | Convert column names into a string, without quotes, intercalating the given
+-- string.
+--
+-- @
+-- intercalateColNames "_" [ColName "a", ColName "b"] == "a_b"
+-- @
+intercalateColNames :: Text -> [ColName] -> Text
+intercalateColNames inter cs = intercalate inter (escapeQuotes . unColName <$> cs)
 
 -- | Convert a table name into a string, with quotes.
 fromTableName :: TableName -> Text
