@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings, TypeOperators, DeriveGeneric, CPP #-}
 #if MIN_VERSION_base(4, 9, 0)
-{-# LANGUAGE OverloadedLabels, FlexibleContexts, DataKinds #-}
+{-# LANGUAGE OverloadedLabels, FlexibleContexts, DataKinds, MonoLocalBinds #-}
 #endif
 -- | Tables for reuse by most tests, and functions for their setup and teardown.
 module Tables where
@@ -25,9 +25,11 @@ modPeople = tableFieldMod "modpeople" [Single pName :- primary] $ \name ->
 people :: Table Person
 people = table "people"
   [ Single pName :- primary
-  , pName :- index
-  , pCash :- indexUsing HashIndex
+  , Single pName :- index
+  , Single pCash :- indexUsing HashIndex
+  , pName :+ Single pCash :- index
   ]
+
 pName = #name :: Selector Person Text
 pAge :: HasField "age" t => Selector t (FieldType "age" t)
 pAge  = #age

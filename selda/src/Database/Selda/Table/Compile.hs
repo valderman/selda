@@ -3,13 +3,15 @@
 module Database.Selda.Table.Compile where
 import Database.Selda.Table
 import Database.Selda.Table.Validation
+import           Data.IntMap (IntMap)
+import qualified Data.IntMap as IntMap
 import Data.List (foldl')
 #if !MIN_VERSION_base(4, 11, 0)
 import Data.Monoid
 #endif
 import Data.Text (Text, intercalate, pack)
 import qualified Data.Text as Text
-import Database.Selda.SQL hiding (param)
+import Database.Selda.SQL hiding (param,cols)
 import Database.Selda.SQL.Print.Config
 import Database.Selda.SqlType (SqlTypeRep(..))
 import Database.Selda.Types
@@ -49,28 +51,48 @@ compileCreateTable cfg ifex tbl =
 -- | Compile the @CREATE INDEX@ queries for all indexes on the given table.
 compileCreateIndexes :: PPConfig -> OnError -> Table a -> [Text]
 compileCreateIndexes cfg ifex tbl =
-  [ compileCreateIndex cfg ifex (tableName tbl) col mmethod
-  | (col, mmethod) <- indexedCols tbl
+  [ compileCreateIndex cfg ifex (tableName tbl) (colNameOfIdx <$> idxs) mmethod
+  | (idxs, Indexed mmethod) <- tableAttrs tbl
   ]
+ where
+ idxMap :: IntMap ColName
+ idxMap = IntMap.fromList (zip [0..] (colName <$> tableCols tbl))
+ colNameOfIdx :: Int -> ColName
+ colNameOfIdx colIdx =
+    case IntMap.lookup colIdx idxMap of
+        Nothing   -> error "Impossible: Index has non-existant column-index."
+        Just name -> name
 
--- | Get the name to use for an index on the given column in the given table.
-indexNameFor :: TableName -> ColName -> Text
-indexNameFor t c =
-  fromColName $ addColPrefix c ("ix" <> rawTableName t <> "_")
+-- | Get the name to use for an index on the given column(s) in the given table.
+--
+-- To ensure uniqueness
+--
+-- 1. Name multi-column indexes by connecting column names
+--    with underscores.
+-- 2. Escape underscores in column names.
+--
+-- Thus the index of columns @["foo","bar"]@ becomes @ixTable_foo_bar@ while
+-- the index @["foo_bar"]@ receives an extra underscore to become
+-- @ixTable_foo__bar@.
+indexNameFor :: TableName -> [ColName] -> Text
+indexNameFor t cs =
+  let escUnderscore c = modColName c (Text.replace "_" "__") in
+  let ixPrefix partial = "ix" <> rawTableName t <> "_" <> partial
+  in ixPrefix (intercalateColNames "_" (escUnderscore <$> cs))
 
 -- | Compile a @CREATE INDEX@ query for the given index.
 compileCreateIndex :: PPConfig
                    -> OnError
                    -> TableName
-                   -> ColName
+                   -> [ColName]
                    -> Maybe IndexMethod
                    -> Text
-compileCreateIndex cfg ifex tbl col mmethod = mconcat
-  [ "CREATE INDEX ", indexNameFor tbl col, " ON ", fromTableName tbl
+compileCreateIndex cfg ifex tbl cols mmethod = mconcat
+  [ "CREATE INDEX ", indexNameFor tbl cols, " ON ", fromTableName tbl
   , case mmethod of
-      Just method -> " " <> ppIndexMethodHook cfg method
-      _           -> ""
-  , " (", fromColName col, ")"
+        Just method -> " " <> ppIndexMethodHook cfg method
+        Nothing     -> ""
+  , " (", Text.intercalate ", " (map fromColName cols), ")"
   , if ifex == Ignore then " IF NOT EXISTS" else ""
   ]
 

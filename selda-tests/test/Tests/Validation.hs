@@ -154,59 +154,59 @@ validateWrongTable = do
   where
     goodPeople :: Table (Text, Int, Maybe Text, Double)
     goodPeople = table "people"
-      [ (unsafeSelector 0 :: Selector (Text, Int, Maybe Text, Double) Text)
+      [ (Single (unsafeSelector 0 :: Selector (Text, Int, Maybe Text, Double) Text))
           :- index
-      , (unsafeSelector 3 :: Selector (Text, Int, Maybe Text, Double) Double)
+      , (Single (unsafeSelector 3 :: Selector (Text, Int, Maybe Text, Double) Double))
           :- indexUsing HashIndex
       ]
 
     badPeople1 :: Table (Text, Int, Text, Double)
     badPeople1 = table "people"
-      [ (unsafeSelector 0 :: Selector (Text, Int, Text, Double) Text)
+      [ (Single (unsafeSelector 0 :: Selector (Text, Int, Text, Double) Text))
           :- index
-      , (unsafeSelector 3 :: Selector (Text, Int, Text, Double) Double)
+      , (Single (unsafeSelector 3 :: Selector (Text, Int, Text, Double) Double))
           :- indexUsing HashIndex
       ]
 
     badPeople2 :: Table (Text, Bool, Maybe Text, Double)
     badPeople2 = table "people"
-      [ (unsafeSelector 0 :: Selector (Text, Bool, Maybe Text, Double) Text) :- index
-      , (unsafeSelector 3 :: Selector (Text, Bool, Maybe Text, Double) Double) :- indexUsing HashIndex
+      [ (Single (unsafeSelector 0 :: Selector (Text, Bool, Maybe Text, Double) Text)) :- index
+      , (Single (unsafeSelector 3 :: Selector (Text, Bool, Maybe Text, Double) Double)) :- indexUsing HashIndex
       ]
 
     badPeople3 :: Table (Text, Int, Maybe Text)
     badPeople3 = table "people"
-      [ (unsafeSelector 0 :: Selector (Text, Int, Maybe Text) Text) :- index
+      [ (Single (unsafeSelector 0 :: Selector (Text, Int, Maybe Text) Text)) :- index
       ]
 
     badPeople4 :: Table (Text, Int, Maybe Text, Double, Int)
     badPeople4 = table "people"
-      [ (unsafeSelector 0 :: Selector (Text, Int, Maybe Text, Double, Int) Text) :- index
-      , (unsafeSelector 3 :: Selector (Text, Int, Maybe Text, Double, Int) Double) :- indexUsing HashIndex
+      [ (Single (unsafeSelector 0 :: Selector (Text, Int, Maybe Text, Double, Int) Text)) :- index
+      , (Single (unsafeSelector 3 :: Selector (Text, Int, Maybe Text, Double, Int) Double)) :- indexUsing HashIndex
       ]
 
     badIxPeople1 :: Table (Text, Int, Maybe Text, Double)
     badIxPeople1 = table "people"
-      [ (unsafeSelector 3 :: Selector (Text, Int, Maybe Text, Double) Double) :- indexUsing HashIndex
+      [ (Single (unsafeSelector 3 :: Selector (Text, Int, Maybe Text, Double) Double)) :- indexUsing HashIndex
       ]
 
     badIxPeople2 :: Table (Text, Int, Maybe Text, Double)
     badIxPeople2 = table "people"
-      [ (unsafeSelector 2 :: Selector (Text, Int, Maybe Text, Double) (Maybe Text)) :- index
+      [ (Single (unsafeSelector 2 :: Selector (Text, Int, Maybe Text, Double) (Maybe Text))) :- index
       ]
 
     badIxPeople3 :: Table (Text, Int, Maybe Text, Double)
     badIxPeople3 = table "people"
-      [ (unsafeSelector 0 :: Selector (Text, Int, Maybe Text, Double) Text) :- index
-      , (unsafeSelector 2 :: Selector (Text, Int, Maybe Text, Double) (Maybe Text)) :- index
-      , (unsafeSelector 3 :: Selector (Text, Int, Maybe Text, Double) Double) :- indexUsing HashIndex
+      [ (Single (unsafeSelector 0 :: Selector (Text, Int, Maybe Text, Double) Text)) :- index
+      , (Single (unsafeSelector 2 :: Selector (Text, Int, Maybe Text, Double) (Maybe Text))) :- index
+      , (Single (unsafeSelector 3 :: Selector (Text, Int, Maybe Text, Double) Double)) :- indexUsing HashIndex
       ]
 
     badIxPeople4 :: Table (Text, Int, Maybe Text, Double)
     badIxPeople4 = table "people"
-      [ (unsafeSelector 1 :: Selector (Text, Int, Maybe Text, Double) Int) :- index
-      , (unsafeSelector 2 :: Selector (Text, Int, Maybe Text, Double) (Maybe Text)) :- indexUsing HashIndex
-      , (unsafeSelector 3 :: Selector (Text, Int, Maybe Text, Double) Double) :- indexUsing HashIndex
+      [ (Single (unsafeSelector 1 :: Selector (Text, Int, Maybe Text, Double) Int)) :- index
+      , (Single (unsafeSelector 2 :: Selector (Text, Int, Maybe Text, Double) (Maybe Text))) :- indexUsing HashIndex
+      , (Single (unsafeSelector 3 :: Selector (Text, Int, Maybe Text, Double) Double)) :- indexUsing HashIndex
       ]
 
 validateNonexistentTable = do
