@@ -41,8 +41,8 @@ type MigrationStep backend = [Migration backend]
 --   Both table schemas are validated before starting the migration, and the
 --   source table is validated against what's currently in the database.
 --
---   The migration is performed as a migration, ensuring that either the entire
---   migration passes, or none of it does.
+--   The migration is performed as a transaction, ensuring that either the
+--   entire migration passes, or none of it does.
 migrate :: (MonadSelda m, MonadMask m, Relational a, Relational b)
         => Table a -- ^ Table to migrate from.
         -> Table b -- ^ Table to migrate to.
