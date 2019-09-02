@@ -88,14 +88,13 @@ compileCreateIndex :: PPConfig
                    -> Maybe IndexMethod
                    -> Text
 compileCreateIndex cfg ifex tbl cols mmethod = mconcat
-  [ "CREATE INDEX "
-  , if ifex == Ignore then "IF NOT EXISTS " else " "
-  , indexNameFor tbl col
-  , " ON ", fromTableName tbl
+  [ "CREATE INDEX"
+  , if ifex == Ignore then " IF NOT EXISTS" else " "
+  , indexNameFor tbl cols, " ON ", fromTableName tbl
   , case mmethod of
-      Just method -> " " <> ppIndexMethodHook cfg method
-      _           -> ""
-  , " (", fromColName col, ")"
+        Just method -> " " <> ppIndexMethodHook cfg method
+        Nothing     -> ""
+  , " (", Text.intercalate ", " (map fromColName cols), ")"
   ]
 
 -- | Compile a foreign key constraint.
