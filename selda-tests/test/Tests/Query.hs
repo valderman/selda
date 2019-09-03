@@ -58,6 +58,7 @@ queryTests run = test
   , "coalesce sum" ~: run coalesceSum
   , "nonNull" ~: run nonNullYieldsEmptyResult
   , "teardown succeeds" ~: run teardown
+  , "if not exists works" ~: run (setup >> resetup)
   ]
 
 simpleSelect = do

@@ -62,6 +62,13 @@ commentItems =
   , (def, Nothing     , "Anonymous spam comment")
   ]
 
+resetup :: MonadSelda m => m ()
+resetup = do
+  tryCreateTable people
+  tryCreateTable modPeople
+  tryCreateTable addresses
+  tryCreateTable comments
+
 setup :: MonadSelda m => m ()
 setup = do
   createTable people

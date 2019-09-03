@@ -89,7 +89,7 @@ compileCreateIndex :: PPConfig
                    -> Text
 compileCreateIndex cfg ifex tbl cols mmethod = mconcat
   [ "CREATE INDEX"
-  , if ifex == Ignore then " IF NOT EXISTS" else " "
+  , if ifex == Ignore then " IF NOT EXISTS " else " "
   , indexNameFor tbl cols, " ON ", fromTableName tbl
   , case mmethod of
         Just method -> " " <> ppIndexMethodHook cfg method
