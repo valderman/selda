@@ -4,12 +4,17 @@
 
 As Selda uses a lot of fancy type magic to achieve a safe yet flexible
 programming model, figuring out how to use it from type signatures alone
-can be hard. While the types keep queries nice and safe, the type errors
-when something goes wrong can be a bit daunting.
+can be hard. While the types keep queries nice and safe, Haskell's type errors
+can be a bit daunting even under the best circumstances.
 
 This tutorial aims to give the reader a thorough intuition of how Selda works
 and why, to make those type errors more manageable and to help the reader avoid
 making them in the first place.
+
+Selda uses GHC's custom type error mechanism to make type errors more helpful,
+so if you encounter an error that confuses you even after reading this tutorial,
+please [file a bug](https://github.com/valderman/selda/issues/new) and we'll see
+what we can do about it.
 
 This tutorial assumes that the reader is already familiar with
 relational databases and can write and understand simple SQL queries.
