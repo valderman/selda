@@ -2,7 +2,7 @@
 }:
 mkDerivation {
   pname = "selda";
-  version = "0.4.1.0";
+  version = "0.5.0.0";
   src = ./.;
   libraryHaskellDepends = [
     base bytestring exceptions mtl text time containers random uuid-types
