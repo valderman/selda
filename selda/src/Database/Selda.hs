@@ -25,7 +25,7 @@ module Database.Selda
   , SeldaError (..), ValidationError
   , SeldaT, SeldaM
   , Relational, Only (..), The (..)
-  , Table, Query, Row, Col, Res, Result
+  , Table (tableName), Query, Row, Col, Res, Result
   , query, queryInto
   , transaction, withoutForeignKeyEnforcement
   , newUuid
