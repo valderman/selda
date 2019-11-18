@@ -30,12 +30,13 @@ import Data.Int (Int16, Int32, Int64)
 -- | OIDs for all types used by Selda.
 blobType, boolType, intType, int32Type, int16Type, textType, doubleType,
   dateType, timeType, timestampType, nameType, varcharType, uuidType,
-  jsonbType :: Oid
+  jsonbType, citextType :: Oid
 boolType      = Oid 16
 intType       = Oid 20
 int32Type     = Oid 23
 int16Type     = Oid 21
 textType      = Oid 25
+citextType    = Oid 3682264
 nameType      = Oid 19
 doubleType    = Oid 701
 dateType      = Oid 1082
@@ -106,7 +107,7 @@ toSqlValue t val
     parseTime = Dec.timetz_int <|> Dec.timetz_float
     toTime (tod, tz) = snd $ localToUTCTimeOfDay tz tod
     uuid2bs = LBS.toStrict . UUID.toByteString
-    textish = [textType, nameType, varcharType]
+    textish = [textType, nameType, varcharType, citextType]
 
 parse :: Value a -> BS.ByteString -> a
 parse p x =
