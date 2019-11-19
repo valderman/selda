@@ -247,6 +247,9 @@ transaction m = mask $ \restore -> transact $ do
 --   Use with extreme caution, preferably only for migrations.
 --
 --   On the PostgreSQL backend, at least PostgreSQL 9.6 is required.
+--
+--   Using this should be avoided in favor of deferred foreign key
+--   constraints. See SQL backend documentation for deferred constraints.
 withoutForeignKeyEnforcement :: (MonadSelda m, MonadMask m) => m a -> m a
 withoutForeignKeyEnforcement m = withBackend $ \b -> do
   bracket_ (liftIO $ disableForeignKeys b True)
