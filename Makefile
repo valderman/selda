@@ -79,7 +79,7 @@ postgres: license
 	make tags ; true
 
 repl:
-	cabal v2-repl --ghc-options="-XOverloadedStrings" selda $(CABAL_BUILDFLAGS)
+	cabal v2-repl --ghc-options="-XOverloadedStrings" selda-sqlite $(CABAL_BUILDFLAGS)
 
 upload-selda: check
 	cabal v2-run selda-changelog validate
