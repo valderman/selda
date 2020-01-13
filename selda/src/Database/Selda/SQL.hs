@@ -1,8 +1,10 @@
 {-# LANGUAGE GADTs, OverloadedStrings, ScopedTypeVariables, RecordWildCards #-}
 {-# LANGUAGE TypeOperators, FlexibleInstances, UndecidableInstances #-}
-{-# LANGUAGE RankNTypes, CPP #-}
+{-# LANGUAGE RankNTypes, CPP, MultiParamTypeClasses #-}
 -- | SQL AST and parameters for prepared statements.
 module Database.Selda.SQL where
+import Data.String
+import Data.Text (Text)
 import Database.Selda.Exp
 import Database.Selda.SqlType
 import Database.Selda.Types
@@ -10,12 +12,24 @@ import Database.Selda.Types
 import Data.Monoid hiding (Product)
 #endif
 
+instance Semigroup QueryFragment where
+  (<>) = RawCat
+
+data QueryFragment where
+  RawText :: !Text -> QueryFragment
+  RawExp  :: !(Exp SQL a) -> QueryFragment
+  RawCat  :: !QueryFragment -> !QueryFragment -> QueryFragment
+
+instance IsString QueryFragment where
+  fromString = RawText . fromString
+
 -- | A source for an SQL query.
 data SqlSource
  = TableName !TableName
  | Product ![SQL]
  | Join !JoinType !(Exp SQL Bool) !SQL !SQL
  | Values ![SomeCol SQL] ![[Param]]
+ | RawSql !QueryFragment
  | EmptyTable
 
 -- | Type of join to perform.
@@ -32,11 +46,17 @@ data SQL = SQL
   , distinct  :: !Bool
   }
 
+instance Names QueryFragment where
+  allNamesIn (RawText _)  = []
+  allNamesIn (RawExp e)   = allNamesIn e
+  allNamesIn (RawCat a b) = allNamesIn a ++ allNamesIn b
+
 instance Names SqlSource where
   allNamesIn (Product qs)   = concatMap allNamesIn qs
   allNamesIn (Join _ e l r) = allNamesIn e ++ concatMap allNamesIn [l, r]
   allNamesIn (Values vs _)  = allNamesIn vs
   allNamesIn (TableName _)  = []
+  allNamesIn (RawSql r)     = allNamesIn r
   allNamesIn (EmptyTable)   = []
 
 instance Names SQL where

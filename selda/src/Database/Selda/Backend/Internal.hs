@@ -45,8 +45,10 @@ data BackendID = SQLite | PostgreSQL | Other Text
 
 -- | Thrown by any function in 'SeldaT' if an error occurs.
 data SeldaError
-  = DbError String  -- ^ Unable to open or connect to database.
-  | SqlError String -- ^ An error occurred while executing query.
+  = DbError String     -- ^ Unable to open or connect to database.
+  | SqlError String    -- ^ An error occurred while executing query.
+  | UnsafeError String -- ^ An error occurred due to improper use of an unsafe
+                       --   function.
   deriving (Show, Eq, Typeable)
 
 instance Exception SeldaError
@@ -219,11 +221,6 @@ data SeldaBackend b = SeldaBackend
   }
 
 -- | Some monad with Selda SQL capabilitites.
---
---   Note that the default implementations of 'invalidateTable' and
---   'wrapTransaction' flush the entire cache and disable caching when
---   invoked. If you want to use Selda's built-in caching mechanism, you will
---   need to implement these operations yourself.
 class MonadIO m => MonadSelda m where
   {-# MINIMAL withConnection #-}
 

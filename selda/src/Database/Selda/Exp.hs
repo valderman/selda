@@ -33,6 +33,7 @@ data Exp sql a where
   Fun2    :: !Text -> !(Exp sql a) -> !(Exp sql b) -> Exp sql c
   If      :: !(Exp sql Bool) -> !(Exp sql a) -> !(Exp sql a) -> Exp sql a
   Cast    :: !SqlTypeRep -> !(Exp sql a) -> Exp sql b
+  Raw     :: !Text -> Exp sql a
   AggrEx  :: !Text -> !(Exp sql a) -> Exp sql b
   InList  :: !(Exp sql a) -> ![Exp sql a] -> Exp sql Bool
   InQuery :: !(Exp sql a) -> !sql -> Exp sql Bool
@@ -84,6 +85,7 @@ instance Names sql => Names (Exp sql a) where
   allNamesIn (AggrEx _ x)  = allNamesIn x
   allNamesIn (InList x xs) = concatMap allNamesIn (x:xs)
   allNamesIn (InQuery x q) = allNamesIn x ++ allNamesIn q
+  allNamesIn (Raw _)       = []
 
 instance Names sql => Names (SomeCol sql) where
   allNamesIn (Some c)    = allNamesIn c

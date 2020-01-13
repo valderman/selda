@@ -6,11 +6,20 @@ module Database.Selda.Unsafe
   , aggr
   , cast, castAggr, sink, sink2
   , unsafeSelector
+  , QueryFragment, inj, injLit, rawName, rawExp, rawStm, rawQuery, rawQuery1
   ) where
+import Control.Exception (throw)
+import Control.Monad.State.Strict
+import Database.Selda.Backend.Internal
 import Database.Selda.Column
+import Database.Selda.Exp (UntypedCol (..))
 import Database.Selda.Inner (Inner, Aggr, aggr, liftAggr)
 import Database.Selda.Selectors (unsafeSelector)
-import Database.Selda.SqlType
+import Database.Selda.Query.Type (Query (..), sources, renameAll, rename)
+import Database.Selda.SQL (QueryFragment (..), SqlSource (RawSql), sqlFrom)
+import Database.Selda.SQL.Print (compRaw)
+import Database.Selda.SqlRow (SqlRow (..))
+import Database.Selda.Types (ColName)
 import Data.Text (Text)
 import Data.Proxy
 import Unsafe.Coerce
@@ -69,3 +78,57 @@ operator = liftC2 . BinOp . CustomOp
 -- | Like 'fun', but with zero arguments.
 fun0 :: Text -> Col s a
 fun0 = One . NulOp . Fun0
+
+-- | Create a raw SQL query fragment from the given column.
+inj :: Col s a -> QueryFragment
+inj (One x) = RawExp x
+
+-- | Create a raw SQL query fragment from the given value.
+injLit :: SqlType a => a -> QueryFragment
+injLit = RawExp . Lit . mkLit
+
+-- | Create a column referring to a name of your choice.
+--   Use this to refer to variables not exposed by Selda.
+rawName :: SqlType a => ColName -> Col s a
+rawName = One . Col
+
+-- | Create an expression from the given text.
+--   The expression will be inserted verbatim into your query, so you should
+--   NEVER pass user-provided text to this function.
+rawExp :: SqlType a => Text -> Col s a
+rawExp = One . Raw
+
+-- | Execute a raw SQL statement.
+rawStm :: MonadSelda m => QueryFragment -> m ()
+rawStm q = withBackend $ \b -> liftIO $ do
+  void $ uncurry (runStmt b) $ compRaw (ppConfig b) q
+
+-- | Execute a raw SQL statement, returning a row consisting of columns by the
+--   given names.
+--   Will fail if the number of names given does not match up with
+--   the type of the returned row.
+--   Will generate invalid SQL if the given names don't match up with the
+--   column names in the given query.
+rawQuery :: forall a s. SqlRow a => [ColName] -> QueryFragment -> Query s (Row s a)
+rawQuery names q
+  | length names /= nestedCols (Proxy :: Proxy a) = do
+      let err = concat
+            [ "rawQuery: return type has ", show (nestedCols (Proxy :: Proxy a))
+            , " columns, but only ", show (length names), " names were given"
+            ]
+      throw (UnsafeError err)
+  | otherwise = Query $ do
+      rns <- renameAll [Untyped (Col name) | name <- names]
+      st <- get
+      put $ st { sources = sqlFrom rns (RawSql q) : sources st }
+      return (Many (map hideRenaming rns))
+
+-- | As 'rawQuery', but returns only a single column. Same warnings still apply.
+rawQuery1 :: SqlType a => ColName -> QueryFragment -> Query s (Col s a)
+rawQuery1 name q = Query $ do
+  name' <- head <$> rename (Untyped (Col name))
+  st <- get
+  put $ st { sources = sqlFrom [name'] (RawSql q) : sources st }
+  case name' of
+    Named n _ -> return (One (Col n))
+    _         -> error "BUG: renaming did not rename"

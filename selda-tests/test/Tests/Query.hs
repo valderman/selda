@@ -57,6 +57,8 @@ queryTests run = test
   , "coalesce frac" ~: run coalesceFrac
   , "coalesce sum" ~: run coalesceSum
   , "nonNull" ~: run nonNullYieldsEmptyResult
+  , "rawQuery1" ~: run rawQuery1Works
+  , "rawQuery" ~: run rawQueryWorks
   , "teardown succeeds" ~: run teardown
   , "if not exists works" ~: run (setup >> resetup)
   ]
@@ -585,3 +587,18 @@ nonNullYieldsEmptyResult = do
     person <- leftJoin (const false) (select people)
     nonNull $ person ?! pAge
   assEq "empty list not empty" [] empty
+
+rawQuery1Works = do
+  names <- query $ do
+    n <- rawQuery1 "name" "SELECT name FROM people"
+    order n ascending
+    return n
+  assEq "wrong name list returned" (sort $ map name peopleItems) names
+
+rawQueryWorks = do
+  ppl <- query $ do
+    p <- rawQuery ["name", "age", "pet", "cash"]
+                  ("SELECT * FROM people WHERE name = " <> injLit ("Link"::Text))
+    return p
+  let correct = [p | p <- peopleItems, name p == "Link"]
+  assEq "wrong name list returned" correct ppl

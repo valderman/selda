@@ -46,6 +46,10 @@ compSql cfg = runPP cfg . ppSql
 compExp :: PPConfig -> Exp SQL a -> (Text, [Param])
 compExp cfg = runPP cfg . ppCol
 
+-- | Compile a raw SQL fragment.
+compRaw :: PPConfig -> QueryFragment -> (Text, [Param])
+compRaw cfg = runPP cfg . ppRaw
+
 -- | Compile an @UPATE@ statement.
 compUpdate :: PPConfig
            -> TableName
@@ -125,6 +129,9 @@ ppSql (SQL cs src r gs ord lim dist) = do
     ppSrc EmptyTable = do
       qn <- freshQueryName
       pure $ " FROM (SELECT NULL LIMIT 0) AS " <> qn
+    ppSrc (RawSql raw) = do
+      s <- ppRaw raw
+      pure (" FROM (" <> s <> ")")
     ppSrc (TableName n)  = do
       pure $ " FROM " <> fromTableName n
     ppSrc (Product [])   = do
@@ -187,6 +194,11 @@ ppSql (SQL cs src r gs ord lim dist) = do
 
     ppInt = Text.pack . show
 
+ppRaw :: QueryFragment -> PP Text
+ppRaw (RawText t)  = pure t
+ppRaw (RawExp e)   = ppCol e
+ppRaw (RawCat a b) = liftM2 (<>) (ppRaw a) (ppRaw b)
+
 ppSomeCol :: SomeCol SQL -> PP Text
 ppSomeCol (Some c)    = ppCol c
 ppSomeCol (Named n c) = do
@@ -214,6 +226,7 @@ ppCol (Lit l)        = ppLit l
 ppCol (BinOp op a b) = ppBinOp op a b
 ppCol (UnOp op a)    = ppUnOp op a
 ppCol (NulOp a)      = ppNulOp a
+ppCol (Raw e)        = pure e
 ppCol (Fun2 f a b)   = do
   a' <- ppCol a
   b' <- ppCol b

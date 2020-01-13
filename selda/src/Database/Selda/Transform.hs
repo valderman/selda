@@ -13,6 +13,7 @@ removeDeadCols live sql =
       EmptyTable      -> sql'
       TableName _     -> sql'
       Values  _ _     -> sql'
+      RawSql _        -> sql'
       Product qs      -> sql' {source = Product $ map noDead qs}
       Join jt on l r  -> sql' {source = Join jt on (noDead l) (noDead r)}
   where

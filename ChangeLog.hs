@@ -10,7 +10,11 @@ import Text.Read
 
 changeLog :: ChangeLog
 changeLog =
-  [ Version "0.5.0.0" "2019-09-21"
+  [ Version "0.5.1.0" "TBD"
+    "Raw SQL support"
+    [ "Support for raw SQL fragments (#134)"
+    ]
+  , Version "0.5.0.0" "2019-09-21"
     "Multi-column indexes and better type errors."
     [ "index and indexUsing now accept a Group instead of a Selector (#121)"
     , "Custom type errors for scope mismatches."
