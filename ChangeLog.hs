@@ -12,7 +12,9 @@ changeLog :: ChangeLog
 changeLog =
   [ Version "0.5.1.0" "TBD"
     "Raw SQL support"
-    [ "Support for raw SQL fragments (#134)"
+    [ "Support for raw SQL fragments. (#134)"
+    , "Expose tableName."
+    , "Document performance drawbacks of withoutForeignKeyEnforcement."
     ]
   , Version "0.5.0.0" "2019-09-21"
     "Multi-column indexes and better type errors."
