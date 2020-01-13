@@ -1,7 +1,10 @@
-{-# LANGUAGE TypeOperators, OverloadedStrings, DeriveGeneric #-}
+{-# LANGUAGE TypeOperators, OverloadedStrings, DeriveGeneric, CPP #-}
 -- | Tests that don't modify the database.
 module Tests.Query (queryTests) where
 import Data.List hiding (groupBy, insert)
+#if !MIN_VERSION_base(4, 11, 0)
+import Data.Semigroup (Semigroup (..))
+#endif
 import Database.Selda
 import Database.Selda.Nullable
 import Database.Selda.Unsafe

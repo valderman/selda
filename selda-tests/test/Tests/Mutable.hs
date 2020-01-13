@@ -19,7 +19,7 @@ import Test.HUnit
 import Utils
 import Tables
 #if !MIN_VERSION_base(4, 11, 0)
-import Data.Monoid
+import Data.Semigroup
 #endif
 
 mutableTests :: (SeldaM b () -> IO ()) -> Test
