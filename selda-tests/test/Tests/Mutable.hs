@@ -825,7 +825,7 @@ rawStmOnSQLite :: SeldaM b ()
 rawStmOnSQLite = do
 #ifndef SQLITE
     return ()
-#endif
+#else
     createTable tbl
     assertFail $ insert_ tbl [("nonexistent person", "asdas")]
     rawStm "PRAGMA foreign_keys = OFF"
@@ -835,3 +835,4 @@ rawStmOnSQLite = do
     rawStm "PRAGMA foreign_keys = ON"
   where
     tbl = table "fkaddrs" [aName :- foreignKey people pName]
+#endif
