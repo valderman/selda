@@ -15,6 +15,7 @@ changeLog =
     [ "Support for raw SQL fragments. (#134)"
     , "Expose tableName."
     , "Document performance drawbacks of withoutForeignKeyEnforcement."
+    , "Fix several bugs validating auto-incrementing PKs. (#133)"
     ]
   , Version "0.5.0.0" "2019-09-21"
     "Multi-column indexes and better type errors."

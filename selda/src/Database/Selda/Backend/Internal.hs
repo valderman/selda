@@ -17,6 +17,7 @@ module Database.Selda.Backend.Internal
   , newConnection, allStmts
   , runSeldaT, withBackend
   ) where
+import Data.List (nub)
 import Database.Selda.SQL (Param (..))
 import Database.Selda.SqlType
 import Database.Selda.Table hiding (colName, colType, colFKs)
@@ -168,16 +169,24 @@ tableInfo :: Table a -> TableInfo
 tableInfo t = TableInfo
   { tableColumnInfos = map fromColInfo (tableCols t)
   , tableUniqueGroups = uniqueGroups
-  , tablePrimaryKey = pkGroups
+  , tablePrimaryKey = pkGroup
   }
   where
     uniqueGroups =
       [ map (Table.colName . ((tableCols t) !!)) ixs
       | (ixs, Unique) <- tableAttrs t
       ]
-    pkGroups = concat
-      [ map (Table.colName . ((tableCols t) !!)) ixs
-      | (ixs, Primary) <- tableAttrs t
+    pkGroup = nub $ concat
+      [ concat
+        [ map (Table.colName . ((tableCols t) !!)) ixs
+        | (ixs, attr) <- tableAttrs t
+        , isPrimary attr
+        ]
+      , [ Table.colName col
+        | col <- tableCols t
+        , attr <- Table.colAttrs col
+        , isPrimary attr
+        ]
       ]
 
 -- | A collection of functions making up a Selda backend.

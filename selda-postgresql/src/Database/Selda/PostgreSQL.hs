@@ -277,7 +277,7 @@ pgGetTableInfo c tbl = do
     toText [SqlString s] = s
     toText _             = error "toText: unreachable"
     tableinfo = mconcat
-      [ "SELECT column_name, data_type, is_nullable "
+      [ "SELECT column_name, data_type, is_nullable, column_default LIKE 'nextval(%' "
       , "FROM information_schema.columns "
       , "WHERE table_name = '", tbl, "';"
       ]
@@ -322,11 +322,11 @@ pgGetTableInfo c tbl = do
       , "and t.relkind = 'r' "
       , "and t.relname = '", tbl , "';"
       ]
-    describe fks ixs [SqlString name, SqlString ty, SqlString nullable] =
+    describe fks ixs [SqlString name, SqlString ty, SqlString nullable, auto] =
       return $ ColumnInfo
         { colName = mkColName name
         , colType = mkTypeRep ty'
-        , colIsAutoPrimary = ty' == "bigserial"
+        , colIsAutoPrimary = isAuto auto
         , colIsNullable = readBool nullable
         , colHasIndex = name `elem` ixs
         , colFKs =
@@ -335,7 +335,10 @@ pgGetTableInfo c tbl = do
             , name == cname
             ]
         }
-      where ty' = T.toLower ty
+      where
+        ty' = T.toLower ty
+        isAuto (SqlBool x) = x
+        isAuto _           = False
     describe _ _ results =
       throwM $ SqlError $ "bad result from table info query: " ++ show results
 

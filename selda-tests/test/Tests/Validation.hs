@@ -29,6 +29,7 @@ validationTests freshEnv =
   , "single-column unique validation"     ~: freshEnv validateSingleUnique
   , "multi-column primary key validation" ~: freshEnv validateMultiPk
   , "timestamp column validation"         ~: freshEnv validateTimestamp
+  , "auto-incrementing PK validation"     ~: freshEnv validateAutoPrimary
   ]
 
 nulIdentifiersFail = do
@@ -284,3 +285,12 @@ validateTimestamp = do
   where
     tbl :: Table (UTCTime, TimeOfDay)
     tbl = table "foo" []
+
+validateAutoPrimary :: SeldaM b ()
+validateAutoPrimary = do
+    tryDropTable tbl
+    createTable tbl
+    validateTable tbl
+  where
+    tbl :: Table (RowID, Int)
+    (tbl, one :*: two) = tableWithSelectors "blah" [one :- untypedAutoPrimary]

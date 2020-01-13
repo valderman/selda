@@ -97,8 +97,14 @@ sqliteGetTableInfo db tbl = do
         | (names, "u") <- ixs
         ]
       , tablePrimaryKey = concat
-        [ map mkColName names
-        | (names, "pk") <- ixs
+        [ concat
+          [ map mkColName names
+          | (names, "pk") <- ixs
+          ]
+        , [ colName ci
+          | ci <- colInfos
+          , colIsAutoPrimary ci
+          ]
         ]
       }
   where
