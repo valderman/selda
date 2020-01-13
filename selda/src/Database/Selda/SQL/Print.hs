@@ -131,7 +131,8 @@ ppSql (SQL cs src r gs ord lim dist) = do
       pure $ " FROM (SELECT NULL LIMIT 0) AS " <> qn
     ppSrc (RawSql raw) = do
       s <- ppRaw raw
-      pure (" FROM (" <> s <> ")")
+      qn <- freshQueryName
+      pure (" FROM (" <> s <> ") AS " <> qn)
     ppSrc (TableName n)  = do
       pure $ " FROM " <> fromTableName n
     ppSrc (Product [])   = do

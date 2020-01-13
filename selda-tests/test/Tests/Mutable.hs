@@ -76,7 +76,7 @@ mutableTests freshEnv = test
   , "migrate table with index"       ~: freshEnv migrateIndex
   , "weak auto primary increments"   ~: freshEnv (autoPrimaryIncrements weakComments)
   , "override weak auto-increment"   ~: freshEnv (overrideAutoIncrement weakComments)
-  , "rawStm with sqlite"             ~: freshEnv rawStmOnSQLite
+  , "disable FKs with rawStm"        ~: freshEnv disableFKsWithRawStm
   ]
 
 tryDropNeverFails :: SeldaM b ()
@@ -821,18 +821,23 @@ migrateIndex = do
     tbl2 :: Table (Int, Int)
     (tbl2, a2 :*: b) = tableWithSelectors "foo" [Single a2 :- index]
 
-rawStmOnSQLite :: SeldaM b ()
-rawStmOnSQLite = do
-#ifndef SQLITE
-    return ()
-#else
+disableFKsWithRawStm :: SeldaM b ()
+disableFKsWithRawStm = do
+    createTable people
     createTable tbl
     assertFail $ insert_ tbl [("nonexistent person", "asdas")]
+#ifdef SQLITE
     rawStm "PRAGMA foreign_keys = OFF"
+#endif
+#ifdef POSTGRES
+    rawStm "ALTER TABLE fkaddrs DISABLE TRIGGER ALL"
+#endif
     n <- insert tbl [("nonexistent person", "asdas")]
     assEq "failed to insert bad person" 1 n
     dropTable tbl
-    rawStm "PRAGMA foreign_keys = ON"
+    dropTable people
+#ifdef SQLITE
+    rawStm "PRAGMA foreign_keys = OFF"
+#endif
   where
     tbl = table "fkaddrs" [aName :- foreignKey people pName]
-#endif
