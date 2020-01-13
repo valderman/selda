@@ -9,7 +9,7 @@ import Database.Selda.Exp
 import Database.Selda.SqlType
 import Database.Selda.Types
 #if !MIN_VERSION_base(4, 11, 0)
-import Data.Monoid hiding (Product)
+import Data.Semigroup (Semigroup (..))
 #endif
 
 instance Semigroup QueryFragment where
