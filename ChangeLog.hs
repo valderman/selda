@@ -10,7 +10,7 @@ import Text.Read
 
 changeLog :: ChangeLog
 changeLog =
-  [ Version "0.5.1.0" "TBD"
+  [ Version "0.5.1.0" "2020-01-20"
     "Raw SQL support"
     [ "Support for raw SQL fragments. (#134)"
     , "Expose tableName."
