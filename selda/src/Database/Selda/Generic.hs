@@ -6,7 +6,7 @@
 -- | Generics utilities.
 module Database.Selda.Generic
   ( Relational, Generic
-  , tblCols, params, def, gNew
+  , tblCols, params, def, gNew, gRow
   ) where
 import Control.Monad.State
 import Data.Dynamic
@@ -85,10 +85,14 @@ class GRelation f where
   -- | Create a new value with all default fields.
   gNew :: Proxy f -> [UntypedCol sql]
 
+  -- | Create a new row from the given value.
+  gRow :: f a -> [UntypedCol sql]
+
 instance {-# OVERLAPPABLE #-} GRelation a => GRelation (M1 t c a) where
   gParams (M1 x) = gParams x
   gTblCols _ = gTblCols (Proxy :: Proxy a)
   gNew _ = gNew (Proxy :: Proxy a)
+  gRow (M1 x) = gRow x
 
 instance {-# OVERLAPPING #-} (G.Selector c, GRelation a) =>
          GRelation (M1 S c a) where
@@ -100,6 +104,7 @@ instance {-# OVERLAPPING #-} (G.Selector c, GRelation a) =>
           "" -> Nothing
           s  -> Just (mkColName $ pack s)
   gNew _ = gNew (Proxy :: Proxy a)
+  gRow (M1 x) = gRow x
 
 instance (Typeable a, SqlType a) => GRelation (K1 i a) where
   gParams (K1 x) = do
@@ -129,6 +134,7 @@ instance (Typeable a, SqlType a) => GRelation (K1 i a) where
         | otherwise                                               = [Required]
 
   gNew _ = [Untyped (Lit (defaultValue :: Lit a))]
+  gRow (K1 x) = [Untyped (Lit (mkLit x))]
 
 instance (GRelation a, GRelation b) => GRelation (a G.:*: b) where
   gParams (a G.:*: b) = liftM2 (++) (gParams a) (gParams b)
@@ -140,6 +146,7 @@ instance (GRelation a, GRelation b) => GRelation (a G.:*: b) where
       a = Proxy :: Proxy a
       b = Proxy :: Proxy b
   gNew _ = gNew (Proxy :: Proxy a) ++ gNew (Proxy :: Proxy b)
+  gRow (a G.:*: b) = gRow a ++ gRow b
 
 instance
   (TL.TypeError
@@ -150,6 +157,7 @@ instance
   gParams = error "unreachable"
   gTblCols = error "unreachable"
   gNew = error "unreachable"
+  gRow = error "unreachable"
 
 instance {-# OVERLAPS #-}
   (TL.TypeError
@@ -160,3 +168,4 @@ instance {-# OVERLAPS #-}
   gParams = error "unreachable"
   gTblCols = error "unreachable"
   gNew = error "unreachable"
+  gRow = error "unreachable"

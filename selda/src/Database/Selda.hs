@@ -55,7 +55,7 @@ module Database.Selda
   , (.&&), (.||), not_
   , literal, is, int, float, text, true, false, null_
   , roundTo, length_, isNull, ifThenElse, ifNull, matchNull
-  , new, only
+  , new, row, only
   , Mappable (..)
 
     -- * Converting between column types
@@ -124,6 +124,7 @@ import Data.Text (Text)
 import Data.Time (Day, TimeOfDay, UTCTime)
 import Data.Typeable (eqT, (:~:)(..))
 import GHC.Generics (Rep)
+import qualified GHC.Generics as G (from)
 import Unsafe.Coerce
 import System.Random (randomIO)
 import GHC.TypeLits as TL
@@ -227,10 +228,18 @@ instance The (Row s (Only a)) where
 only :: SqlType a => Col s a -> Row s (Only a)
 only (One x)  = Many [Untyped x]
 
--- | Create a new column with the given fields.
+-- | Create a new row with the given fields.
 --   Any unassigned fields will contain their default values.
 new :: forall s a. Relational a => [Assignment s a] -> Row s a
 new fields = Many (gNew (Proxy :: Proxy (Rep a))) `with` fields
+
+-- | Create a new row from the given value.
+--   This can be useful when you want to update all or most of a row:
+--
+-- > update users (#uid `is` user_id)
+-- >              (\old -> row user_info `with` [...])
+row :: forall s a. Relational a => a -> Row s a
+row x = Many (gRow (G.from x))
 
 -- | Convenient shorthand for @fmap (! sel) q@.
 --   The following two queries are quivalent:

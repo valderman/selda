@@ -77,6 +77,7 @@ mutableTests freshEnv = test
   , "weak auto primary increments"   ~: freshEnv (autoPrimaryIncrements weakComments)
   , "override weak auto-increment"   ~: freshEnv (overrideAutoIncrement weakComments)
   , "disable FKs with rawStm"        ~: freshEnv disableFKsWithRawStm
+  , "overwrite row on update"        ~: freshEnv overwriteRow
   ]
 
 tryDropNeverFails :: SeldaM b ()
@@ -841,3 +842,14 @@ disableFKsWithRawStm = do
 #endif
   where
     tbl = table "fkaddrs" [aName :- foreignKey people pName]
+
+overwriteRow :: SeldaM b ()
+overwriteRow = do
+    createTable people
+    insert people [p1]
+    update people (\p -> p!pName .== "Testingway") (const (row p2))
+    ps <- query $ select people
+    assEq "row not overwritten" [p2] ps
+  where
+    p1 = Person "Testingway" 101 Nothing 0.2
+    p2 = Person "Changingway" 99 (Just "Pet Rock") 100
