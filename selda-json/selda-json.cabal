@@ -18,7 +18,7 @@ library
   exposed-modules:
     Database.Selda.JSON
   build-depends:
-      aeson      >=1.0  && <1.5
+      aeson      >=1.0  && <1.6
     , base       >=4.9  && <5
     , bytestring >=0.10 && <0.11
     , selda      >=0.4  && <0.6
