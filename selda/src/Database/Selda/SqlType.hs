@@ -3,11 +3,12 @@
 -- | Types representable as columns in Selda's subset of SQL.
 module Database.Selda.SqlType
   ( SqlType (..), SqlEnum (..)
-  , Lit (..), UUID, RowID, ID, SqlValue (..), SqlTypeRep (..)
+  , Lit (..), UUID, UUID', RowID, ID, SqlValue (..), SqlTypeRep (..)
   , invalidRowId, isInvalidRowId, toRowId, fromRowId
   , fromId, toId, invalidId, isInvalidId, untyped
   , compLit, litType
   , sqlDateTimeFormat, sqlDateFormat, sqlTimeFormat
+  , typedUUID, untypedUUID
   ) where
 import Control.Applicative ((<|>))
 import Data.ByteString (ByteString, empty)
@@ -232,6 +233,17 @@ newtype ID a = ID {untyped :: RowID}
 instance Show (ID a) where
   show = show . untyped
 
+-- | An UUID identifying a database row.
+newtype UUID' a = UUID { untypedUUID :: UUID }
+  deriving (Eq, Ord, Typeable, Generic)
+instance Show (UUID' a) where
+  show = show . untypedUUID
+
+-- | Convert an untyped UUID to a typed one.
+--   Use sparingly, preferably only during deserialization.
+typedUUID :: UUID -> UUID' a
+typedUUID = UUID
+
 -- | Create a typed row identifier from an integer.
 --   Use with caution, preferably only when reading user input.
 toId :: Int -> ID a
@@ -358,6 +370,13 @@ instance SqlType UUID where
   fromSql (SqlBlob x) = fromJust . fromByteString $ BSL.fromStrict x
   fromSql v           = error $ "fromSql: UUID column with non-blob value: " ++ show v
   defaultValue = LUUID nil
+
+-- | @defaultValue@ for UUIDs is the all-zero RFC4122 nil UUID.
+instance Typeable a => SqlType (UUID' a) where
+  mkLit = LCustom TUUID . LUUID . untypedUUID
+  sqlType _ = TUUID
+  fromSql = typedUUID . fromSql
+  defaultValue = LCustom TUUID (LUUID nil)
 
 instance SqlType a => SqlType (Maybe a) where
   mkLit (Just x) = LJust $ mkLit x

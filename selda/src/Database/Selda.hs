@@ -50,6 +50,7 @@ module Database.Selda
     -- * Expressions over columns
   , Set (..)
   , ID, invalidId, isInvalidId, untyped, fromId, toId
+  , UUID', typedUUID, untypedUUID
   , RowID, invalidRowId, isInvalidRowId, fromRowId, toRowId
   , (.==), (./=), (.>), (.<), (.>=), (.<=), like
   , (.&&), (.||), not_
