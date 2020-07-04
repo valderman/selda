@@ -50,7 +50,7 @@ module Database.Selda
     -- * Expressions over columns
   , Set (..)
   , ID, invalidId, isInvalidId, untyped, fromId, toId
-  , UUID', typedUUID, untypedUUID
+  , IsUUID (..), UUID', typedUuid, untypedUuid
   , RowID, invalidRowId, isInvalidRowId, fromRowId, toRowId
   , (.==), (./=), (.>), (.<), (.>=), (.<=), like
   , (.&&), (.||), not_
@@ -169,14 +169,22 @@ instance (TypeError
   fromSql = error "unreachable"
   defaultValue = error "unreachable"
 
+-- | Any type which is backed by an UUID.
+class IsUUID a where
+  uuid :: UUID -> a
+instance IsUUID UUID where
+  uuid = id
+instance IsUUID (UUID' a) where
+  uuid = typedUuid
+
 -- | Generate a new random UUID using the system's random number generator.
 --   UUIDs generated this way are (astronomically likely to be) unique,
 --   but not necessarily unpredictable.
 --
 --   For applications where unpredictability is crucial, take care to use a
 --   proper cryptographic PRNG to generate your UUIDs.
-newUuid :: MonadIO m => m UUID
-newUuid = liftIO randomIO
+newUuid :: (MonadIO m, IsUUID uuid) => m uuid
+newUuid = uuid <$> liftIO randomIO
 
 -- | Annotation to force the type of a polymorphic label (i.e. @#foo@) to
 --   be a selector. This is useful, for instance, when defining unique

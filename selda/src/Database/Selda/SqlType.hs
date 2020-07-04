@@ -8,7 +8,7 @@ module Database.Selda.SqlType
   , fromId, toId, invalidId, isInvalidId, untyped
   , compLit, litType
   , sqlDateTimeFormat, sqlDateFormat, sqlTimeFormat
-  , typedUUID, untypedUUID
+  , typedUuid, untypedUuid
   ) where
 import Control.Applicative ((<|>))
 import Data.ByteString (ByteString, empty)
@@ -234,15 +234,15 @@ instance Show (ID a) where
   show = show . untyped
 
 -- | An UUID identifying a database row.
-newtype UUID' a = UUID { untypedUUID :: UUID }
+newtype UUID' a = UUID { untypedUuid :: UUID }
   deriving (Eq, Ord, Typeable, Generic)
 instance Show (UUID' a) where
-  show = show . untypedUUID
+  show = show . untypedUuid
 
 -- | Convert an untyped UUID to a typed one.
 --   Use sparingly, preferably only during deserialization.
-typedUUID :: UUID -> UUID' a
-typedUUID = UUID
+typedUuid :: UUID -> UUID' a
+typedUuid = UUID
 
 -- | Create a typed row identifier from an integer.
 --   Use with caution, preferably only when reading user input.
@@ -373,9 +373,9 @@ instance SqlType UUID where
 
 -- | @defaultValue@ for UUIDs is the all-zero RFC4122 nil UUID.
 instance Typeable a => SqlType (UUID' a) where
-  mkLit = LCustom TUUID . LUUID . untypedUUID
+  mkLit = LCustom TUUID . LUUID . untypedUuid
   sqlType _ = TUUID
-  fromSql = typedUUID . fromSql
+  fromSql = typedUuid . fromSql
   defaultValue = LCustom TUUID (LUUID nil)
 
 instance SqlType a => SqlType (Maybe a) where
