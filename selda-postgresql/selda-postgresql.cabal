@@ -38,7 +38,7 @@ library
     build-depends:
         postgresql-binary >=0.12 && <0.13
       , postgresql-libpq  >=0.9  && <0.10
-      , time              >=1.5  && <1.10
+      , time              >=1.5  && <1.11
       , uuid-types        >=1.0  && <1.1
   hs-source-dirs:
     src

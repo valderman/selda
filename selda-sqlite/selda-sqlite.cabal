@@ -34,7 +34,7 @@ library
       , direct-sqlite >=2.2   && <2.4
       , directory     >=1.2.2 && <1.4
       , exceptions    >=0.8 && <0.11
-      , time          >=1.5   && <1.10
+      , time          >=1.5   && <1.11
       , uuid-types    >=1.0   && <1.1
   hs-source-dirs:
     src
