@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -O0 #-}
 {-# LANGUAGE TypeOperators, OverloadedStrings, DeriveGeneric, CPP #-}
 -- | Tests that don't modify the database.
 module Tests.Query (queryTests) where

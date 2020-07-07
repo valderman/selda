@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -O0 #-}
 {-# LANGUAGE DeriveGeneric, OverloadedStrings, OverloadedLabels #-}
 module Tests.JSON (jsonTests, jsonQueryTests) where
 import Database.Selda hiding (Result)

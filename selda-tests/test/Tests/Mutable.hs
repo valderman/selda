@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -O0 #-}
 {-# LANGUAGE TypeOperators, OverloadedStrings, DeriveGeneric #-}
 {-# LANGUAGE ScopedTypeVariables, GeneralizedNewtypeDeriving, CPP #-}
 -- | Tests that modify the database.
