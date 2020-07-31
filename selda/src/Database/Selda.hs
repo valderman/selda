@@ -56,6 +56,7 @@ module Database.Selda
   , (.&&), (.||), not_
   , literal, is, int, float, text, true, false, null_
   , roundTo, length_, isNull, ifThenElse, ifNull, matchNull
+  , toUpper, toLower
   , new, row, only
   , Mappable (..)
 
@@ -474,6 +475,14 @@ fromInt = cast
 -- | Convert any SQL type to a string.
 toString :: SqlType a => Col s a -> Col s Text
 toString = cast
+
+-- | Convert the given string to uppercase.
+toUpper :: Col s Text -> Col s Text
+toUpper = fun "UPPER"
+
+-- | Convert the given string to lowercase.
+toLower :: Col s Text -> Col s Text
+toLower = fun "LOWER"
 
 -- | Perform a conditional on a column
 ifThenElse :: (Same s t, Same t u, SqlType a) => Col s Bool -> Col t a -> Col u a -> Col s a
