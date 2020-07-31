@@ -11,7 +11,9 @@ import Tests.Mutable (mutableTests)
 import Tests.Validation (validationTests)
 import Tests.NonDB (noDBTests)
 import Tests.MultiConn (multiConnTests)
+#ifdef POSTGRES
 import Tests.PGConnectionString (pgConnectionStringTests)
+#endif
 import Tables (teardown)
 
 #ifdef TEST_JSON

@@ -29,7 +29,6 @@ test-suite selda-testsuite
     Tests.MultiConn
     Tests.Mutable
     Tests.NonDB
-    Tests.PGConnectionString
     Tests.Query
     Tests.Validation
   build-depends:
@@ -46,7 +45,7 @@ test-suite selda-testsuite
     , random     >=1.1  && <1.2
     , uuid-types >=1.0  && <1.1
   if flag(postgres)
-    other-modules: PGConnectInfo
+    other-modules: PGConnectInfo, Tests.PGConnectionString
     build-depends: selda-postgresql
     cpp-options:   -DPOSTGRES -DTEST_JSON -DBACKEND=PG
   else
