@@ -16,7 +16,7 @@ import Data.Monoid ((<>))
 import Data.Text (pack, unpack, intercalate)
 import Database.Selda
 import Database.Selda.Backend
-import Database.Selda.Table.Type (tableName, tableCols)
+import Database.Selda.Table.Type (tableCols)
 import Database.Selda.Table.Validation (ValidationError (..), validateOrThrow)
 
 -- | Are the given types compatible?

@@ -12,7 +12,6 @@ import Database.Selda.Frontend
   , createTableWithoutIndexes, createTableIndexes
   )
 import Database.Selda.Backend.Internal
-import Database.Selda.Table.Type (tableName)
 import Database.Selda.Table.Validation (ValidationError (..))
 import Database.Selda.Types (mkTableName, fromTableName, rawTableName)
 import Database.Selda.Validation

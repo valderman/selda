@@ -11,6 +11,7 @@ module Database.Selda.SqlType
   , typedUuid, untypedUuid
   ) where
 import Control.Applicative ((<|>))
+import Control.Exception (Exception (..), throw)
 import Data.ByteString (ByteString, empty)
 import qualified Data.ByteString.Lazy as BSL
 import Data.Maybe (fromJust)
@@ -264,11 +265,19 @@ invalidId = ID invalidRowId
 isInvalidId :: ID a -> Bool
 isInvalidId = isInvalidRowId . untyped
 
+fromSqlError :: String -> a
+fromSqlError = throw . FromSqlError
+
+newtype FromSqlError = FromSqlError String
+instance Show FromSqlError where
+  show (FromSqlError e) = "[SELDA BUG] fromSql: " ++ e
+instance Exception FromSqlError
+
 instance SqlType RowID where
   mkLit (RowID n) = LCustom TRowID (LInt n)
   sqlType _ = TRowID
   fromSql (SqlInt x) = RowID x
-  fromSql v          = error $ "fromSql: RowID column with non-int value: " ++ show v
+  fromSql v          = fromSqlError $ "RowID column with non-int value: " ++ show v
   defaultValue = mkLit invalidRowId
 
 instance Typeable a => SqlType (ID a) where
@@ -281,21 +290,21 @@ instance SqlType Int where
   mkLit = LInt
   sqlType _ = TInt
   fromSql (SqlInt x) = x
-  fromSql v          = error $ "fromSql: int column with non-int value: " ++ show v
+  fromSql v          = fromSqlError $ "int column with non-int value: " ++ show v
   defaultValue = LInt 0
 
 instance SqlType Double where
   mkLit = LDouble
   sqlType _ = TFloat
   fromSql (SqlFloat x) = x
-  fromSql v            = error $ "fromSql: float column with non-float value: " ++ show v
+  fromSql v            = fromSqlError $ "float column with non-float value: " ++ show v
   defaultValue = LDouble 0
 
 instance SqlType Text where
   mkLit = LText
   sqlType _ = TText
   fromSql (SqlString x) = x
-  fromSql v             = error $ "fromSql: text column with non-text value: " ++ show v
+  fromSql v             = fromSqlError $ "text column with non-text value: " ++ show v
   defaultValue = LText ""
 
 instance SqlType Bool where
@@ -304,7 +313,7 @@ instance SqlType Bool where
   fromSql (SqlBool x) = x
   fromSql (SqlInt 0)  = False
   fromSql (SqlInt _)  = True
-  fromSql v           = error $ "fromSql: bool column with non-bool value: " ++ show v
+  fromSql v           = fromSqlError $ "bool column with non-bool value: " ++ show v
   defaultValue = LBool False
 
 instance SqlType UTCTime where
@@ -314,8 +323,8 @@ instance SqlType UTCTime where
   fromSql (SqlString s) =
     case withWeirdTimeZone sqlDateTimeFormat (unpack s) of
       Just t -> t
-      _      -> error $ "fromSql: bad datetime string: " ++ unpack s
-  fromSql v = error $ "fromSql: datetime column with non-datetime value: " ++ show v
+      _      -> fromSqlError $ "bad datetime string: " ++ unpack s
+  fromSql v = fromSqlError $ "datetime column with non-datetime value: " ++ show v
   defaultValue = LDateTime $ UTCTime (ModifiedJulianDay 40587) 0
 
 instance SqlType Day where
@@ -325,8 +334,8 @@ instance SqlType Day where
   fromSql (SqlString s) =
     case parseTimeM True defaultTimeLocale sqlDateFormat (unpack s) of
       Just t -> t
-      _      -> error $ "fromSql: bad date string: " ++ unpack s
-  fromSql v = error $ "fromSql: date column with non-date value: " ++ show v
+      _      -> fromSqlError $ "bad date string: " ++ unpack s
+  fromSql v = fromSqlError $ "date column with non-date value: " ++ show v
   defaultValue = LDate $ ModifiedJulianDay 40587
 
 instance SqlType TimeOfDay where
@@ -336,8 +345,8 @@ instance SqlType TimeOfDay where
   fromSql (SqlString s) =
     case withWeirdTimeZone sqlTimeFormat (unpack s) of
       Just t -> t
-      _      -> error $ "fromSql: bad time string: " ++ unpack s
-  fromSql v = error $ "fromSql: time column with non-time value: " ++ show v
+      _      -> fromSqlError $ "bad time string: " ++ unpack s
+  fromSql v = fromSqlError $ "time column with non-time value: " ++ show v
   defaultValue = LTime $ TimeOfDay 0 0 0
 
 -- | Both PostgreSQL and SQLite to weird things with time zones.
@@ -353,14 +362,14 @@ instance SqlType ByteString where
   mkLit = LBlob
   sqlType _ = TBlob
   fromSql (SqlBlob x) = x
-  fromSql v           = error $ "fromSql: blob column with non-blob value: " ++ show v
+  fromSql v           = fromSqlError $ "blob column with non-blob value: " ++ show v
   defaultValue = LBlob empty
 
 instance SqlType BSL.ByteString where
   mkLit = LCustom TBlob . LBlob . BSL.toStrict
   sqlType _ = TBlob
   fromSql (SqlBlob x) = BSL.fromStrict x
-  fromSql v           = error $ "fromSql: blob column with non-blob value: " ++ show v
+  fromSql v           = fromSqlError $ "blob column with non-blob value: " ++ show v
   defaultValue = LCustom TBlob (LBlob empty)
 
 -- | @defaultValue@ for UUIDs is the all-zero RFC4122 nil UUID.
@@ -368,7 +377,7 @@ instance SqlType UUID where
   mkLit = LUUID
   sqlType _ = TUUID
   fromSql (SqlBlob x) = fromJust . fromByteString $ BSL.fromStrict x
-  fromSql v           = error $ "fromSql: UUID column with non-blob value: " ++ show v
+  fromSql v           = fromSqlError $ "UUID column with non-blob value: " ++ show v
   defaultValue = LUUID nil
 
 -- | @defaultValue@ for UUIDs is the all-zero RFC4122 nil UUID.

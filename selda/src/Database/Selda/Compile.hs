@@ -88,12 +88,12 @@ compileDelete cfg tbl check = compDelete cfg (tableName tbl) predicate
 --   Groups are ignored, as they are only used by 'aggregate'.
 compQuery :: Result a => Scope -> Query s a -> (Int, SQL)
 compQuery ns q =
-    (nameSupply st, SQL final (Product [srcs]) [] [] [] Nothing False)
+    (nameSupply st, SQL final (Product [srcs]) [] [] [] Nothing [] False)
   where
     (cs, st) = runQueryM ns q
     final = finalCols cs
     sql = state2sql st
-    live = colNames final ++ allNonOutputColNames sql
+    live = colNames final ++ implicitlyLiveCols sql
     srcs = removeDeadCols live sql
 
 {-# NOINLINE scopeSupply #-}

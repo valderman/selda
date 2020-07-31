@@ -8,7 +8,7 @@ import qualified Database.Selda.SQL.Print.Config as Cfg
 import Database.Selda.SqlType
 import Database.Selda.Types
 import Control.Monad.State
-import Data.List
+import Data.List hiding (union)
 #if !MIN_VERSION_base(4, 11, 0)
 import Data.Monoid hiding (Product)
 #endif
@@ -107,7 +107,7 @@ freshQueryName = do
 
 -- | Pretty-print an SQL AST.
 ppSql :: SQL -> PP Text
-ppSql (SQL cs src r gs ord lim dist) = do
+ppSql (SQL cs src r gs ord lim _live dist) = do
   cs' <- mapM ppSomeCol cs
   src' <- ppSrc src
   r' <- ppRestricts r
@@ -163,6 +163,16 @@ ppSql (SQL cs src r gs ord lim dist) = do
         [ " FROM (", l', ") AS ", lqn
         , " ",  ppJoinType jointype, " (", r', ") AS ", rqn
         , " ON ", on'
+        ]
+    ppSrc (Union union_all l r) = do
+      qs <- mapM ppSql [l, r]
+      qn <- freshQueryName
+      let union = if union_all then " UNION ALL " else " UNION "
+      pure $ mconcat
+        [ " FROM ("
+        , Text.intercalate union qs
+        , ") AS "
+        , qn
         ]
 
     ppJoinType LeftJoin  = "LEFT JOIN"

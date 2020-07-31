@@ -10,29 +10,31 @@ import Database.Selda.Types
 removeDeadCols :: [ColName] -> SQL -> SQL
 removeDeadCols live sql =
     case source sql' of
-      EmptyTable      -> sql'
-      TableName _     -> sql'
-      Values  _ _     -> sql'
-      RawSql _        -> sql'
-      Product qs      -> sql' {source = Product $ map noDead qs}
-      Join jt on l r  -> sql' {source = Join jt on (noDead l) (noDead r)}
+      EmptyTable          -> sql'
+      TableName _         -> sql'
+      Values  _ _         -> sql'
+      RawSql _            -> sql'
+      Product qs          -> sql' {source = Product $ map noDead qs}
+      Join jt on l r      -> sql' {source = Join jt on (noDead l) (noDead r)}
+      Union union_all l r -> sql' {source = Union union_all (noDead l) (noDead r)}
   where
     noDead = removeDeadCols live'
-    sql' = keepCols (allNonOutputColNames sql ++ live) sql
+    sql' = keepCols (implicitlyLiveCols sql ++ live) sql
     live' = allColNames sql'
 
 -- | Return the names of all columns in the given top-level query.
 --   Subqueries are not traversed.
 allColNames :: SQL -> [ColName]
-allColNames sql = colNames (cols sql) ++ allNonOutputColNames sql
+allColNames sql = colNames (cols sql) ++ implicitlyLiveCols sql
 
 -- | Return the names of all non-output (i.e. 'cols') columns in the given
 --   top-level query. Subqueries are not traversed.
-allNonOutputColNames :: SQL -> [ColName]
-allNonOutputColNames sql = concat
+implicitlyLiveCols :: SQL -> [ColName]
+implicitlyLiveCols sql = concat
   [ concatMap allNamesIn (restricts sql)
   , colNames (groups sql)
   , colNames (map snd $ ordering sql)
+  , colNames (liveExtras sql)
   , case source sql of
       Join _ on _ _ -> allNamesIn on
       _             -> []
@@ -69,7 +71,7 @@ state2sql :: GenState -> SQL
 state2sql (GenState [sql] srs _ _ _) =
   sql {restricts = restricts sql ++ srs}
 state2sql (GenState ss srs _ _ _) =
-  SQL (allCols ss) (Product ss) srs [] [] Nothing False
+  SQL (allCols ss) (Product ss) srs [] [] Nothing [] False
 
 -- | Get all output columns from a list of SQL ASTs.
 allCols :: [SQL] -> [SomeCol SQL]

@@ -2,7 +2,9 @@
 {-# LANGUAGE TypeOperators, OverloadedStrings, DeriveGeneric, CPP #-}
 -- | Tests that don't modify the database.
 module Tests.Query (queryTests) where
-import Data.List hiding (groupBy, insert)
+import Data.Function (on)
+import Data.List hiding (groupBy, insert, union)
+import Data.Maybe (catMaybes)
 #if !MIN_VERSION_base(4, 11, 0)
 import Data.Semigroup (Semigroup (..))
 #endif
@@ -63,6 +65,13 @@ queryTests run = test
   , "nonNull" ~: run nonNullYieldsEmptyResult
   , "rawQuery1" ~: run rawQuery1Works
   , "rawQuery" ~: run rawQueryWorks
+  , "union" ~: run unionWorks
+  , "union discards dupes" ~: run unionDiscardsDupes
+  , "union works for whole rows" ~: run unionWorksForWholeRows
+  , "expression cols under union (LHS)" ~: run unionWithLhsExpressionCols
+  , "expression cols under union (RHS)" ~: run unionWithRhsExpressionCols
+  , "unionAll" ~: run unionAllWorks
+  , "unionAll works for whole rows" ~: run unionAllForWholeRows
   , "teardown succeeds" ~: run teardown
   , "if not exists works" ~: run (setup >> resetup)
   ]
@@ -606,3 +615,73 @@ rawQueryWorks = do
     return p
   let correct = [p | p <- peopleItems, name p == "Link"]
   assEq "wrong name list returned" correct ppl
+
+unionWorks = assQueryEq "wrong name list returned" correct $ do
+    let ppl = pName `from` select people
+        pets = (pPet `from` select people) >>= nonNull
+    name <- union pets ppl
+    order name ascending
+    return name
+  where
+    correct = sort
+      $ map name peopleItems
+      ++ catMaybes (map pet peopleItems)
+
+unionDiscardsDupes = assQueryEq "wrong name list returned" correct $ do
+    let ppl = pName `from` select people
+        pets = (pPet `from` select people) >>= nonNull
+    name <- ppl `union` pets `union` ppl `union` ppl
+    order name ascending
+    return name
+  where
+    correct = sort
+      $ map name peopleItems
+      ++ catMaybes (map pet peopleItems)
+
+unionWorksForWholeRows = assQueryEq "wrong person list returned" correct $ do
+    let ppl1 = select people `suchThat` \p -> p!pAge .<= 18
+        ppl2 = select people `suchThat` \p -> p!pAge .> 18
+    ppl <- ppl1 `union` ppl2 `union` ppl2 `union` ppl1
+    order (ppl ! pName) ascending
+    return ppl
+  where
+    correct = sortBy (compare `on` name) peopleItems
+
+unionWithLhsExpressionCols = assQueryEq "wrong person list returned" correct $ do
+    let ppl1 = select people
+        ppl2 = (`with` [pAge += 1]) <$> select people
+    ppl <- ppl2 `union` ppl1
+    order (ppl ! pAge) ascending
+    return ppl
+  where
+    correct = sortBy (compare `on` age) (peopleItems ++ map (\p -> p {age = age p+1}) peopleItems)
+
+unionWithRhsExpressionCols = assQueryEq "wrong person list returned" correct $ do
+    let ppl1 = select people
+        ppl2 = (`with` [pAge += 1]) <$> select people
+    ppl <- ppl1 `union` ppl2
+    order (ppl ! pAge) ascending
+    return ppl
+  where
+    correct = sortBy (compare `on` age) (peopleItems ++ map (\p -> p {age = age p+1}) peopleItems)
+
+unionAllWorks = assQueryEq "wrong name list returned" correct $ do
+    let ppl = pName `from` select people
+        pets = (pPet `from` select people) >>= nonNull
+    name <- ppl `unionAll` pets `unionAll` ppl
+    order name ascending
+    return name
+  where
+    correct = sort
+      $ map name peopleItems
+      ++ map name peopleItems
+      ++ catMaybes (map pet peopleItems)
+
+unionAllForWholeRows = assQueryEq "wrong person list returned" correct $ do
+    let ppl1 = select people
+        ppl2 = (`with` [pAge += 1]) <$> select people
+    ppl <- ppl1 `unionAll` ppl2
+    order (ppl ! pAge) ascending
+    return ppl
+  where
+    correct = sortBy (compare `on` age) (peopleItems ++ map (\p -> p {age = age p+1}) peopleItems)

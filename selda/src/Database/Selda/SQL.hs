@@ -27,6 +27,7 @@ instance IsString QueryFragment where
 data SqlSource
  = TableName !TableName
  | Product ![SQL]
+ | Union !Bool !SQL !SQL
  | Join !JoinType !(Exp SQL Bool) !SQL !SQL
  | Values ![SomeCol SQL] ![[Param]]
  | RawSql !QueryFragment
@@ -37,13 +38,14 @@ data JoinType = InnerJoin | LeftJoin
 
 -- | AST for SQL queries.
 data SQL = SQL
-  { cols      :: ![SomeCol SQL]
-  , source    :: !SqlSource
-  , restricts :: ![Exp SQL Bool]
-  , groups    :: ![SomeCol SQL]
-  , ordering  :: ![(Order, SomeCol SQL)]
-  , limits    :: !(Maybe (Int, Int))
-  , distinct  :: !Bool
+  { cols       :: ![SomeCol SQL]
+  , source     :: !SqlSource
+  , restricts  :: ![Exp SQL Bool]
+  , groups     :: ![SomeCol SQL]
+  , ordering   :: ![(Order, SomeCol SQL)]
+  , limits     :: !(Maybe (Int, Int))
+  , liveExtras :: ![SomeCol SQL] -- ^ Columns which are never considered dead.
+  , distinct   :: !Bool
   }
 
 instance Names QueryFragment where
@@ -58,6 +60,7 @@ instance Names SqlSource where
   allNamesIn (TableName _)  = []
   allNamesIn (RawSql r)     = allNamesIn r
   allNamesIn (EmptyTable)   = []
+  allNamesIn (Union _ l r)  = concatMap allNamesIn [l, r]
 
 instance Names SQL where
   -- Note that we don't include @cols@ here: the names in @cols@ are not
@@ -79,6 +82,7 @@ sqlFrom cs src = SQL
   , groups = []
   , ordering = []
   , limits = Nothing
+  , liveExtras = []
   , distinct = False
   }
 

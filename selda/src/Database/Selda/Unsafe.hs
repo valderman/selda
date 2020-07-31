@@ -12,7 +12,6 @@ import Control.Exception (throw)
 import Control.Monad.State.Strict
 import Database.Selda.Backend.Internal
 import Database.Selda.Column
-import Database.Selda.Exp (UntypedCol (..))
 import Database.Selda.Inner (Inner, Aggr, aggr, liftAggr)
 import Database.Selda.Selectors (unsafeSelector)
 import Database.Selda.Query.Type (Query (..), sources, renameAll, rename)
