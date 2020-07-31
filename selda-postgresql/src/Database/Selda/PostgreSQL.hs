@@ -10,6 +10,7 @@ module Database.Selda.PostgreSQL
 import Data.Monoid
 #endif
 import Data.ByteString (ByteString)
+import Data.String (IsString (..))
 import qualified Data.Text as T
 import Database.Selda.Backend hiding (toText)
 import Database.Selda.JSON
@@ -49,6 +50,17 @@ data PGConnectInfo = PGConnectInfo
     -- | Password for authentication, if necessary.
   , pgPassword :: Maybe T.Text
   }
+  | PGConnectionString
+  { -- | Custom connection PostgreSQL connection string.
+    pgConnectionString :: T.Text
+  , pgSchema :: Maybe T.Text
+  }
+
+instance IsString PGConnectInfo where
+  fromString s = PGConnectionString
+    { pgConnectionString = fromString s
+    , pgSchema = Nothing
+    }
 
 -- | Connect to the given database on the given host, on the default PostgreSQL
 --   port (5432):
@@ -98,6 +110,7 @@ pgConnString PGConnectInfo{..} = mconcat
   , "connect_timeout=10", " "
   , "client_encoding=UTF8"
   ]
+pgConnString PGConnectionString{..} = encodeUtf8 pgConnectionString
 #endif
 
 -- | Perform the given computation over a PostgreSQL database.

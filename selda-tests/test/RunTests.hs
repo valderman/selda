@@ -11,6 +11,7 @@ import Tests.Mutable (mutableTests)
 import Tests.Validation (validationTests)
 import Tests.NonDB (noDBTests)
 import Tests.MultiConn (multiConnTests)
+import Tests.PGConnectionString (pgConnectionStringTests)
 import Tables (teardown)
 
 #ifdef TEST_JSON
@@ -52,14 +53,17 @@ freshEnv file m = do
 #endif
 
 allTests f = TestList
-  [ "non-database tests"       ~: noDBTests
-  , "query tests"              ~: queryTests run
-  , "validation tests"         ~: validationTests (freshEnv f)
-  , "mutable tests"            ~: mutableTests (freshEnv f)
-  , "multi-connection tests"   ~: multiConnTests open
-  , "mandatory json tests"     ~: jsonTests (freshEnv f)
+  [ "non-database tests"     ~: noDBTests
+  , "query tests"            ~: queryTests run
+  , "validation tests"       ~: validationTests (freshEnv f)
+  , "mutable tests"          ~: mutableTests (freshEnv f)
+  , "multi-connection tests" ~: multiConnTests open
+  , "mandatory json tests"   ~: jsonTests (freshEnv f)
 #ifdef TEST_JSON
-  , "json query tests"         ~: jsonQueryTests (freshEnv f)
+  , "json query tests"       ~: jsonQueryTests (freshEnv f)
+#endif
+#ifdef POSTGRES
+  , "pg connection string"   ~: pgConnectionStringTests pgConnectInfo
 #endif
   ]
   where

@@ -29,6 +29,7 @@ test-suite selda-testsuite
     Tests.MultiConn
     Tests.Mutable
     Tests.NonDB
+    Tests.PGConnectionString
     Tests.Query
     Tests.Validation
   build-depends:
