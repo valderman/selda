@@ -2,13 +2,15 @@
 {-# LANGUAGE TypeOperators, OverloadedStrings, DeriveGeneric, CPP #-}
 -- | Tests that don't modify the database.
 module Tests.Query (queryTests) where
+import qualified Data.Char as Char (toUpper)
 import Data.Function (on)
 import Data.List hiding (groupBy, insert, union)
 import Data.Maybe (catMaybes)
 #if !MIN_VERSION_base(4, 11, 0)
 import Data.Semigroup (Semigroup (..))
 #endif
-import Database.Selda
+import qualified Data.Text as Text (map)
+import Database.Selda as Selda
 import Database.Selda.Nullable
 import Database.Selda.Unsafe
 import Database.Selda.Validation
@@ -619,22 +621,24 @@ rawQueryWorks = do
 unionWorks = assQueryEq "wrong name list returned" correct $ do
     let ppl = pName `from` select people
         pets = (pPet `from` select people) >>= nonNull
-    name <- union pets ppl
+    name <- Selda.toUpper <$> union pets ppl
     order name ascending
     return name
   where
     correct = sort
+      $ map (Text.map Char.toUpper)
       $ map name peopleItems
       ++ catMaybes (map pet peopleItems)
 
 unionDiscardsDupes = assQueryEq "wrong name list returned" correct $ do
     let ppl = pName `from` select people
         pets = (pPet `from` select people) >>= nonNull
-    name <- ppl `union` pets `union` ppl `union` ppl
+    name <- Selda.toUpper <$> ppl `union` pets `union` ppl `union` ppl
     order name ascending
     return name
   where
     correct = sort
+      $ map (Text.map Char.toUpper)
       $ map name peopleItems
       ++ catMaybes (map pet peopleItems)
 
@@ -642,10 +646,10 @@ unionWorksForWholeRows = assQueryEq "wrong person list returned" correct $ do
     let ppl1 = select people `suchThat` \p -> p!pAge .<= 18
         ppl2 = select people `suchThat` \p -> p!pAge .> 18
     ppl <- ppl1 `union` ppl2 `union` ppl2 `union` ppl1
-    order (ppl ! pName) ascending
+    order (Selda.toUpper (ppl ! pName)) ascending
     return ppl
   where
-    correct = sortBy (compare `on` name) peopleItems
+    correct = sortBy (compare `on` (Text.map Char.toUpper . name)) peopleItems
 
 unionWithLhsExpressionCols = assQueryEq "wrong person list returned" correct $ do
     let ppl1 = select people
@@ -668,11 +672,12 @@ unionWithRhsExpressionCols = assQueryEq "wrong person list returned" correct $ d
 unionAllWorks = assQueryEq "wrong name list returned" correct $ do
     let ppl = pName `from` select people
         pets = (pPet `from` select people) >>= nonNull
-    name <- ppl `unionAll` pets `unionAll` ppl
+    name <- Selda.toUpper <$> ppl `unionAll` pets `unionAll` ppl
     order name ascending
     return name
   where
     correct = sort
+      $ map (Text.map Char.toUpper)
       $ map name peopleItems
       ++ map name peopleItems
       ++ catMaybes (map pet peopleItems)
