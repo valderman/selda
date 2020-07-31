@@ -133,7 +133,7 @@ sqliteGetTableInfo db tbl = do
       error "unreachable"
 
     describe fks ixs cs [_, SqlString name, SqlString ty, SqlInt nonnull, _, SqlInt pk] = do
-      let ty' = toLower ty
+      let ty' = Text.toLower ty
       return $ ColumnInfo
         { colName = mkColName name
         , colType = toTypeRep (pk == 1) ty'
