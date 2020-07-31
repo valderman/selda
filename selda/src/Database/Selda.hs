@@ -48,7 +48,7 @@ module Database.Selda
   , (+=), (-=), (*=), (||=), (&&=), ($=)
 
     -- * Expressions over columns
-  , Set (..)
+  , Set (..), Monoid (..), Semigroup (..)
   , ID, invalidId, isInvalidId, untyped, fromId, toId
   , IsUUID (..), UUID', typedUuid, untypedUuid
   , RowID, invalidRowId, isInvalidRowId, fromRowId, toRowId
@@ -102,6 +102,10 @@ module Database.Selda
   , Text, Day, TimeOfDay, UTCTime, UUID
   ) where
 import Control.Monad.Catch (MonadMask)
+#if !MIN_VERSION_base(4, 11, 0)
+import Data.Monoid (Monoid (..))
+import Data.Semigroup (Semigroup (..))
+#endif
 import Data.Typeable (Typeable)
 import Database.Selda.Backend
 import Database.Selda.Column
@@ -483,6 +487,11 @@ toUpper = fun "UPPER"
 -- | Convert the given string to lowercase.
 toLower :: Col s Text -> Col s Text
 toLower = fun "LOWER"
+
+instance Semigroup (Col s Text) where
+  (<>) = operator "||"
+instance Monoid (Col s Text) where
+  mempty = ""
 
 -- | Perform a conditional on a column
 ifThenElse :: (Same s t, Same t u, SqlType a) => Col s Bool -> Col t a -> Col u a -> Col s a

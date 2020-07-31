@@ -74,6 +74,7 @@ queryTests run = test
   , "expression cols under union (RHS)" ~: run unionWithRhsExpressionCols
   , "unionAll" ~: run unionAllWorks
   , "unionAll works for whole rows" ~: run unionAllForWholeRows
+  , "string concatenation" ~: run stringConcatenation
   , "teardown succeeds" ~: run teardown
   , "if not exists works" ~: run (setup >> resetup)
   ]
@@ -690,3 +691,6 @@ unionAllForWholeRows = assQueryEq "wrong person list returned" correct $ do
     return ppl
   where
     correct = sortBy (compare `on` age) (peopleItems ++ map (\p -> p {age = age p+1}) peopleItems)
+
+stringConcatenation = assQueryEq "wrong string returned" ["abcde"] $ do
+  pure $ mconcat ["a" :: Col s Text, "bc", "", "de"]
