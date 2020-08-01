@@ -8,12 +8,15 @@ on:
 
 jobs:
   build:
+    strategy:
+      matrix:
+        ghc: ['8.0.2', '8.2.2', '8.4.1', '8.6.3', '8.8.2', '8.10.1']
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
     - uses: actions/setup-haskell@v1
       with:
-        ghc-version: '8.8.2'
+        ghc-version: ${{ matrix.ghc }}
         cabal-version: '3.2'
     - uses: harmon758/postgresql-action@v1
       with:
