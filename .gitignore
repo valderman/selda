@@ -4,15 +4,13 @@
 *.o
 dist
 #*
-cabal.sandbox.config
 /selda/README.md
 /selda/ChangeLog.md
-/selda/*.yaml
 /website/BaseUrl.hs
 /website/_site
 /*/LICENSE
-result*
+dist-newstyle
+cabal.project.local
 *.sqlite
-TAGS
 !.gitignore
 !.github
