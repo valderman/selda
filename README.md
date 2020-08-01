@@ -5,7 +5,7 @@ Selda
 [![Hackage](https://img.shields.io/hackage/v/selda.svg?style=flat)](http://hackage.haskell.org/package/selda)
 [![IRC channel](https://img.shields.io/badge/IRC-%23selda-1e72ff.svg?style=flat)](https://www.irccloud.com/invite?channel=%23selda&amp;hostname=irc.freenode.net&amp;port=6697&amp;ssl=1)
 ![MIT License](http://img.shields.io/badge/license-MIT-brightgreen.svg)
-[![Build Status](https://travis-ci.org/valderman/selda.svg?branch=master)](https://travis-ci.org/valderman/selda)
+![Haskell CI](https://github.com/valderman/selda/workflows/Haskell%20CI/badge.svg)
 [![Hackage Dependencies](https://img.shields.io/hackage-deps/v/selda.svg)](https://packdeps.haskellers.com/feed?needle=selda)
 
 

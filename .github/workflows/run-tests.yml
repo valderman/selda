@@ -42,6 +42,5 @@ jobs:
       run: |
         cp ./README.md ./selda/README.md
         make license
-        make travis-pgconnectinfo
         cabal v2-run selda-changelog md
-        make travischeck
+        make check

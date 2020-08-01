@@ -1,5 +1,5 @@
 PACKAGES=selda selda-sqlite selda-postgresql selda-json
-.PHONY: help build license deps travischeck haddock check test selda json pgtest sqlite postgres repl upload-selda upload travis-pgconnectinfo tags
+.PHONY: help build license haddock check test selda json pgtest sqlite postgres repl upload-selda upload tags
 CABAL_BUILDFLAGS ?=
 CABAL ?= cabal
 
@@ -10,7 +10,6 @@ help:
 	@echo "pgtest       - build packages and run tests with PostgreSQL"
 	@echo "repl         - start ghci"
 	@echo "check        - build package, run tests, do a cabal sanity check"
-	@echo "travischeck  - like check, but with appropriate PGConnectInfo"
 	@echo "selda        - build core Selda package"
 	@echo "sqlite       - build sqlite backend"
 	@echo "json         - build json extensions"
@@ -21,15 +20,6 @@ help:
 	@echo "tags         - build tags file for emacs"
 
 build: selda sqlite postgres json
-
-travis-pgconnectinfo:
-	echo '{-# LANGUAGE OverloadedStrings #-}' > selda-tests/PGConnectInfo.hs
-	echo 'module PGConnectInfo where' >> selda-tests/PGConnectInfo.hs
-	echo 'import Database.Selda.PostgreSQL' >> selda-tests/PGConnectInfo.hs
-	echo 'pgConnectInfo = "test" `on` "localhost" `auth` ("postgres", "password")'  >> selda-tests/PGConnectInfo.hs
-
-travischeck: travis-pgconnectinfo
-	make check
 
 license:
 	for package in $(PACKAGES) ; do \
