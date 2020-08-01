@@ -15,3 +15,5 @@ cabal.sandbox.config
 result*
 *.sqlite
 TAGS
+!.gitignore
+!.github

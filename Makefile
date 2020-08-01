@@ -26,7 +26,7 @@ travis-pgconnectinfo:
 	echo '{-# LANGUAGE OverloadedStrings #-}' > selda-tests/PGConnectInfo.hs
 	echo 'module PGConnectInfo where' >> selda-tests/PGConnectInfo.hs
 	echo 'import Database.Selda.PostgreSQL' >> selda-tests/PGConnectInfo.hs
-	echo 'pgConnectInfo = ("test" `on` "localhost"){pgUsername = Just "postgres"}'  >> selda-tests/PGConnectInfo.hs
+	echo 'pgConnectInfo = "test" `on` "localhost" `auth` ("postgres", "password")'  >> selda-tests/PGConnectInfo.hs
 
 travischeck: travis-pgconnectinfo
 	make check
