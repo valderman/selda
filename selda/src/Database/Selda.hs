@@ -2,6 +2,7 @@
 {-# LANGUAGE ScopedTypeVariables, TypeOperators, GADTs, FlexibleContexts #-}
 {-# LANGUAGE DeriveGeneric, GeneralizedNewtypeDeriving, TypeFamilies, CPP #-}
 {-# LANGUAGE DataKinds #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 -- | Selda is not LINQ, but they're definitely related.
 --
 --   Selda is a high-level EDSL for interacting with relational databases.
@@ -492,6 +493,9 @@ instance Semigroup (Col s Text) where
   (<>) = operator "||"
 instance Monoid (Col s Text) where
   mempty = ""
+#if !MIN_VERSION_base(4, 11, 0)
+  mappend = (<>)
+#endif
 
 -- | Perform a conditional on a column
 ifThenElse :: (Same s t, Same t u, SqlType a) => Col s Bool -> Col t a -> Col u a -> Col s a

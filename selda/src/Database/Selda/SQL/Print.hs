@@ -164,8 +164,8 @@ ppSql (SQL cs src r gs ord lim _live dist) = do
         , " ",  ppJoinType jointype, " (", r', ") AS ", rqn
         , " ON ", on'
         ]
-    ppSrc (Union union_all l r) = do
-      qs <- mapM ppSql [l, r]
+    ppSrc (Union union_all left right) = do
+      qs <- mapM ppSql [left, right]
       qn <- freshQueryName
       let union = if union_all then " UNION ALL " else " UNION "
       pure $ mconcat

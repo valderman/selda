@@ -6,9 +6,6 @@
 module Tables where
 import Database.Selda
 import Database.Selda.MakeSelectors
-#if !MIN_VERSION_base(4, 11, 0)
-import Data.Monoid
-#endif
 
 data Person = Person
   { name :: Text
