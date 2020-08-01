@@ -1,0 +1,11 @@
+version: "3"
+services:
+  postgres:
+    image: postgres:11
+    container_name: pgtest
+    ports:
+      - "127.0.0.1:5432:5432"
+    environment:
+      - POSTGRES_DB=test 
+      - POSTGRES_USER=postgres 
+      - POSTGRES_PASSWORD=password

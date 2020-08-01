@@ -100,41 +100,15 @@ From the repository root:
     complex, so straight-up cabal is too quirky for day to day hacking.
 
 
-Setting up a VM for PostgreSQL testing
+PostgreSQL backend testing with Docker
 --------------------------------------
 
-While the SQLite backend is completely self-contained, the PostgreSQL backend
-needs an appropriate server for testing. Setting this up in a virtual machine
-is definitely less intrusive than setting up a server on your development
-machine. To set up a VM for the PostgreSQL backend tests:
-
-* Install your favourite hypervisor, such as VMWare player or VirtualBox.
-* Download a pre-built PostgreSQL VM from
-    [Bitnami](https://bitnami.com/stack/postgresql/virtual-machine).
-* Import the OVA file into your hypervisor.
-* Change the network settings of your newly imported VM to NAT, and make sure
-    that port 5432 is forwarded. Note that this will conflict with any PostgreSQL
-    server running on your machine while the VM is running.
-* Boot your VM and note the password displayed on the login screen.
-* Create the file `selda-tests/PGConnectInfo.hs` with the following content:
-    ```haskell
-    {-# LANGUAGE OverloadedStrings #-}
-    module PGConnectInfo where
-    import Database.Selda.PostgreSQL
-    
-    pgConnectInfo = "test" `on` "localhost" `auth` ("postgres", "$PASSWORD")
-    ```
-    Where `$PASSWORD` is the password from the VM's login screen.
-* Log in to the VM and disable the built-in firewall by running
-    `sudo systemctl disable ufw ; sudo systemctl stop ufw`.
-* From your host machine, create the test database:
-    ```
-    $ psql -h 127.0.0.1 -U postgres -W
-    [password from login screen]
-    # CREATE DATABASE test;
-    # \q
-    ```
-* Run `make pgtest` to check that everything works.
+To test the PostgreSQL backend, use the provided `pgtest-compose.yml` docker-compose file:
+```
+sudo docker-compose -f pgtest-compose.yml up -d
+make pgtest
+sudo docker-compose -f pgtest-compose.yml down
+```
 
 
 TODOs
