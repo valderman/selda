@@ -100,7 +100,7 @@ install:
   - cp ./README.md ./selda/README.md
   - make license
   - make travis-pgconnectinfo
-  - cabal v2-run selda-changelog md 
+  - ${CABAL} v2-run selda-changelog md 
   - |
     echo "packages: selda selda-sqlite selda-postgresql selda-json selda-tests" >> cabal.project
   - if [ $HCNUMVER -ge 80400 ] ; then echo 'package selda' >> cabal.project ; fi
