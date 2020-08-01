@@ -1,5 +1,5 @@
 PACKAGES=selda selda-sqlite selda-postgresql selda-json
-.PHONY: help build license haddock check test selda json pgtest sqlite postgres repl upload-selda upload tags
+.PHONY: help build license haddock check test selda json pgtest sqlite postgres repl upload-selda upload
 CABAL_BUILDFLAGS ?=
 CABAL ?= cabal
 
@@ -17,7 +17,6 @@ help:
 	@echo "upload       - upload packages to Hackage"
 	@echo "upload-selda - upload only the main selda package"
 	@echo "haddock      - build Haddock docs"
-	@echo "tags         - build tags file for emacs"
 
 build: selda sqlite postgres json
 
@@ -41,9 +40,6 @@ check: test pgtest haddock
 	${CABAL} v2-configure -f-localcache selda
 	${CABAL} v2-build selda
 
-tags:
-	hasktags --etags selda/src selda-sqlite/src selda-postgresql/src selda-json/src selda-tests/test
-
 test: selda sqlite
 	cd ./selda-tests && ${CABAL} v2-configure --enable-tests $(CABAL_BUILDFLAGS)
 	cd ./selda-tests && ${CABAL} v2-test $(CABAL_BUILDFLAGS)
@@ -55,19 +51,15 @@ pgtest: selda postgres
 selda: license
 	cp -f README.md ./selda/README.md
 	${CABAL} v2-build selda $(CABAL_BUILDFLAGS)
-	make tags ; true
 
 json: license
 	${CABAL} v2-build selda-json $(CABAL_BUILDFLAGS)
-	make tags ; true
 
 sqlite: license
 	${CABAL} v2-build selda-sqlite $(CABAL_BUILDFLAGS)
-	make tags ; true
 
 postgres: license
 	${CABAL} v2-build selda-postgresql $(CABAL_BUILDFLAGS)
-	make tags ; true
 
 repl:
 	${CABAL} v2-repl --ghc-options="-XOverloadedStrings" selda-sqlite $(CABAL_BUILDFLAGS)
