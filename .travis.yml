@@ -2,13 +2,7 @@
 #
 #   haskell-ci 'travis' 'selda/selda.cabal'
 #
-# To regenerate the script (for example after adjusting tested-with) run
-#
-#   haskell-ci regenerate
-#
-# For more information, see https://github.com/haskell-CI/haskell-ci
-#
-# version: 0.10.2
+# It's also been heavily modified, so regenerating it would be a very bad idea.
 #
 version: ~> 1.0
 language: c
@@ -110,23 +104,10 @@ script:
   - ${CABAL} v2-sdist all
   # Unpacking...
   - mv dist-newstyle/sdist/*.tar.gz ${DISTDIR}/
+  - cp cabal.project Makefile ${DISTDIR}/
   - cd ${DISTDIR} || false
   - find . -maxdepth 1 -type f -name '*.tar.gz' -exec tar -xvf '{}' \;
   - find . -maxdepth 1 -type f -name '*.tar.gz' -exec rm       '{}' \;
   - PKGDIR_selda="$(find . -maxdepth 1 -type d -regex '.*/selda-[0-9.]*')"
-  # Building...
-  # this builds all libraries and executables (without tests/benchmarks)
-  - ${CABAL} v2-build $WITHCOMPILER --disable-tests --disable-benchmarks all
-  # Building with tests and benchmarks...
-  # build & run tests, build benchmarks
-  - ${CABAL} v2-build $WITHCOMPILER ${TEST} ${BENCH} all
-  # cabal check...
-  - (cd ${PKGDIR_selda} && ${CABAL} -vnormal check)
-  # haddock...
-  - ${CABAL} v2-haddock $WITHCOMPILER --with-haddock $HADDOCK ${TEST} ${BENCH} all
-  # Building without installed constraints for packages in global-db...
-  - ${CABAL} v2-build $WITHCOMPILER --disable-tests --disable-benchmarks all
+  # Running checks...
   - make travischeck
-
-# REGENDATA ("0.10.2",["travis","selda/selda.cabal"])
-# EOF
