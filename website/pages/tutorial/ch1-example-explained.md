@@ -120,7 +120,7 @@ The `createTable` function will attempt to create its given table, and throw
 a `SeldaError` if the table already exists.
 
 Once we've created our table, we use `insert_` to insert three rows into
-our newly created table. Each row is represented by a plani Haskell value of
+our newly created table. Each row is represented by a plain Haskell value of
 the table's type.
 
 ```language-haskell
