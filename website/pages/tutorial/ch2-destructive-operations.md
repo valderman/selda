@@ -102,7 +102,7 @@ update :: (MonadSelda m, Relational a)
 The `update` function takes a table, a predicate, and an update function as its
 inputs, and returns the number of rows affected by the update.
 For each row that matches the given predicate &mdash; where the predicate
-returns `true` &mdash Selda applies the given update function.
+returns `true` &mdash; Selda applies the given update function.
 
 Let's assume, for instance, that we're feeling sorry for anyone who hasn't got
 a pet, and decide to give every pet-less person a dog:
