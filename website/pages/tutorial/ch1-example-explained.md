@@ -120,7 +120,7 @@ The `createTable` function will attempt to create its given table, and throw
 a `SeldaError` if the table already exists.
 
 Once we've created our table, we use `insert_` to insert three rows into
-our newly created table. Each row is represented by a plani Haskell value of
+our newly created table. Each row is represented by a plain Haskell value of
 the table's type.
 
 ```language-haskell
@@ -150,7 +150,7 @@ In this example `person` has the type `Row s Person`, and represents a single
 row from the `people` table.
 
 ```language-haskell
-restrict (person ! field @"age" .>= 18)
+restrict (person ! #age .>= 18)
 ```
 
 The columns of a row can be accessed using the table's selectors.
@@ -161,7 +161,7 @@ In this example, we use the `restrict` function (roughly equivalent
 to SQL `WHERE`) to filter out all persons who have an `age` lower than 18.
 
 ```language-haskell
-return (person ! field @"name" :*: person ! field @"pet")
+return (person ! #name :*: person ! #pet)
 ```
 
 Once we're done fetching rows and filtering, we can return any number of rows
