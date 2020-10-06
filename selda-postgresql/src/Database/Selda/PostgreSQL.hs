@@ -265,7 +265,7 @@ pgGetTableInfo c tbl = do
     Right (_, vals) <- pgQueryRunner c False tableinfo []
     if null vals
       then do
-        pure $ TableInfo [] [] []
+        pure $ TableInfo (mkTableName tbl) [] [] []
       else do
         Right (_, pkInfo) <- pgQueryRunner c False pkquery []
         Right (_, us) <- pgQueryRunner c False uniquequery []
@@ -274,7 +274,8 @@ pgGetTableInfo c tbl = do
         Right (_, ixs) <- pgQueryRunner c False ixquery []
         colInfos <- mapM (describe fks (map toText ixs)) vals
         x <- pure $ TableInfo
-          { tableColumnInfos = colInfos
+          { tableInfoName = mkTableName tbl
+          , tableColumnInfos = colInfos
           , tableUniqueGroups = map (map mkColName) uniques
           , tablePrimaryKey = [mkColName pk | [SqlString pk] <- pkInfo]
           }
