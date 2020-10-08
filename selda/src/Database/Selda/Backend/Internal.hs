@@ -24,6 +24,7 @@ import Database.Selda.Table hiding (colName, colType, colFKs)
 import qualified Database.Selda.Table as Table (ColInfo (..))
 import Database.Selda.SQL.Print.Config
 import Database.Selda.Types (TableName, ColName)
+import Data.Int (Int64)
 import Control.Concurrent
 import Control.Monad.Catch
 import Control.Monad.IO.Class
@@ -197,7 +198,7 @@ data SeldaBackend b = SeldaBackend
     -- | Execute an SQL statement and return the last inserted primary key,
     --   where the primary key is auto-incrementing.
     --   Backends must take special care to make this thread-safe.
-  , runStmtWithPK :: Text -> [Param] -> IO Int
+  , runStmtWithPK :: Text -> [Param] -> IO Int64
 
     -- | Prepare a statement using the given statement identifier.
   , prepareStmt :: StmtID -> [SqlTypeRep] -> Text -> IO Dynamic

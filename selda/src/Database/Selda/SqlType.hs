@@ -14,9 +14,11 @@ import Control.Applicative ((<|>))
 import Control.Exception (Exception (..), throw)
 import Data.ByteString (ByteString, empty)
 import qualified Data.ByteString.Lazy as BSL
+import Data.Int (Int32, Int64)
 import Data.Maybe (fromJust)
 import Data.Proxy
 import Data.Text (Text, pack, unpack)
+import qualified Data.Text.Lazy as LazyText
 import Data.Time
 import Data.Typeable
 import Data.UUID.Types (UUID, toString, fromByteString, nil)
@@ -44,7 +46,8 @@ sqlTimeFormat = "%H:%M:%S%Q%z"
 data SqlTypeRep
   = TText
   | TRowID
-  | TInt
+  | TInt64
+  | TInt32
   | TFloat
   | TBool
   | TDateTime
@@ -96,7 +99,8 @@ instance {-# OVERLAPPABLE #-}
 -- | An SQL literal.
 data Lit a where
   LText     :: !Text       -> Lit Text
-  LInt      :: !Int        -> Lit Int
+  LInt32    :: !Int32      -> Lit Int32
+  LInt64    :: !Int64      -> Lit Int64
   LDouble   :: !Double     -> Lit Double
   LBool     :: !Bool       -> Lit Bool
   LDateTime :: !UTCTime    -> Lit UTCTime
@@ -111,7 +115,8 @@ data Lit a where
 -- | The SQL type representation for the given literal.
 litType :: Lit a -> SqlTypeRep
 litType (LText{})     = TText
-litType (LInt{})      = TInt
+litType (LInt32{})    = TInt32
+litType (LInt64{})    = TInt64
 litType (LDouble{})   = TFloat
 litType (LBool{})     = TBool
 litType (LDateTime{}) = TDateTime
@@ -135,22 +140,24 @@ instance Ord (Lit a) where
 -- | Constructor tag for all literals. Used for Ord instance.
 litConTag :: Lit a -> Int
 litConTag (LText{})     = 0
-litConTag (LInt{})      = 1
-litConTag (LDouble{})   = 2
-litConTag (LBool{})     = 3
-litConTag (LDateTime{}) = 4
-litConTag (LDate{})     = 5
-litConTag (LTime{})     = 6
-litConTag (LJust{})     = 7
-litConTag (LBlob{})     = 8
-litConTag (LNull)       = 9
-litConTag (LCustom{})   = 10
-litConTag (LUUID{})     = 11
+litConTag (LInt32{})    = 2
+litConTag (LInt64{})    = 3
+litConTag (LDouble{})   = 4
+litConTag (LBool{})     = 5
+litConTag (LDateTime{}) = 6
+litConTag (LDate{})     = 7
+litConTag (LTime{})     = 8
+litConTag (LJust{})     = 9
+litConTag (LBlob{})     = 10
+litConTag (LNull)       = 11
+litConTag (LCustom{})   = 12
+litConTag (LUUID{})     = 13
 
 -- | Compare two literals of different type for equality.
 compLit :: Lit a -> Lit b -> Ordering
 compLit (LText x)     (LText x')     = x `compare` x'
-compLit (LInt x)      (LInt x')      = x `compare` x'
+compLit (LInt32 x)    (LInt32 x')    = x `compare` x'
+compLit (LInt64 x)    (LInt64 x')    = x `compare` x'
 compLit (LDouble x)   (LDouble x')   = x `compare` x'
 compLit (LBool x)     (LBool x')     = x `compare` x'
 compLit (LDateTime x) (LDateTime x') = x `compare` x'
@@ -164,7 +171,8 @@ compLit a             b              = litConTag a `compare` litConTag b
 
 -- | Some value that is representable in SQL.
 data SqlValue where
-  SqlInt     :: !Int        -> SqlValue
+  SqlInt32   :: !Int32      -> SqlValue
+  SqlInt64   :: !Int64      -> SqlValue
   SqlFloat   :: !Double     -> SqlValue
   SqlString  :: !Text       -> SqlValue
   SqlBool    :: !Bool       -> SqlValue
@@ -175,7 +183,8 @@ data SqlValue where
   SqlNull    :: SqlValue
 
 instance Show SqlValue where
-  show (SqlInt n)     = "SqlInt " ++ show n
+  show (SqlInt32 n)   = "SqlInt32 " ++ show n
+  show (SqlInt64 n)   = "SqlInt64 " ++ show n
   show (SqlFloat f)   = "SqlFloat " ++ show f
   show (SqlString s)  = "SqlString " ++ show s
   show (SqlBool b)    = "SqlBool " ++ show b
@@ -187,7 +196,8 @@ instance Show SqlValue where
 
 instance Show (Lit a) where
   show (LText s)     = show s
-  show (LInt i)      = show i
+  show (LInt32 i)    = show i
+  show (LInt64 i)    = show i
   show (LDouble d)   = show d
   show (LBool b)     = show b
   show (LDateTime s) = show s
@@ -201,7 +211,7 @@ instance Show (Lit a) where
 
 -- | A row identifier for some table.
 --   This is the type of auto-incrementing primary keys.
-newtype RowID = RowID Int
+newtype RowID = RowID Int64
   deriving (Eq, Ord, Typeable, Generic)
 instance Show RowID where
   show (RowID n) = show n
@@ -217,11 +227,11 @@ isInvalidRowId (RowID n) = n < 0
 
 -- | Create a row identifier from an integer.
 --   Use with caution, preferably only when reading user input.
-toRowId :: Int -> RowID
+toRowId :: Int64 -> RowID
 toRowId = RowID
 
 -- | Inspect a row identifier.
-fromRowId :: RowID -> Int
+fromRowId :: RowID -> Int64
 fromRowId (RowID n) = n
 
 -- | A typed row identifier.
@@ -247,12 +257,12 @@ typedUuid = UUID
 
 -- | Create a typed row identifier from an integer.
 --   Use with caution, preferably only when reading user input.
-toId :: Int -> ID a
+toId :: Int64 -> ID a
 toId = ID . toRowId
 
 -- | Create a typed row identifier from an integer.
 --   Use with caution, preferably only when reading user input.
-fromId :: ID a -> Int
+fromId :: ID a -> Int64
 fromId (ID i) = fromRowId i
 
 -- | A typed row identifier which is guaranteed to not match any row in any
@@ -274,9 +284,9 @@ instance Show FromSqlError where
 instance Exception FromSqlError
 
 instance SqlType RowID where
-  mkLit (RowID n) = LCustom TRowID (LInt n)
+  mkLit (RowID n) = LCustom TRowID (LInt64 n)
   sqlType _ = TRowID
-  fromSql (SqlInt x) = RowID x
+  fromSql (SqlInt64 x) = RowID x
   fromSql v          = fromSqlError $ "RowID column with non-int value: " ++ show v
   defaultValue = mkLit invalidRowId
 
@@ -287,11 +297,25 @@ instance Typeable a => SqlType (ID a) where
   defaultValue = mkLit (ID invalidRowId)
 
 instance SqlType Int where
-  mkLit = LInt
-  sqlType _ = TInt
-  fromSql (SqlInt x) = x
-  fromSql v          = fromSqlError $ "int column with non-int value: " ++ show v
-  defaultValue = LInt 0
+  mkLit n = LCustom TInt64 (LInt64 $ fromIntegral n)
+  sqlType _ = TInt64
+  fromSql (SqlInt64 x) = fromIntegral x
+  fromSql v            = fromSqlError $ "int column with non-int value: " ++ show v
+  defaultValue = mkLit (0 :: Int)
+
+instance SqlType Int64 where
+  mkLit = LInt64
+  sqlType _ = TInt64
+  fromSql (SqlInt64 x) = x
+  fromSql v          = fromSqlError $ "int64 column with non-int value: " ++ show v
+  defaultValue = LInt64 0
+
+instance SqlType Int32 where
+  mkLit = LInt32
+  sqlType _ = TInt32
+  fromSql (SqlInt32 x) = x
+  fromSql v          = fromSqlError $ "int32 column with non-int value: " ++ show v
+  defaultValue = LInt32 0
 
 instance SqlType Double where
   mkLit = LDouble
@@ -307,13 +331,22 @@ instance SqlType Text where
   fromSql v             = fromSqlError $ "text column with non-text value: " ++ show v
   defaultValue = LText ""
 
+instance SqlType LazyText.Text where
+  mkLit = LCustom TText . LText . mconcat . LazyText.toChunks
+  sqlType _ = TText
+  fromSql (SqlString x) = LazyText.fromChunks [x]
+  fromSql v             = fromSqlError $ "lazy text column with non-text value: " ++ show v
+  defaultValue = mkLit ""
+
 instance SqlType Bool where
   mkLit = LBool
   sqlType _ = TBool
-  fromSql (SqlBool x) = x
-  fromSql (SqlInt 0)  = False
-  fromSql (SqlInt _)  = True
-  fromSql v           = fromSqlError $ "bool column with non-bool value: " ++ show v
+  fromSql (SqlBool x)  = x
+  fromSql (SqlInt32 0) = False
+  fromSql (SqlInt32 _) = True
+  fromSql (SqlInt64 0) = False
+  fromSql (SqlInt64 _) = True
+  fromSql v            = fromSqlError $ "bool column with non-bool value: " ++ show v
   defaultValue = LBool False
 
 instance SqlType UTCTime where

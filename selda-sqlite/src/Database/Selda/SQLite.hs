@@ -15,7 +15,9 @@ import Control.Monad (void, when, unless)
 import Control.Monad.Catch
 import Data.ByteString.Lazy (toStrict)
 import Data.Dynamic
+import Data.Int (Int64)
 import Data.Text as Text (pack, toLower, take)
+import qualified Data.Text.Lazy as LazyText
 import Data.Time (FormatTime, formatTime, defaultTimeLocale)
 import Data.UUID.Types (toByteString)
 import Database.SQLite3
@@ -122,7 +124,8 @@ sqliteGetTableInfo db tbl = do
     toTypeRep _ "time"                      = Right TTime
     toTypeRep _ "blob"                      = Right TBlob
     toTypeRep True "integer"                = Right TRowID
-    toTypeRep pk s | Text.take 3 s == "int" = Right $ if pk then TRowID else TInt
+    toTypeRep pk s | Text.take 6 s == "bigint" = Right $ if pk then TRowID else TInt64
+    toTypeRep pk s | Text.take 3 s == "int" = Right $ if pk then TRowID else TInt32
     toTypeRep _ typ                         = Left typ
 
     indexInfo [_, SqlString ixname, _, SqlString itype, _] = do
@@ -132,7 +135,7 @@ sqliteGetTableInfo db tbl = do
     indexInfo _ = do
       error "unreachable"
 
-    describe fks ixs cs [_, SqlString name, SqlString ty, SqlInt nonnull, _, SqlInt pk] = do
+    describe fks ixs cs [_, SqlString name, SqlString ty, SqlInt64 nonnull, _, SqlInt64 pk] = do
       let ty' = Text.toLower ty
       return $ ColumnInfo
         { colName = mkColName name
@@ -176,7 +179,7 @@ sqliteRunPrepared db hdl params = do
     Left e@(SQLError{}) -> throwM (SqlError (show e))
     Right res           -> return (snd res)
 
-sqliteQueryRunner :: Database -> QueryRunner (Int, (Int, [[SqlValue]]))
+sqliteQueryRunner :: Database -> QueryRunner (Int64, (Int, [[SqlValue]]))
 sqliteQueryRunner db qry params = do
     eres <- try $ do
       stm <- prepare db qry
@@ -186,7 +189,7 @@ sqliteQueryRunner db qry params = do
       Left e@(SQLError{}) -> throwM (SqlError (show e))
       Right res           -> return res
 
-sqliteRunStmt :: Database -> Statement -> [Param] -> IO (Int, (Int, [[SqlValue]]))
+sqliteRunStmt :: Database -> Statement -> [Param] -> IO (Int64, (Int, [[SqlValue]]))
 sqliteRunStmt db stm params = do
   bind stm [toSqlData p | Param p <- params]
   rows <- getRows stm []
@@ -205,7 +208,8 @@ getRows s acc = do
       return $ reverse acc
 
 toSqlData :: Lit a -> SQLData
-toSqlData (LInt i)      = SQLInteger $ fromIntegral i
+toSqlData (LInt32 i)    = SQLInteger $ fromIntegral i
+toSqlData (LInt64 i)    = SQLInteger $ fromIntegral i
 toSqlData (LDouble d)   = SQLFloat d
 toSqlData (LText s)     = SQLText s
 toSqlData (LDateTime t) = SQLText $ pack $ fmtTime sqlDateTimeFormat t
@@ -219,7 +223,7 @@ toSqlData (LCustom _ l) = toSqlData l
 toSqlData (LUUID x)     = SQLBlob (toStrict $ toByteString x)
 
 fromSqlData :: SQLData -> SqlValue
-fromSqlData (SQLInteger i) = SqlInt $ fromIntegral i
+fromSqlData (SQLInteger i) = SqlInt64 $ fromIntegral i
 fromSqlData (SQLFloat f)   = SqlFloat f
 fromSqlData (SQLText s)    = SqlString s
 fromSqlData (SQLBlob b)    = SqlBlob b
