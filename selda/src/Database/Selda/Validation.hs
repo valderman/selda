@@ -18,8 +18,8 @@ import Database.Selda.Table.Validation (ValidationError (..), validateOrThrow)
 
 -- | Are the given types compatible?
 isCompatibleWith :: SqlTypeRep -> SqlTypeRep -> Bool
-isCompatibleWith TRowID TInt = True
-isCompatibleWith TInt TRowID = True
+isCompatibleWith TRowID TInt64 = True
+isCompatibleWith TInt64 TRowID = True
 isCompatibleWith a b         = a == b
 
 -- | Validate a table schema, and check it for consistency against the current

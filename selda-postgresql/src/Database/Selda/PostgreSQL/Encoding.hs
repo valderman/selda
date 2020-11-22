@@ -1,15 +1,15 @@
 {-# LANGUAGE GADTs, BangPatterns, OverloadedStrings, CPP #-}
 -- | Encoding/decoding for PostgreSQL.
 module Database.Selda.PostgreSQL.Encoding
-  ( toSqlValue, fromSqlValue, fromSqlType, readInt, readBool
+  ( toSqlValue, fromSqlValue, fromSqlType, readInt64, readBool
   ) where
 #ifdef __HASTE__
 
-toSqlValue, fromSqlValue, fromSqlType, readInt, readBool :: a
+toSqlValue, fromSqlValue, fromSqlType, readInt64, readBool :: a
 toSqlValue = undefined
 fromSqlValue = undefined
 fromSqlType = undefined
-readInt = undefined
+readInt64 = undefined
 readBool = undefined
 
 #else
@@ -19,6 +19,7 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as LBS
 import Data.Char (toLower)
 import qualified Data.Text as T
+import qualified Data.Text.Lazy as LazyText
 import Data.Time (utc, localToUTCTimeOfDay)
 import Database.PostgreSQL.LibPQ (Oid (..), Format (Binary))
 import Database.Selda.Backend
@@ -52,8 +53,11 @@ bytes = Enc.encodingBytes
 -- | Convert a parameter into an postgres parameter triple.
 fromSqlValue :: Lit a -> Maybe (Oid, BS.ByteString, Format)
 fromSqlValue (LBool b)     = Just (boolType, bytes $ Enc.bool b, Binary)
-fromSqlValue (LInt n)      = Just ( intType
+fromSqlValue (LInt64 n)    = Just ( intType
                                   , bytes $ Enc.int8_int64 $ fromIntegral n
+                                  , Binary)
+fromSqlValue (LInt32 n)    = Just ( int32Type
+                                  , bytes $ Enc.int4_int32 $ fromIntegral n
                                   , Binary)
 fromSqlValue (LDouble f)   = Just (doubleType, bytes $ Enc.float8 f, Binary)
 fromSqlValue (LText s)     = Just (textType, bytes $ Enc.text_strict s, Binary)
@@ -74,7 +78,8 @@ fromSqlValue (LCustom _ l) = fromSqlValue l
 -- | Get the corresponding OID for an SQL type representation.
 fromSqlType :: SqlTypeRep -> Oid
 fromSqlType TBool     = boolType
-fromSqlType TInt      = intType
+fromSqlType TInt64    = intType
+fromSqlType TInt32    = int32Type
 fromSqlType TFloat    = doubleType
 fromSqlType TText     = textType
 fromSqlType TDateTime = timestampType
@@ -89,9 +94,9 @@ fromSqlType TJSON     = jsonbType
 toSqlValue :: Oid -> BS.ByteString -> SqlValue
 toSqlValue t val
   | t == boolType      = SqlBool    $ parse Dec.bool val
-  | t == intType       = SqlInt     $ fromIntegral $ parse (Dec.int :: Value Int64) val
-  | t == int32Type     = SqlInt     $ fromIntegral $ parse (Dec.int :: Value Int32) val
-  | t == int16Type     = SqlInt     $ fromIntegral $ parse (Dec.int :: Value Int16) val
+  | t == intType       = SqlInt64   $ parse (Dec.int :: Value Int64) val
+  | t == int32Type     = SqlInt32   $ parse (Dec.int :: Value Int32) val
+  | t == int16Type     = SqlInt32   $ fromIntegral $ parse (Dec.int :: Value Int16) val
   | t == doubleType    = SqlFloat   $ parse Dec.float8 val
   | t == blobType      = SqlBlob    $ parse Dec.bytea_strict val
   | t == uuidType      = SqlBlob    $ uuid2bs $ parse Dec.uuid val
@@ -115,8 +120,8 @@ parse p x =
     Left _   -> error "unable to decode value"
 
 -- | Read an Int from a binary encoded pgint8.
-readInt :: BS.ByteString -> Int
-readInt = fromIntegral . parse (Dec.int :: Value Int64)
+readInt64 :: BS.ByteString -> Int64
+readInt64 = parse (Dec.int :: Value Int64)
 
 readBool :: T.Text -> Bool
 readBool = go . T.map toLower

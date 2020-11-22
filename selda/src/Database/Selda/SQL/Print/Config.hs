@@ -70,7 +70,8 @@ defPPConfig = PPConfig
 defType :: SqlTypeRep -> Text
 defType TText     = "TEXT"
 defType TRowID    = "INTEGER"
-defType TInt      = "INT"
+defType TInt32    = "INT"
+defType TInt64    = "BIGINT"
 defType TFloat    = "DOUBLE"
 defType TBool     = "BOOLEAN"
 defType TDateTime = "DATETIME"

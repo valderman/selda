@@ -24,6 +24,7 @@ import qualified Data.ByteString as BS (foldl')
 import qualified Data.ByteString.Char8 as BS (pack, unpack)
 import Data.Dynamic
 import Data.Foldable (for_)
+import Data.Int (Int64)
 import Data.Text.Encoding
 import Database.Selda.PostgreSQL.Encoding
 import Database.PostgreSQL.LibPQ hiding (user, pass, db, host)
@@ -193,7 +194,7 @@ pgPPConfig = defPPConfig
 
     -- For when we use 'autoPrimaryGen' on 'Int' field
     isGenericIntPrimaryKey :: SqlTypeRep -> [ColAttr] -> Bool
-    isGenericIntPrimaryKey ty attrs = ty == TInt && and ((`elem` attrs) <$> bigserialQue)
+    isGenericIntPrimaryKey ty attrs = ty == TInt64 && and ((`elem` attrs) <$> bigserialQue)
 
 -- | Create a `SeldaBackend` for PostgreSQL `Connection`
 pgBackend :: Connection   -- ^ PostgreSQL connection object.
@@ -355,7 +356,7 @@ pgGetTableInfo c tbl = do
     describe _ _ results =
       throwM $ SqlError $ "bad result from table info query: " ++ show results
 
-pgQueryRunner :: Connection -> Bool -> T.Text -> [Param] -> IO (Either Int (Int, [[SqlValue]]))
+pgQueryRunner :: Connection -> Bool -> T.Text -> [Param] -> IO (Either Int64 (Int, [[SqlValue]]))
 pgQueryRunner c return_lastid q ps = do
     mres <- execParams c (encodeUtf8 q') [fromSqlValue p | Param p <- ps] Binary
     unlessError c errmsg mres $ \res -> do
@@ -367,7 +368,7 @@ pgQueryRunner c return_lastid q ps = do
     q' | return_lastid = q <> " RETURNING LASTVAL();"
        | otherwise     = q
 
-    getLastId res = (maybe 0 id . fmap readInt) <$> getvalue res 0 0
+    getLastId res = (maybe 0 id . fmap readInt64) <$> getvalue res 0 0
 
 pgRun :: Connection -> Dynamic -> [Param] -> IO (Int, [[SqlValue]])
 pgRun c hdl ps = do
@@ -440,8 +441,9 @@ doError c msg = do
 
 mkTypeRep :: T.Text ->  Either T.Text SqlTypeRep
 mkTypeRep "bigserial"                = Right TRowID
-mkTypeRep "int8"                     = Right TInt
-mkTypeRep "bigint"                   = Right TInt
+mkTypeRep "int4"                     = Right TInt32
+mkTypeRep "int8"                     = Right TInt64
+mkTypeRep "bigint"                   = Right TInt64
 mkTypeRep "float8"                   = Right TFloat
 mkTypeRep "double precision"         = Right TFloat
 mkTypeRep "timestamp with time zone" = Right TDateTime
@@ -457,7 +459,8 @@ mkTypeRep typ                        = Left typ
 -- | Custom column types for postgres.
 pgColType :: PPConfig -> SqlTypeRep -> T.Text
 pgColType _ TRowID    = "BIGINT"
-pgColType _ TInt      = "INT8"
+pgColType _ TInt64    = "INT8"
+pgColType _ TInt32    = "INT4"
 pgColType _ TFloat    = "FLOAT8"
 pgColType _ TDateTime = "TIMESTAMP"
 pgColType _ TBlob     = "BYTEA"
