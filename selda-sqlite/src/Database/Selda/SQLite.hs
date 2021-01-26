@@ -117,6 +117,7 @@ sqliteGetTableInfo db tbl = do
     ixinfo name = mconcat ["PRAGMA index_info(", name, ");"]
 
     toTypeRep _ "text"                      = Right TText
+    toTypeRep _ "double precision"          = Right TFloat
     toTypeRep _ "double"                    = Right TFloat
     toTypeRep _ "boolean"                   = Right TBool
     toTypeRep _ "datetime"                  = Right TDateTime
