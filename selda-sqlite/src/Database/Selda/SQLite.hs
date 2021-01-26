@@ -17,7 +17,6 @@ import Data.ByteString.Lazy (toStrict)
 import Data.Dynamic
 import Data.Int (Int64)
 import Data.Text as Text (pack, toLower, take)
-import qualified Data.Text.Lazy as LazyText
 import Data.Time (FormatTime, formatTime, defaultTimeLocale)
 import Data.UUID.Types (toByteString)
 import Database.SQLite3
