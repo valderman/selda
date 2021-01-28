@@ -28,7 +28,7 @@ import Data.Int (Int64)
 import Control.Concurrent
 import Control.Monad.Catch
 import Control.Monad.IO.Class
-import Control.Monad.State
+import Control.Monad.Reader
 import Data.Dynamic
 import qualified Data.IntMap as M
 import Data.IORef
@@ -257,14 +257,14 @@ withBackend :: MonadSelda m => (SeldaBackend (Backend m) -> m a) -> m a
 withBackend m = withConnection (m . connBackend)
 
 -- | Monad transformer adding Selda SQL capabilities.
-newtype SeldaT b m a = S {unS :: StateT (SeldaConnection b) m a}
+newtype SeldaT b m a = S {unS :: ReaderT (SeldaConnection b) m a}
   deriving ( Functor, Applicative, Monad, MonadIO
            , MonadThrow, MonadCatch, MonadMask , MonadFail
            )
 
 instance (MonadIO m, MonadMask m) => MonadSelda (SeldaT b m) where
   type Backend (SeldaT b m) = b
-  withConnection m = S get >>= m
+  withConnection m = S ask >>= m
 
 instance MonadTrans (SeldaT b) where
   lift = S . lift
@@ -287,4 +287,4 @@ runSeldaT m c =
       closed <- liftIO $ readIORef (connClosed c)
       when closed $ do
         liftIO $ throwM $ DbError "runSeldaT called with a closed connection"
-      fst <$> runStateT (unS m) c
+      runReaderT (unS m) c
