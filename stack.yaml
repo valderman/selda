@@ -15,7 +15,7 @@
 # resolver:
 #  name: custom-snapshot
 #  location: "./custom-snapshot.yaml"
-resolver: lts-13.18
+resolver: lts-17.0
 
 # User packages to be built.
 # Various formats can be used as shown in the example below.
@@ -40,6 +40,7 @@ packages:
 - selda-postgresql
 - selda-sqlite
 - selda-tests
+- selda-json
 
 # Dependency packages to be pulled from upstream that are not in the resolver
 # (e.g., acme-missiles-0.3)

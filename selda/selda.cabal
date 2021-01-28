@@ -13,17 +13,12 @@ description:         This package provides an EDSL for writing portable, type-sa
                      selda-sqlite and selda-postgresql.
 homepage:            https://selda.link
 license:             MIT
-license-file:        LICENSE
 author:              Anton Ekblad
 maintainer:          anton@ekblad.cc
 category:            Database
 build-type:          Simple
-extra-source-files:  ChangeLog.md
 cabal-version:       >=1.10
 tested-with:         GHC == 8.0.2, GHC == 8.2.2, GHC == 8.4.1, GHC == 8.6.3, GHC == 8.8.2, GHC == 8.10.1
-
-extra-source-files:
-  README.md
 
 source-repository head
   type:     git
