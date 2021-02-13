@@ -259,8 +259,8 @@ distinct :: (Columns a, Columns (OuterCols a))
          => Query (Inner s) a
          -> Query s (OuterCols a)
 distinct q = Query $ do
-  (inner_st, res) <- isolate q
+  res <- unQ q
   st <- get
-  let ss = sources inner_st
+  let ss = sources st
   put st {sources = [(sqlFrom (allCols ss) (Product ss)) {SQL.distinct = True}]}
   return (unsafeCoerce res)
