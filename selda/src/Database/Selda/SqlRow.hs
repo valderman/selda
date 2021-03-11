@@ -6,6 +6,7 @@
 #endif
 module Database.Selda.SqlRow
   ( SqlRow (..), ResultReader
+  , GSqlRow
   , runResultReader, next
   ) where
 import Control.Monad.State.Strict
