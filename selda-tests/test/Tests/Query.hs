@@ -77,6 +77,7 @@ queryTests run = test
   , "string concatenation" ~: run stringConcatenation
   , "teardown succeeds" ~: run teardown
   , "if not exists works" ~: run (setup >> resetup)
+  , "two distinct clauses works" ~: run twoDistinctClauses
   ]
 
 simpleSelect = do
@@ -694,3 +695,10 @@ unionAllForWholeRows = assQueryEq "wrong person list returned" correct $ do
 
 stringConcatenation = assQueryEq "wrong string returned" ["abcde"] $ do
   pure $ mconcat ["a" :: Col s Text, "bc", "", "de"]
+
+twoDistinctClauses = do
+  res <- query $ aggregate $ do
+      ppl <- distinct $ pName `from` select people
+      _ <- distinct $ pName `from` select people
+      return (count ppl)
+  assEq "distinct people is wrong" [4] res
