@@ -127,8 +127,10 @@ allStmts = fmap (map (\(k, v) -> (StmtID k, stmtHandle v)) . M.toList)
 
 -- | Comprehensive information about a table.
 data TableInfo = TableInfo
-  { -- | Ordered information about each table column.
-    tableColumnInfos :: [ColumnInfo]
+  { -- | Name of the table.
+    tableInfoName :: TableName
+    -- | Ordered information about each table column.
+  , tableColumnInfos :: [ColumnInfo]
     -- | Unordered list of all (non-PK) uniqueness constraints on this table.
   , tableUniqueGroups :: [[ColName]]
     -- | Unordered list of all primary key constraints on this table.
@@ -168,7 +170,8 @@ fromColInfo ci = ColumnInfo
 -- | Get the column information for each column in the given table.
 tableInfo :: Table a -> TableInfo
 tableInfo t = TableInfo
-  { tableColumnInfos = map fromColInfo (tableCols t)
+  { tableInfoName = tableName t
+  , tableColumnInfos = map fromColInfo (tableCols t)
   , tableUniqueGroups = uniqueGroups
   , tablePrimaryKey = pkGroup
   }

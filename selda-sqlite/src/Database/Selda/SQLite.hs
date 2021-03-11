@@ -92,7 +92,8 @@ sqliteGetTableInfo db tbl = do
     ixs <- mapM indexInfo . snd . snd =<< sqliteQueryRunner db indexes []
     colInfos <- mapM (describe fks ixs cs) cols
     return $ TableInfo
-      { tableColumnInfos = colInfos
+      { tableInfoName = mkTableName tbl
+      , tableColumnInfos = colInfos
       , tableUniqueGroups =
         [ map mkColName names
         | (names, "u") <- ixs
