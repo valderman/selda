@@ -6,7 +6,6 @@ description:         PostgreSQL backend for the Selda database EDSL.
                      installed.
 homepage:            https://github.com/valderman/selda
 license:             MIT
-license-file:        LICENSE
 author:              Anton Ekblad
 maintainer:          anton@ekblad.cc
 category:            Database

@@ -5,7 +5,6 @@ description:         Allows the Selda database EDSL to be used with SQLite
                      databases.
 homepage:            https://github.com/valderman/selda
 license:             MIT
-license-file:        LICENSE
 author:              Anton Ekblad
 maintainer:          anton@ekblad.cc
 category:            Database
