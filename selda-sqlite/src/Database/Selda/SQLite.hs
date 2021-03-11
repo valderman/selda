@@ -17,7 +17,6 @@ import Data.ByteString.Lazy (toStrict)
 import Data.Dynamic
 import Data.Int (Int64)
 import Data.Text as Text (pack, toLower, take)
-import qualified Data.Text.Lazy as LazyText
 import Data.Time (FormatTime, formatTime, defaultTimeLocale)
 import Data.UUID.Types (toByteString)
 import Database.SQLite3
@@ -117,6 +116,7 @@ sqliteGetTableInfo db tbl = do
     ixinfo name = mconcat ["PRAGMA index_info(", name, ");"]
 
     toTypeRep _ "text"                      = Right TText
+    toTypeRep _ "double precision"          = Right TFloat
     toTypeRep _ "double"                    = Right TFloat
     toTypeRep _ "boolean"                   = Right TBool
     toTypeRep _ "datetime"                  = Right TDateTime
