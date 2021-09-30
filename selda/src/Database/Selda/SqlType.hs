@@ -28,7 +28,7 @@ import GHC.Generics (Generic)
 --   representing timestamps as text.
 --   If at all possible, use 'SqlUTCTime' instead.
 sqlDateTimeFormat :: String
-sqlDateTimeFormat = "%F %H:%M:%S%Q%z"
+sqlDateTimeFormat = "%F %H:%M:%S%Q%Ez"
 
 -- | Format string used to represent date when
 --   representing dates as text.
