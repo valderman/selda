@@ -119,7 +119,7 @@ updateUpdates = do
     , (def, Nothing, "more anonymous spam")
     , (def, Nothing, "even more spam")
     ]
-  rows <- update comments (isNull . (!cName))
+  rows <- update comments (isNull . (! cName))
                           (`with` [cName := just "anon"])
   [upd] <- query $ aggregate $ do
     t <- select comments
@@ -327,7 +327,7 @@ nulQueries = do
     , (def, Nothing         , "more \0 spam")
     , (def, Nothing         , "even more spam")
     ]
-  rows <- update comments (isNull . (!cName))
+  rows <- update comments (isNull . (! cName))
                           (`with` [cName := just "\0"])
   [upd] <- query $ aggregate $ do
     t <- select comments
