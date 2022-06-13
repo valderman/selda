@@ -11,6 +11,8 @@ dist
 /*/LICENSE
 dist-newstyle
 cabal.project.local
+.stack-work/
+/stack*.yaml.lock
 *.sqlite
 !.gitignore
 !.github

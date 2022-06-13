@@ -1,4 +1,4 @@
-resolver: lts-18.28
+resolver: nightly-2022-06-04
 
 packages:
 - selda
