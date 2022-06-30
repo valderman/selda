@@ -68,6 +68,7 @@ mutableTests freshEnv = test
   , "migrate into self"              ~: freshEnv (migrationTest migrateIntoSelf)
   , "drop column migration"          ~: freshEnv (migrationTest dropColumn)
   , "auto-migrate one step"          ~: freshEnv (migrationTest autoMigrateOneStep)
+  , "auto-migrate including empty"   ~: freshEnv (migrationTest autoMigrateStepsIncludingEmpty)
   , "auto-migrate no-op"             ~: freshEnv (migrationTest autoMigrateNoOp)
   , "migrate aggregate"              ~: freshEnv (migrationTest migrateAggregate)
   , "auto-migrate multi-step"        ~: freshEnv (migrationTest autoMigrateOneStep)
@@ -692,6 +693,17 @@ steps =
   , [Migration migrationTable3 migrationTable1 pure]
   ]
 
+steps2 =
+  [ [Migration migrationTable1 migrationTable2 $ \foo -> pure $ new
+      [ mt2_1 := toString (the foo)
+      , mt2_2 := the foo
+      ]
+    ]
+  , []
+  , [Migration migrationTable2 migrationTable3 $ \t -> pure (only (t ! mt2_2))]
+  , [Migration migrationTable3 migrationTable1 pure]
+  ]
+
 migrateIntoSelf = do
   migrate migrationTable1 migrationTable1 id
   res <- query $ do
@@ -727,6 +739,14 @@ dropColumn = do
 autoMigrateOneStep = do
   migrate migrationTable1 migrationTable3 id
   autoMigrate False steps
+  res <- query $ do
+    x <- select migrationTable1
+    order (the x) ascending
+    return x
+  assEq "automigration failed" [1,2,3] res
+
+autoMigrateStepsIncludingEmpty = do
+  autoMigrate False steps2
   res <- query $ do
     x <- select migrationTable1
     order (the x) ascending
