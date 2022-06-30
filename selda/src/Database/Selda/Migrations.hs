@@ -15,6 +15,7 @@ import Database.Selda.Backend.Internal
 import Database.Selda.Table.Validation (ValidationError (..))
 import Database.Selda.Types (mkTableName, fromTableName, rawTableName)
 import Database.Selda.Validation
+import Data.List (nub, find)
 
 -- | Wrapper for user with 'migrateAll', enabling multiple migrations to be
 --   packed into the same list:
@@ -30,6 +31,9 @@ data Migration backend where
             -> Table b
             -> (Row backend a -> Query backend (Row backend b))
             -> Migration backend
+  MigrationCreateTable :: Relational a
+                       => Table a
+                       -> Migration backend
 
 -- | A migration step is zero or more migrations that need to be performed in
 --   a single transaction in order to keep the database consistent.
@@ -70,7 +74,7 @@ migrateAll :: (MonadSelda m, MonadMask m)
            -> MigrationStep (Backend m) -- ^ Migration step to perform.
            -> m ()
 migrateAll fks =
-  wrap fks . mapM_ (\(Migration t1 t2 upg) -> migrateInternal t1 t2 upg)
+  wrap fks . mapM_ migrateInternal
 
 -- | Given a list of migration steps in ascending chronological order, finds
 --   the latest migration step starting state that matches the current database,
@@ -94,11 +98,34 @@ autoMigrate _ [] = do
 autoMigrate fks steps = wrap fks $ do
     diffs <- sequence finalState
     when (any (/= TableOK) diffs) $ do
-      steps' <- reverse <$> calculateSteps revSteps
+      steps' <- reverse <$> cs revSteps finalMigrations
       mapM_ performStep steps'
   where
     revSteps = reverse steps
-    finalState = [diffTable to | Migration _ to _ <- head revSteps]
+
+    finalState = [ diffTable to | Migration _ to _ <- finalMigrations ]
+
+    name = rawTableName . tableName
+
+    finalMigrations = go revSteps []
+      where
+        go [] _ = []
+        go (step:ss) ns = ms ++ go ss ns'
+          where 
+            ms = [ m | m@(Migration _ t _) <- step, name t `notElem` ns]
+            ns' = nub $ map (\(Migration f _ _) -> name f) ms ++ ns
+
+    cs [] _ = throwM $ ValidationError "no starting state matches the current state of the database"
+    cs (step:ss) ms = do
+      diffs <- mapM (\(Migration from _ _) ->  diffTable from) ms'
+      if all (== TableOK) diffs
+        then return [step]
+        else (step:) <$> cs ss ms'
+      where
+        ms' = map replaceIfSameTo ms 
+        replaceIfSameTo m@(Migration _ to _)  = case find (\(Migration _ to' _) -> name to' == name to) step of
+          Just m' -> m'
+          Nothing -> m
 
     calculateSteps (step:ss) = do
       diffs <- mapM (\(Migration from _ _) -> diffTable from) step
@@ -108,17 +135,15 @@ autoMigrate fks steps = wrap fks $ do
     calculateSteps [] = do
       throwM $ ValidationError "no starting state matches the current state of the database"
 
-    performStep = mapM_ (\(Migration t1 t2 upg) -> migrateInternal t1 t2 upg)
+    performStep = mapM_ migrateInternal
 
 -- | Workhorse for migration.
 --   Is NOT performed as a transaction, so exported functions need to
 --   properly wrap calls this function.
-migrateInternal :: (MonadSelda m, MonadThrow m, Relational a, Relational b)
-                => Table a
-                -> Table b
-                -> (Row (Backend m) a -> Query (Backend m) (Row (Backend m) b))
+migrateInternal :: (MonadSelda m, MonadThrow m)
+                => Migration (Backend m)
                 -> m ()
-migrateInternal t1 t2 upg = withBackend $ \b -> do
+migrateInternal (Migration t1 t2 upg) = withBackend $ \b -> do
     validateTable t1
     validateSchema t2
     createTableWithoutIndexes Fail t2'
@@ -134,3 +159,7 @@ migrateInternal t1 t2 upg = withBackend $ \b -> do
       , " RENAME TO ", fromTableName (tableName t2), ";"
       ]
     dropQuery t = mconcat ["DROP TABLE ", fromTableName t, ";"]
+migrateInternal (MigrationCreateTable t) = withBackend $ \b -> do
+    validateSchema t
+    createTable t
+
