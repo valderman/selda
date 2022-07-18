@@ -1,9 +1,13 @@
 -- | Analysis and transformation of SQL queries.
 module Database.Selda.Transform where
-import Database.Selda.Column
+import Database.Selda.Exp
+    ( allNamesIn, Exp(Col, AggrEx), SomeCol(..) )
 import Database.Selda.SQL
-import Database.Selda.Query.Type
-import Database.Selda.Types
+    ( SQL(SQL, groups, ordering, liveExtras, source, restricts, cols),
+      SqlSource(Product, EmptyTable, TableName, Values, RawSql, Union,
+                Join) )
+import Database.Selda.Query.Type ( GenState(GenState) )
+import Database.Selda.Types ( ColName )
 
 -- | Remove all dead columns recursively, assuming that the given list of
 --   column names contains all names present in the final result.

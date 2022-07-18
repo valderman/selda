@@ -4,18 +4,32 @@
 -- | Building and executing prepared statements.
 module Database.Selda.Prepared (Preparable, Prepare, prepared) where
 import Database.Selda.Backend.Internal
-import Database.Selda.Column
+    ( Lit(LCustom),
+      SqlType(sqlType),
+      SqlTypeRep,
+      Param(..),
+      MonadSelda(Backend, withConnection),
+      SeldaBackend(ppConfig, runPrepared, backendId, prepareStmt),
+      SeldaConnection(connBackend, connStmts),
+      SeldaStmt(SeldaStmt, stmtHandle, stmtParams, stmtText),
+      StmtID(..),
+      BackendID,
+      freshStmtId,
+      withBackend )
+import Database.Selda.Column ( Exp(Lit), Col(..) )
 import Database.Selda.Compile
-import Database.Selda.Query.Type
+    ( Result, Res, compileWith, buildResult )
+import Database.Selda.Query.Type ( Query )
 import Database.Selda.SQL (param, paramType)
-import Control.Exception
-import Control.Monad.IO.Class
+import Control.Exception ( Exception, try, throw, mask )
+import Control.Monad.IO.Class ( MonadIO(liftIO) )
 import qualified Data.IntMap as M
 import Data.IORef
-import Data.Proxy
+    ( IORef, atomicModifyIORef', newIORef, readIORef, writeIORef )
+import Data.Proxy ( Proxy(..) )
 import Data.Text (Text)
-import Data.Typeable
-import System.IO.Unsafe
+import Data.Typeable ( Typeable )
+import System.IO.Unsafe ( unsafePerformIO )
 
 data Placeholder = Placeholder Int
   deriving Show

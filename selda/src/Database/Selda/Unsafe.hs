@@ -10,8 +10,25 @@ module Database.Selda.Unsafe
   ) where
 import Control.Exception (throw)
 import Control.Monad.State.Strict
+    ( MonadIO(liftIO), void, MonadState(put, get) )
 import Database.Selda.Backend.Internal
+    ( SqlType(mkLit, sqlType),
+      MonadSelda,
+      SeldaBackend(runStmt, ppConfig),
+      SeldaError(UnsafeError),
+      withBackend )
 import Database.Selda.Column
+    ( BinOp(CustomOp),
+      UnOp(Fun),
+      NulOp(Fun0),
+      Exp(Col, Cast, UnOp, Fun2, BinOp, NulOp, Lit, Raw),
+      UntypedCol(Untyped),
+      SomeCol(Named),
+      hideRenaming,
+      Same(liftC2),
+      Row(..),
+      Col(..),
+      liftC )
 import Database.Selda.Inner (Inner, Aggr, aggr, liftAggr)
 import Database.Selda.Selectors (unsafeSelector)
 import Database.Selda.Query.Type (Query (..), sources, renameAll, rename)
@@ -20,8 +37,8 @@ import Database.Selda.SQL.Print (compRaw)
 import Database.Selda.SqlRow (SqlRow (..))
 import Database.Selda.Types (ColName)
 import Data.Text (Text)
-import Data.Proxy
-import Unsafe.Coerce
+import Data.Proxy ( Proxy(..) )
+import Unsafe.Coerce ( unsafeCoerce )
 
 -- | Cast a column to another type, using whichever coercion semantics are used
 --   by the underlying SQL implementation.

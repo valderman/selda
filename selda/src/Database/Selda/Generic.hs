@@ -2,34 +2,38 @@
 {-# LANGUAGE TypeFamilies, TypeOperators, FlexibleInstances #-}
 {-# LANGUAGE UndecidableInstances, MultiParamTypeClasses, OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts, ScopedTypeVariables, ConstraintKinds #-}
-{-# LANGUAGE GADTs, CPP, DeriveGeneric, DataKinds #-}
+{-# LANGUAGE GADTs, CPP, DataKinds #-}
 -- | Generics utilities.
 module Database.Selda.Generic
   ( Relational, Generic
   , tblCols, params, def, gNew, gRow
   ) where
 import Control.Monad.State
-import Data.Dynamic
+    ( liftM2, MonadState(put, get), evalState, State )
+import Data.Dynamic ( Typeable )
 import Data.Text as Text (Text, pack)
-#if MIN_VERSION_base(4, 10, 0)
-import Data.Typeable
-#endif
-import GHC.Generics hiding (R, (:*:), Selector)
-import qualified GHC.Generics as G ((:*:)(..), Selector)
+
+import Data.Typeable ( Proxy(..), typeRep, typeRepTyCon )
+
+import GHC.Generics
+    ( Generic(from, Rep), Selector(selName), K1(K1), M1(M1), S )
+import qualified GHC.Generics as G
+    ( (:*:)(..), Selector, (:+:)(..) )
 import qualified GHC.TypeLits as TL
-import qualified GHC.Generics as G ((:+:)(..))
 import qualified Database.Selda.Column as C (Col)
 import Control.Exception (Exception (..), try, throw)
-import System.IO.Unsafe
-import Database.Selda.Types
+import System.IO.Unsafe ( unsafePerformIO )
+import Database.Selda.Types ( ColName, modColName, mkColName )
 import Database.Selda.SqlType
+    ( Lit, SqlType(sqlType, defaultValue, mkLit) )
 import Database.Selda.SqlRow (SqlRow)
 import Database.Selda.Table.Type
+    ( ColAttr(Required, Optional), ColInfo(..) )
 import Database.Selda.SQL (Param (..))
 import Database.Selda.Exp (Exp (Col, Lit), UntypedCol (..))
-#if !MIN_VERSION_base(4, 11, 0)
-import Data.Monoid
-#endif
+
+
+
 
 -- | Any type which has a corresponding relation.
 --   To make a @Relational@ instance for some type, simply derive 'Generic'.

@@ -11,19 +11,45 @@ module Database.Selda.Frontend
   , transaction, withoutForeignKeyEnforcement
   ) where
 import Database.Selda.Backend.Internal
-import Database.Selda.Column
+    ( SqlValue,
+      Param,
+      SeldaT,
+      MonadSelda(..),
+      SeldaBackend(runStmtWithPK, disableForeignKeys, ppConfig, runStmt),
+      QueryRunner,
+      SeldaError(SqlError),
+      withBackend )
+import Database.Selda.Column ( Row, Col )
 import Database.Selda.Compile
-import Database.Selda.Generic
-import Database.Selda.Query.Type
+    ( Result,
+      Res,
+      compileWith,
+      compileInsert,
+      compileUpdate,
+      compileDelete,
+      buildResult )
+import Database.Selda.Generic ( Relational )
+import Database.Selda.Query.Type ( Query )
 import Database.Selda.SqlType (ID, invalidId, toId)
-import Database.Selda.Table
+import Database.Selda.Table.Type
+    ( Table(tableName, tableHasAutoPK) )
 import Database.Selda.Table.Compile
+    ( OnError(..),
+      compileCreateTable,
+      compileCreateIndexes,
+      compileDropTable )
 import Database.Selda.Types (fromTableName)
-import Data.Proxy
+import Data.Proxy ( Proxy(..) )
 import Data.Text (Text)
-import Control.Monad
+import Control.Monad ( void )
 import Control.Monad.Catch
-import Control.Monad.IO.Class
+    ( bracket_,
+      onException,
+      try,
+      MonadCatch,
+      MonadMask(mask),
+      MonadThrow(throwM) )
+import Control.Monad.IO.Class ( MonadIO(..) )
 
 -- | Run a query within a Selda monad. In practice, this is often a 'SeldaT'
 --   transformer on top of some other monad.

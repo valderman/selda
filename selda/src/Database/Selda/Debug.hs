@@ -5,6 +5,8 @@ module Database.Selda.Debug
   , compileCreateTable, compileDropTable
   , compileInsert, compileUpdate
   ) where
-import Database.Selda.Backend
+import Database.Selda.SQL.Print.Config ( defPPConfig )
 import Database.Selda.Compile
+    ( compile, compileInsert, compileUpdate )
 import Database.Selda.Table.Compile
+    ( OnError(..), compileCreateTable, compileDropTable )

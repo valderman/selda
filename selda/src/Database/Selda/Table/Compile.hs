@@ -1,8 +1,13 @@
 {-# LANGUAGE OverloadedStrings, CPP #-}
 -- | Generating SQL for creating and deleting tables.
 module Database.Selda.Table.Compile where
-import Database.Selda.Table
-import Database.Selda.Table.Validation
+import Database.Selda.Table.Type
+    ( IndexMethod,
+      ColAttr(Indexed, Primary, Unique),
+      ColInfo(colFKs, colType, colName, colAttrs),
+      Table(Table, tableAttrs, tableName, tableCols),
+      isAutoPrimary )
+import Database.Selda.Table.Validation ( validateOrThrow )
 import           Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import Data.List (foldl')
@@ -11,10 +16,20 @@ import Data.Monoid
 #endif
 import Data.Text (Text, intercalate, pack)
 import qualified Data.Text as Text
-import Database.Selda.SQL hiding (param,cols)
+import Database.Selda.SQL ( Param )
 import Database.Selda.SQL.Print.Config
+    ( PPConfig(ppIndexMethodHook, ppTypeHook, ppColAttrsHook,
+               ppColAttrs, ppTypePK, ppType, ppAutoIncInsert) )
 import Database.Selda.SqlType (SqlTypeRep(..))
 import Database.Selda.Types
+    ( TableName,
+      ColName,
+      modColName,
+      addColPrefix,
+      fromColName,
+      intercalateColNames,
+      fromTableName,
+      rawTableName )
 
 data OnError = Fail | Ignore
   deriving (Eq, Ord, Show)

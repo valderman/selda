@@ -1,4 +1,4 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving, DefaultSignatures, CPP, TypeFamilies #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, CPP, TypeFamilies #-}
 -- | Internal backend API.
 --   Using anything exported from this module may or may not invalidate any
 --   safety guarantees made by Selda; use at your own peril.
@@ -34,9 +34,9 @@ import qualified Data.IntMap as M
 import Data.IORef
 import Data.Text (Text)
 import System.IO.Unsafe (unsafePerformIO)
-#if !MIN_VERSION_base(4, 13, 0)
-import Control.Monad.Fail (MonadFail)
-#endif
+
+
+
 
 -- | Uniquely identifies some particular backend.
 --

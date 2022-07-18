@@ -8,17 +8,43 @@ module Database.Selda.Query
   ) where
 import Data.Maybe (isNothing)
 import Database.Selda.Column
-import Database.Selda.Generic
+    ( NulOp(Fun0),
+      Exp(Lit, Col, NulOp),
+      SomeCol(Some, Named),
+      hideRenaming,
+      Same,
+      Row(..),
+      Col(..),
+      Columns(..) )
+import Database.Selda.Generic ( gNew, Relational, params )
 import Database.Selda.Inner
+    ( Aggregates(..),
+      LeftCols,
+      AggrCols,
+      OuterCols,
+      Inner,
+      Aggr(Aggr) )
 import Database.Selda.Query.Type
+    ( GenState(staticRestricts, groupCols, sources),
+      Query(..),
+      isolate,
+      renameAll,
+      freshName )
 import Database.Selda.SQL as SQL
+    ( Param(Param),
+      Order(Asc),
+      SQL(liveExtras, cols, restricts, groups, limits, ordering,
+          distinct),
+      JoinType(..),
+      SqlSource(Product, TableName, EmptyTable, Values, Union, Join),
+      sqlFrom )
 import Database.Selda.SqlType (SqlType)
-import Database.Selda.Table
-import Database.Selda.Transform
-import Control.Monad.State.Strict
-import Data.Proxy
+import Database.Selda.Table.Type ( ColInfo(colExpr), Table(Table) )
+import Database.Selda.Transform ( colNames, state2sql, allCols )
+import Control.Monad.State.Strict ( MonadState(put, get), modify )
+import Data.Proxy ( Proxy(..) )
 import GHC.Generics (Rep)
-import Unsafe.Coerce
+import Unsafe.Coerce ( unsafeCoerce )
 
 -- | Query the given table.
 select :: Relational a => Table a -> Query s (Row s a)

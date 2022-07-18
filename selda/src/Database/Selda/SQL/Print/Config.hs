@@ -2,8 +2,9 @@
 module Database.Selda.SQL.Print.Config (PPConfig (..), defPPConfig) where
 import Data.Text (Text)
 import qualified Data.Text as T
-import Database.Selda.SqlType
-import Database.Selda.Table
+import Database.Selda.SqlType ( SqlTypeRep(..) )
+import Database.Selda.Table.Type
+    ( IndexMethod, ColAttr(..), AutoIncType(Weak, Strong) )
 
 -- | Backend-specific configuration for the SQL pretty-printer.
 data PPConfig = PPConfig

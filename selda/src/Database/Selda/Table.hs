@@ -2,10 +2,8 @@
 {-# LANGUAGE TypeFamilies, TypeOperators, FlexibleInstances #-}
 {-# LANGUAGE UndecidableInstances, MultiParamTypeClasses, OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts, ScopedTypeVariables, ConstraintKinds #-}
-{-# LANGUAGE GADTs, CPP, DeriveGeneric, DataKinds, MagicHash #-}
-#if MIN_VERSION_base(4, 10, 0)
+{-# LANGUAGE GADTs, CPP, DataKinds #-}
 {-# LANGUAGE TypeApplications #-}
-#endif
 module Database.Selda.Table
   ( SelectorLike, Group (..), Attr (..), Table (..), Attribute
   , ColInfo (..), AutoIncType (..), ColAttr (..), IndexMethod (..)
@@ -19,27 +17,26 @@ module Database.Selda.Table
   , isAutoPrimary, isPrimary, isUnique
   ) where
 import Data.Text (Text)
-#if MIN_VERSION_base(4, 10, 0)
-import Data.Typeable
-#else
-import Data.Proxy
-import GHC.Prim
-#endif
-import Database.Selda.Types
-import Database.Selda.Selectors
-import Database.Selda.SqlType
+import Data.Typeable ( Proxy(..) )
+import Database.Selda.Types ( type (:*:), TableName, ColName )
+import Database.Selda.Selectors ( Selector(..) )
+import Database.Selda.SqlType ( ID, RowID )
 import Database.Selda.Column (Row (..))
-import Database.Selda.Generic
+import Database.Selda.Generic ( Relational, tblCols )
 import Database.Selda.Table.Type
+    ( IndexMethod(..),
+      ColAttr(..),
+      AutoIncType(..),
+      ColInfo(..),
+      Table(..),
+      isAutoPrimary,
+      isPrimary,
+      isUnique )
 import Database.Selda.Table.Validation (snub)
-import GHC.OverloadedLabels
+import GHC.OverloadedLabels ( IsLabel(..) )
 
 instance forall x t a. IsLabel x (Selector t a) => IsLabel x (Group t a) where
-#if MIN_VERSION_base(4, 10, 0)
   fromLabel = Single (fromLabel @x)
-#else
-  fromLabel _ = Single (fromLabel (proxy# :: Proxy# x))
-#endif
 
 -- | A non-empty list of selectors, where the element selectors need not have
 --   the same type. Used to specify constraints, such as uniqueness or primary

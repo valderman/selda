@@ -1,16 +1,14 @@
 {-# LANGUAGE GADTs, OverloadedStrings, ScopedTypeVariables, RecordWildCards #-}
-{-# LANGUAGE TypeOperators, FlexibleInstances, UndecidableInstances #-}
+{-# LANGUAGE FlexibleInstances, UndecidableInstances #-}
 {-# LANGUAGE RankNTypes, CPP, MultiParamTypeClasses #-}
 -- | SQL AST and parameters for prepared statements.
 module Database.Selda.SQL where
-import Data.String
+import Data.String ( IsString(..) )
 import Data.Text (Text)
-import Database.Selda.Exp
+import Database.Selda.Exp ( Names(..), Exp, SomeCol )
 import Database.Selda.SqlType
-import Database.Selda.Types
-#if !MIN_VERSION_base(4, 11, 0)
-import Data.Semigroup (Semigroup (..))
-#endif
+    ( Lit, SqlType(mkLit), SqlTypeRep, litType, compLit )
+import Database.Selda.Types ( TableName )
 
 instance Semigroup QueryFragment where
   (<>) = RawCat

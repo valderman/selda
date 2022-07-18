@@ -5,16 +5,26 @@ module Database.Selda.Migrations
   , migrate, migrateM, migrateAll, autoMigrate
   ) where
 import Control.Monad (void, when)
-import Control.Monad.Catch
-import Database.Selda hiding (from)
-import Database.Selda.Frontend
-  ( OnError (..)
-  , createTableWithoutIndexes, createTableIndexes
-  )
+import Control.Monad.Catch ( MonadMask, MonadThrow(..) )
 import Database.Selda.Backend.Internal
+    ( MonadSelda(..), SeldaBackend(runStmt), withBackend )
+import Database.Selda.Column ( Row )
+import Database.Selda.Frontend
+    ( MonadIO(liftIO),
+      queryInto,
+      transaction,
+      withoutForeignKeyEnforcement,
+      OnError(..),
+      createTableWithoutIndexes,
+      createTableIndexes )
+import Database.Selda.Generic ( Relational )
+import Database.Selda.Query ( select )
+import Database.Selda.Query.Type ( Query )
+import Database.Selda.Table.Type ( Table(..) )
 import Database.Selda.Table.Validation (ValidationError (..))
 import Database.Selda.Types (mkTableName, fromTableName, rawTableName)
 import Database.Selda.Validation
+    ( TableDiff(TableOK), validateTable, validateSchema, diffTable )
 
 -- | Wrapper for user with 'migrateAll', enabling multiple migrations to be
 --   packed into the same list:

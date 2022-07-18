@@ -15,14 +15,69 @@ module Database.Selda.Backend
   , runSeldaT, seldaClose
   , module SqlType
   ) where
-import Control.Monad
-import Control.Monad.Catch
-import Control.Monad.IO.Class
-import Data.IORef
+import Control.Monad ( unless )
+import Control.Monad.Catch ( mask_ )
+import Control.Monad.IO.Class ( MonadIO(..) )
+import Data.IORef ( atomicModifyIORef' )
 import Database.Selda.Backend.Internal
+    ( Param(..),
+      ColAttr(..),
+      AutoIncType(..),
+      isAutoPrimary,
+      isPrimary,
+      isUnique,
+      PPConfig(..),
+      defPPConfig,
+      SeldaM,
+      SeldaT,
+      MonadSelda(..),
+      SeldaBackend(..),
+      ColumnInfo(..),
+      TableInfo(..),
+      SeldaConnection(connClosed, connBackend),
+      QueryRunner,
+      StmtID,
+      SeldaError(..),
+      BackendID(..),
+      newConnection,
+      allStmts,
+      fromColInfo,
+      tableInfo,
+      withBackend,
+      runSeldaT )
 import Database.Selda.SqlType as SqlType
-import Database.Selda.Table (IndexMethod (..))
+    ( UUID,
+      UUID'(..),
+      ID(..),
+      RowID,
+      SqlValue(..),
+      Lit(..),
+      SqlEnum(..),
+      SqlType(..),
+      SqlTypeRep(..),
+      sqlDateTimeFormat,
+      sqlDateFormat,
+      sqlTimeFormat,
+      litType,
+      compLit,
+      invalidRowId,
+      isInvalidRowId,
+      toRowId,
+      fromRowId,
+      typedUuid,
+      toId,
+      fromId,
+      invalidId,
+      isInvalidId )
+import Database.Selda.Table.Type ( IndexMethod(..) )
 import Database.Selda.Types
+    ( TableName,
+      ColName,
+      fromColName,
+      fromTableName,
+      rawTableName,
+      mkColName,
+      mkTableName )
 
 -- | Close a reusable Selda connection.
 --   Closing a connection while in use is undefined.

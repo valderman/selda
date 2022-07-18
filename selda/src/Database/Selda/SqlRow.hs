@@ -1,18 +1,23 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving, DataKinds #-}
 {-# LANGUAGE UndecidableInstances, FlexibleInstances, FlexibleContexts #-}
 {-# LANGUAGE TypeOperators, DefaultSignatures, ScopedTypeVariables, CPP #-}
-#if MIN_VERSION_base(4, 10, 0)
 {-# OPTIONS_GHC -Wno-simplifiable-class-constraints #-}
-#endif
 module Database.Selda.SqlRow
   ( SqlRow (..), ResultReader
   , GSqlRow
   , runResultReader, next
   ) where
 import Control.Monad.State.Strict
+    ( liftM2,
+      StateT(StateT),
+      MonadState(state, get),
+      State,
+      evalState )
 import Database.Selda.SqlType
-import Data.Typeable
+    ( SqlValue(SqlNull), SqlType(fromSql) )
+import Data.Typeable ( Typeable, Proxy(..) )
 import GHC.Generics
+    ( Generic(Rep, to), K1(K1), M1(M1), type (:+:), type (:*:)(..) )
 import qualified GHC.TypeLits as TL
 
 newtype ResultReader a = R (State [SqlValue] a)

@@ -16,11 +16,17 @@ import Data.ByteString (ByteString, empty)
 import qualified Data.ByteString.Lazy as BSL
 import Data.Int (Int32, Int64)
 import Data.Maybe (fromJust)
-import Data.Proxy
+import Data.Proxy ( Proxy(..) )
 import Data.Text (Text, pack, unpack)
 import qualified Data.Text.Lazy as LazyText
 import Data.Time
-import Data.Typeable
+    ( defaultTimeLocale,
+      parseTimeM,
+      Day(ModifiedJulianDay),
+      UTCTime(UTCTime),
+      ParseTime,
+      TimeOfDay(TimeOfDay) )
+import Data.Typeable ( Typeable )
 import Data.UUID.Types (UUID, toString, fromByteString, nil)
 import GHC.Generics (Generic)
 

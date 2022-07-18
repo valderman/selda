@@ -7,12 +7,26 @@ module Database.Selda.Validation
   , describeTable, diffTable, diffTables
   , validateTable, validateSchema
   ) where
-import Control.Monad.Catch
+import Control.Monad.Catch ( MonadThrow(..) )
 import Data.List ((\\))
 import Data.Maybe (catMaybes)
 import Data.Text (pack, unpack, intercalate)
 import Database.Selda
-import Database.Selda.Backend
+    ( Text,
+      MonadIO(liftIO),
+      TableName,
+      ColName,
+      Table(..),
+      MonadSelda )
+import Database.Selda.Backend.Internal
+    ( SqlTypeRep(TInt64, TRowID),
+      SeldaBackend(getTableInfo),
+      ColumnInfo(colType, colIsAutoPrimary, colIsNullable, colHasIndex,
+                 colFKs, colName),
+      TableInfo(tableColumnInfos, tableUniqueGroups, tablePrimaryKey),
+      tableInfo,
+      withBackend )
+import Database.Selda.Types ( fromColName, fromTableName )
 import Database.Selda.Table.Type (tableCols)
 import Database.Selda.Table.Validation (ValidationError (..), validateOrThrow)
 

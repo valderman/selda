@@ -1,11 +1,17 @@
 {-# LANGUAGE OverloadedStrings, CPP #-}
 module Database.Selda.Table.Validation where
-import Control.Exception
+import Control.Exception ( Exception, throw )
 import Data.List (group, sort)
 import Data.Text (Text, any, intercalate, unpack)
-import Data.Typeable
+import Data.Typeable ( Typeable )
 import Database.Selda.Table.Type
+    ( ColAttr(Required, Optional),
+      ColInfo(colFKs, colName, colAttrs),
+      Table(Table),
+      isPrimary,
+      isUnique )
 import Database.Selda.Types
+    ( TableName, fromColName, fromTableName )
 #if !MIN_VERSION_base(4, 11, 0)
 import Data.Monoid
 #endif
