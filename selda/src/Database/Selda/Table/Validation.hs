@@ -12,9 +12,6 @@ import Database.Selda.Table.Type
       isUnique )
 import Database.Selda.Types
     ( TableName, fromColName, fromTableName )
-#if !MIN_VERSION_base(4, 11, 0)
-import Data.Monoid
-#endif
 
 -- | An error occurred when validating a database table.
 --   If this error is thrown, there is a bug in your database schema, and the
@@ -48,7 +45,7 @@ validate name cis = errs
       | fromTableName name == "\"\"" = ["table name is empty"]
       | otherwise                    = []
     emptyIdents
-      | Prelude.any (== "\"\"") colIdents =
+      | "\"\"" `elem` colIdents =
         ["table has columns with empty names"]
       | otherwise =
         []
@@ -60,7 +57,7 @@ validate name cis = errs
     dupes =
       ["duplicate column: " <> fromColName x | (x:_:_) <- soup $ map colName cis]
     pkDupes =
-      if moreThanOne pkAttrs then ["multiple primary keys"] else []
+      ["multiple primary keys" | moreThanOne pkAttrs]
     nonPkFks =
       [ "column is used as a foreign key, but is not primary or unique: "
           <> fromTableName ftn <> "." <> fromColName fcn

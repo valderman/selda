@@ -238,7 +238,9 @@ diffColumns inschema indb =
              (colFKs db \\ colFKs schema)
        ]))
       where
-        Right schemaColType = colType schema
+        schemaColType = case colType schema of
+          Right t -> t
+          Left t -> error $ "Selda has no idea what to make of this type: " ++ show t
         check :: Eq a
               => (ColumnInfo -> a)
               -> (a -> ColumnDiff)

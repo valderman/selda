@@ -19,9 +19,6 @@ import Database.Selda.Types
 import Control.Monad.State
     ( liftM2, MonadState(get, put), runState, State )
 import Data.List ( group, sort )
-#if !MIN_VERSION_base(4, 11, 0)
-import Data.Monoid hiding (Product)
-#endif
 import Data.Text (Text)
 import qualified Data.Text as Text
 

@@ -11,9 +11,6 @@ import Database.Selda.Table.Validation ( validateOrThrow )
 import           Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import Data.List (foldl')
-#if !MIN_VERSION_base(4, 11, 0)
-import Data.Monoid
-#endif
 import Data.Text (Text, intercalate, pack)
 import qualified Data.Text as Text
 import Database.Selda.SQL ( Param )
