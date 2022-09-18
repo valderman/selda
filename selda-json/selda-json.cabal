@@ -1,6 +1,6 @@
 cabal-version:       >=1.10
 name:                selda-json
-version:             0.1.1.0
+version:             0.1.1.1
 synopsis:            JSON support for the Selda database library.
 description:         Types and classes to support storing and querying
                      JSON values using Selda via Aeson.

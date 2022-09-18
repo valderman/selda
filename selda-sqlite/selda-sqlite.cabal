@@ -1,5 +1,5 @@
 name:                selda-sqlite
-version:             0.1.7.1
+version:             0.1.7.2
 synopsis:            SQLite backend for the Selda database EDSL.
 description:         Allows the Selda database EDSL to be used with SQLite
                      databases.
