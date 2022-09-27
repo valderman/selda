@@ -19,6 +19,7 @@ import Database.Selda.Unsafe (unsafeSelector, rawStm)
 import Test.HUnit
 import Utils
 import Tables
+import Data.UUID.Types (nil)
 #if !MIN_VERSION_base(4, 11, 0)
 import Data.Semigroup
 #endif
@@ -71,6 +72,7 @@ mutableTests freshEnv = test
   , "auto-migrate no-op"             ~: freshEnv (migrationTest autoMigrateNoOp)
   , "migrate aggregate"              ~: freshEnv (migrationTest migrateAggregate)
   , "auto-migrate multi-step"        ~: freshEnv (migrationTest autoMigrateOneStep)
+  , "migrate tables with uuid col"   ~: freshEnv migrateUuidTableTest
   , "multi-unique insert"            ~: freshEnv multiUnique
   , "uuid inserts"                   ~: freshEnv uuidInserts
   , "uuid queries"                   ~: freshEnv uuidQueries
@@ -680,6 +682,32 @@ mt2_1 :*: mt2_2 = selectors migrationTable2
 migrationTable3 :: Table (Only Int)
 migrationTable3 = table "table3" [Single mt3_1 :- primary]
 mt3_1 = selectors migrationTable3
+
+
+migrateUuidTableTest = do
+  tryDropTable migrationUuid1
+  createTable migrationUuid1
+  insert_ migrationUuid1 [Only nil]
+  autoMigrate False stepsUuid
+  res <- query $ do
+    select migrationUuid2
+  assEq "migration went wrong" [nil] (fmap snd res)
+
+migrationUuid1 :: Table (Only UUID)
+migrationUuid1 = table "tableUuid" [Single mtUuid1_1 :- primary]
+mtUuid1_1 = selectors migrationUuid1
+
+migrationUuid2 :: Table (Text, UUID)
+migrationUuid2 = table "tableUuid" [Single mtUuid2_1 :- primary]
+mtUuid2_1 :*: mtUuid2_2 = selectors migrationUuid2
+
+stepsUuid =
+  [ [Migration migrationUuid1 migrationUuid2 $ \foo -> pure $ new
+      [ mtUuid2_1 := toString (the foo)
+      , mtUuid2_2 := the foo
+      ]
+    ]
+  ] 
 
 steps =
   [ [Migration migrationTable1 migrationTable1 pure]
