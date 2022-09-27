@@ -707,7 +707,7 @@ stepsUuid =
       , mtUuid2_2 := the foo
       ]
     ]
-  ] 
+  ]
 
 steps =
   [ [Migration migrationTable1 migrationTable1 pure]
