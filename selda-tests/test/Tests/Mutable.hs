@@ -688,10 +688,12 @@ migrateUuidTableTest = do
   tryDropTable migrationUuid1
   createTable migrationUuid1
   insert_ migrationUuid1 [Only nil]
-  autoMigrate False stepsUuid
+  autoMigrate True stepsUuid
   res <- query $ do
     select migrationUuid2
   assEq "migration went wrong" [nil] (fmap snd res)
+  tryDropTable migrationUuid1
+  tryDropTable migrationUuid2
 
 migrationUuid1 :: Table (Only UUID)
 migrationUuid1 = table "tableUuid" [Single mtUuid1_1 :- primary]

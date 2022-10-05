@@ -137,10 +137,10 @@ migrateInternal t1 t2 upg = withBackend $ \b -> do
     void . liftIO $ runStmt b renameQuery []
     createTableIndexes Fail t2
   where
-    t2' = t2 {tableName = mkTableName newName} `asTypeOf` t2
-    newName = mconcat ["__selda_migration_", rawTableName (tableName t2)]
+    t2' = t2 {tableName = newName} `asTypeOf` t2
+    newName = mkTableName $ mconcat ["__selda_migration_", rawTableName (tableName t2)]
     renameQuery = mconcat
-      [ "ALTER TABLE ", newName
+      [ "ALTER TABLE ", fromTableName newName
       , " RENAME TO ", fromTableName (tableName t2), ";"
       ]
     dropQuery t = mconcat ["DROP TABLE ", fromTableName t, ";"]
