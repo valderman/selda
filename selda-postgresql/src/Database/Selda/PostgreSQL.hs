@@ -294,7 +294,9 @@ pgGetTableInfo c tbl = do
     tableinfo = mconcat
       [ "SELECT column_name, data_type, is_nullable, column_default LIKE 'nextval(%' "
       , "FROM information_schema.columns "
-      , "WHERE table_name = '", tbl, "';"
+      , "WHERE table_name = '", tbl, "' "
+      , "AND table_schema = current_schema() "
+      , "ORDER BY ordinal_position;"
       ]
     pkquery = mconcat
       [ "SELECT a.attname "
@@ -321,7 +323,7 @@ pgGetTableInfo c tbl = do
       , "  ON tc.constraint_name = kcu.constraint_name "
       , "JOIN information_schema.constraint_column_usage AS ccu "
       , "  ON ccu.constraint_name = tc.constraint_name "
-      , "WHERE constraint_type = 'FOREIGN KEY' AND tc.table_name='", tbl, "';"
+      , "WHERE constraint_type = 'FOREIGN KEY' AND tc.table_name='", tbl, "' AND tc.table_schema=current_schema();"
       ]
     ixquery = mconcat
       [ "select a.attname as column_name "
@@ -335,7 +337,7 @@ pgGetTableInfo c tbl = do
       , "and not ix.indisunique "
       , "and not ix.indisprimary "
       , "and t.relkind = 'r' "
-      , "and t.relname = '", tbl , "';"
+      , "and t.oid = '\"", tbl , "\"'::regclass;"
       ]
     describe fks ixs [SqlString name, SqlString ty, SqlString nullable, auto] =
       return $ ColumnInfo
