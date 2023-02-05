@@ -10,7 +10,7 @@ jobs:
   build:
     strategy:
       matrix:
-        ghc: ['8.8.2', '8.10.1', '9.0.2', '9.2.3']
+        ghc: ['8.8.2', '8.10.1', '9.0.2', '9.2.5']
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
@@ -20,7 +20,7 @@ jobs:
         cabal-version: '3.2'
     - uses: harmon758/postgresql-action@v1
       with:
-        postgresql version: '11'
+        postgresql version: '13'
         postgresql db: 'test'
         postgresql user: 'postgres'
         postgresql password: 'password'
