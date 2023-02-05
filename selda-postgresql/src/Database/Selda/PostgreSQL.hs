@@ -192,7 +192,7 @@ pgPPConfig = defPPConfig
     bigserialQue :: [ColAttr]
     bigserialQue = [AutoPrimary Strong, Required]
 
-    -- For when we use 'autoPrimaryGen' on 'Int' field
+    -- For when we use 'autoPrimary' on 'Int' field
     isGenericIntPrimaryKey :: SqlTypeRep -> [ColAttr] -> Bool
     isGenericIntPrimaryKey ty attrs = ty == TInt64 && and ((`elem` attrs) <$> bigserialQue)
 

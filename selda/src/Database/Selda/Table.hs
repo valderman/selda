@@ -97,7 +97,7 @@ table tn attrs = tableFieldMod tn attrs id
 -- >
 -- > people :: Table Person
 -- > people = tableFieldMod "people"
--- >   [#personName :- autoPrimaryGen]
+-- >   [#personName :- autoPrimary]
 -- >   (fromJust . stripPrefix "person")
 --
 --   This will create a table with the columns named
