@@ -10,7 +10,8 @@ module Database.Selda.Unsafe
   ) where
 import Control.Exception (throw)
 import Control.Monad.State.Strict
-    ( MonadIO(liftIO), void, MonadState(put, get) )
+    ( MonadIO(liftIO), MonadState(put, get) )
+import Control.Monad (void)
 import Database.Selda.Backend.Internal
     ( SqlType(mkLit, sqlType),
       MonadSelda,
