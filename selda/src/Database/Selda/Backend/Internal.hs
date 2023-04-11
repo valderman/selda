@@ -40,11 +40,12 @@ import Database.Selda.SQL.Print.Config
 import Database.Selda.Types (TableName, ColName)
 import Data.Int (Int64)
 import Control.Concurrent ( newMVar, putMVar, takeMVar, MVar )
+import Control.Monad ( when )
 import Control.Monad.Catch
     ( Exception, bracket, MonadCatch, MonadMask, MonadThrow(..) )
 import Control.Monad.IO.Class ( MonadIO(..) )
 import Control.Monad.Reader
-    ( MonadTrans(..), when, ReaderT(..), MonadReader(ask) )
+    ( MonadTrans(..), ReaderT(..), MonadReader(ask) )
 import Data.Dynamic ( Typeable, Dynamic )
 import qualified Data.IntMap as M
 import Data.IORef

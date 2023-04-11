@@ -8,8 +8,9 @@ module Database.Selda.Generic
   ( Relational, Generic
   , tblCols, params, def, gNew, gRow
   ) where
+import Control.Monad ( liftM2 )
 import Control.Monad.State
-    ( liftM2, MonadState(put, get), evalState, State )
+    ( MonadState(put, get), evalState, State )
 import Data.Dynamic ( Typeable )
 import Data.Text as Text (Text, pack)
 
