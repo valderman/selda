@@ -210,7 +210,7 @@ unique = Attribute [Unique]
 
 mkFK :: Table t -> Selector a b -> Attribute Selector c d
 mkFK (Table tn tcs tapk tas) sel =
-  ForeignKey (Table tn tcs tapk tas, colName (tcs !! selectorIndex sel))
+  ForeignKey (Table tn tcs tapk tas, colName (tcs !! selectorIndex sel), False)
 
 class ForeignKey a b where
   -- | A foreign key constraint referencing the given table and column.

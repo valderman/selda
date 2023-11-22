@@ -23,7 +23,7 @@ data Table a = Table
   , tableAttrs :: [([Int], ColAttr)]
   }
 
-type ColForeignKey = (Table (), ColName)
+type ColForeignKey = (Table (), ColName, Bool)
 
 -- | A complete description of a database column.
 data ColInfo = ColInfo
