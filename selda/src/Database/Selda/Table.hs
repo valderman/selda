@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# LANGUAGE TypeFamilies, TypeOperators, FlexibleInstances #-}
-{-# LANGUAGE UndecidableInstances, MultiParamTypeClasses, OverloadedStrings #-}
+{-# LANGUAGE UndecidableInstances, MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleContexts, ScopedTypeVariables, ConstraintKinds #-}
 {-# LANGUAGE GADTs, CPP, DataKinds #-}
 {-# LANGUAGE TypeApplications #-}
@@ -16,9 +16,10 @@ module Database.Selda.Table
   , tableExpr
   , isAutoPrimary, isPrimary, isUnique
   ) where
+import Data.Kind (Type)
 import Data.Text (Text)
 import Data.Typeable ( Proxy(..) )
-import Database.Selda.Types ( type (:*:), TableName, ColName )
+import Database.Selda.Types ( type (:*:), TableName )
 import Database.Selda.Selectors ( Selector(..) )
 import Database.Selda.SqlType ( ID, RowID )
 import Database.Selda.Column (Row (..))
@@ -27,6 +28,7 @@ import Database.Selda.Table.Type
     ( IndexMethod(..),
       ColAttr(..),
       AutoIncType(..),
+      ColForeignKey,
       ColInfo(..),
       Table(..),
       isAutoPrimary,
@@ -163,9 +165,9 @@ tidy ci = ci {colAttrs = snub $ colAttrs ci}
 
 -- | Some attribute that may be set on a column of type @c@, in a table of
 --   type @t@.
-data Attribute (g :: * -> * -> *) t c
+data Attribute (g :: Type -> Type -> Type) t c
   = Attribute [ColAttr]
-  | ForeignKey (Table (), ColName)
+  | ForeignKey ColForeignKey
 
 -- | A primary key which does not auto-increment.
 primary :: Attribute Group t a

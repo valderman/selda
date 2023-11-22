@@ -21,7 +21,7 @@ import Database.Selda.Types
 --
 --   Therefore, it is not meaningful to handle this exception in any way,
 --   just fix your bug instead.
-data ValidationError = ValidationError String
+newtype ValidationError = ValidationError String
   deriving (Show, Eq, Typeable)
 instance Exception ValidationError
 

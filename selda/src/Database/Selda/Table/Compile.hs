@@ -4,6 +4,7 @@ module Database.Selda.Table.Compile where
 import Database.Selda.Table.Type
     ( IndexMethod,
       ColAttr(Indexed, Primary, Unique),
+      ColForeignKey,
       ColInfo(colFKs, colType, colName, colAttrs),
       Table(Table, tableAttrs, tableName, tableCols),
       isAutoPrimary )
@@ -110,7 +111,7 @@ compileCreateIndex cfg ifex tbl cols mmethod = mconcat
   ]
 
 -- | Compile a foreign key constraint.
-compileFK :: ColName -> (Table (), ColName) -> Int -> Text
+compileFK :: ColName -> ColForeignKey -> Int -> Text
 compileFK col (Table ftbl _ _ _, fcol) n = mconcat
   [ "CONSTRAINT ", fkName, " FOREIGN KEY (", fromColName col, ") "
   , "REFERENCES ", fromTableName ftbl, "(", fromColName fcol, ")"

@@ -23,12 +23,14 @@ data Table a = Table
   , tableAttrs :: [([Int], ColAttr)]
   }
 
+type ColForeignKey = (Table (), ColName)
+
 -- | A complete description of a database column.
 data ColInfo = ColInfo
   { colName  :: ColName
   , colType  :: SqlTypeRep
   , colAttrs :: [ColAttr]
-  , colFKs   :: [(Table (), ColName)]
+  , colFKs   :: [ColForeignKey]
   , colExpr  :: UntypedCol SQL
   }
 
