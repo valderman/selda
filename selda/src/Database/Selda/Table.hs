@@ -208,20 +208,31 @@ weakUntypedAutoPrimary = Attribute [AutoPrimary Weak, Required]
 unique :: Attribute Group t a
 unique = Attribute [Unique]
 
-mkFK :: Table t -> Selector a b -> Attribute Selector c d
-mkFK (Table tn tcs tapk tas) sel =
-  ForeignKey (Table tn tcs tapk tas, colName (tcs !! selectorIndex sel), False)
+mkFK :: Bool -> Table t -> Selector a b -> Attribute Selector c d
+mkFK isCascading (Table tn tcs tapk tas) sel =
+  ForeignKey (Table tn tcs tapk tas, colName (tcs !! selectorIndex sel), isCascading)
 
 class ForeignKey a b where
   -- | A foreign key constraint referencing the given table and column.
   foreignKey :: Table t -> Selector t a -> Attribute Selector self b
 
 instance ForeignKey a a where
-  foreignKey = mkFK
+  foreignKey = mkFK False
 instance ForeignKey (Maybe a) a where
-  foreignKey = mkFK
+  foreignKey = mkFK False
 instance ForeignKey a (Maybe a) where
-  foreignKey = mkFK
+  foreignKey = mkFK False
+
+class ForeignKeyCascading a b where
+  -- | A foreign key constraint with referential integrity referencing the given table and column.
+  foreignKeyCascading :: Table t -> Selector t a -> Attribute Selector self b
+
+instance ForeignKeyCascading a a where
+  foreignKeyCascading = mkFK True
+instance ForeignKeyCascading (Maybe a) a where
+  foreignKeyCascading = mkFK True
+instance ForeignKeyCascading a (Maybe a) where
+  foreignKeyCascading = mkFK True
 
 -- | An expression representing the given table.
 tableExpr :: Table a -> Row s a
