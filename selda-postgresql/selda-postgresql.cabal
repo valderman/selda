@@ -35,8 +35,8 @@ library
     , text       >=1.0 && <2.1
   if !flag(haste)
     build-depends:
-        postgresql-binary >=0.12 && <0.13
-      , postgresql-libpq  >=0.9  && <0.10
+        postgresql-binary >=0.12 && <0.14
+      , postgresql-libpq  >=0.9  && <0.11
       , time              >=1.5  && <1.13
       , uuid-types        >=1.0  && <1.1
   hs-source-dirs:
