@@ -11,6 +11,6 @@ executable selda-changelog
   build-depends:
     base     >=4.8 && <5,
     time     >=1.5 && <1.15,
-    filepath >=1.4 && <1.5,
+    filepath >=1.4 && <1.6,
     process  >=1.5 && <1.7
   default-language: Haskell2010
