@@ -29,7 +29,7 @@ library
     , text          >=1.0 && <2.1
   if !flag(haste)
     build-depends:
-        bytestring    >=0.10  && <0.12
+        bytestring    >=0.10  && <0.13
       , direct-sqlite >=2.2   && <2.4
       , directory     >=1.2.2 && <1.4
       , exceptions    >=0.8   && <0.11
