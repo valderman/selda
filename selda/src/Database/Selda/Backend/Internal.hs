@@ -1,4 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving, CPP, TypeFamilies #-}
+{-# LANGUAGE FlexibleInstances, MultiParamTypeClasses, UndecidableInstances #-}
 -- | Internal backend API.
 --   Using anything exported from this module may or may not invalidate any
 --   safety guarantees made by Selda; use at your own peril.
@@ -42,9 +43,22 @@ import Data.Int (Int64)
 import Control.Concurrent ( newMVar, putMVar, takeMVar, MVar )
 import Control.Monad.Catch
     ( Exception, bracket, MonadCatch, MonadMask, MonadThrow(..) )
+import Control.Monad.Error.Class ( MonadError )
+#if MIN_VERSION_mtl(2, 1, 1)
+import Control.Monad.Except ( ExceptT(..), mapExceptT, runExceptT )
+#endif
 import Control.Monad.IO.Class ( MonadIO(..) )
 import Control.Monad.Reader
-    ( MonadTrans(..), when, ReaderT(..), MonadReader(ask) )
+    ( MonadTrans(..), when, ReaderT(..), MonadReader(ask, local, reader), mapReaderT )
+import Control.Monad.RWS.Class ( MonadRWS )
+import qualified Control.Monad.RWS.Lazy as Lazy ( RWST(..), mapRWST )
+import qualified Control.Monad.RWS.Strict as Strict ( RWST(..), mapRWST )
+import Control.Monad.State.Class ( MonadState )
+import qualified Control.Monad.State.Lazy as Lazy ( StateT(..), mapStateT )
+import qualified Control.Monad.State.Strict as Strict ( StateT(..), mapStateT )
+import Control.Monad.Writer.Class ( MonadWriter )
+import qualified Control.Monad.Writer.Lazy as Lazy ( WriterT(..), mapWriterT )
+import qualified Control.Monad.Writer.Strict as Strict ( WriterT(..), mapWriterT )
 import Data.Dynamic ( Typeable, Dynamic )
 import qualified Data.IntMap as M
 import Data.IORef
@@ -279,8 +293,17 @@ withBackend m = withConnection (m . connBackend)
 -- | Monad transformer adding Selda SQL capabilities.
 newtype SeldaT b m a = S {unS :: ReaderT (SeldaConnection b) m a}
   deriving ( Functor, Applicative, Monad, MonadIO
-           , MonadThrow, MonadCatch, MonadMask , MonadFail
+           , MonadThrow, MonadCatch, MonadMask, MonadFail
+           , MonadError e, MonadWriter w, MonadState s
+           , MonadRWS r w s
            )
+
+-- This instance has to be defined manually since we want to pass through
+-- SeldaT's ReaderT.
+instance MonadReader r m => MonadReader r (SeldaT b m) where
+  ask = lift ask
+  local = mapSeldaT . local
+  reader = lift . reader
 
 instance (MonadIO m, MonadMask m) => MonadSelda (SeldaT b m) where
   type Backend (SeldaT b m) = b
@@ -288,6 +311,53 @@ instance (MonadIO m, MonadMask m) => MonadSelda (SeldaT b m) where
 
 instance MonadTrans (SeldaT b) where
   lift = S . lift
+
+instance MonadSelda m => MonadSelda (ReaderT r m) where
+  type Backend (ReaderT r m) = Backend m
+  withConnection f = ReaderT $ \r ->
+    withConnection (\conn -> runReaderT (f conn) r)
+  transact = mapReaderT transact
+
+instance (Monoid w, MonadSelda m) => MonadSelda (Lazy.WriterT w m) where
+  type Backend (Lazy.WriterT w m) = Backend m
+  withConnection f = Lazy.WriterT $ withConnection (Lazy.runWriterT . f)
+  transact = Lazy.mapWriterT transact
+
+instance (Monoid w, MonadSelda m) => MonadSelda (Strict.WriterT w m) where
+  type Backend (Strict.WriterT w m) = Backend m
+  withConnection f = Strict.WriterT $ withConnection (Strict.runWriterT . f)
+  transact = Strict.mapWriterT transact
+
+instance MonadSelda m => MonadSelda (Lazy.StateT s m) where
+  type Backend (Lazy.StateT s m) = Backend m
+  withConnection f = Lazy.StateT $ \s ->
+    withConnection (\conn -> Lazy.runStateT (f conn) s)
+  transact = Lazy.mapStateT transact
+
+instance MonadSelda m => MonadSelda (Strict.StateT s m) where
+  type Backend (Strict.StateT s m) = Backend m
+  withConnection f = Strict.StateT $ \s ->
+    withConnection (\conn -> Strict.runStateT (f conn) s)
+  transact = Strict.mapStateT transact
+
+instance (Monoid w, MonadSelda m) => MonadSelda (Lazy.RWST r w s m) where
+  type Backend (Lazy.RWST r w s m) = Backend m
+  withConnection f = Lazy.RWST $ \r s ->
+    withConnection (\conn -> Lazy.runRWST (f conn) r s)
+  transact = Lazy.mapRWST transact
+
+instance (Monoid w, MonadSelda m) => MonadSelda (Strict.RWST r w s m) where
+  type Backend (Strict.RWST r w s m) = Backend m
+  withConnection f = Strict.RWST $ \r s ->
+    withConnection (\conn -> Strict.runRWST (f conn) r s)
+  transact = Strict.mapRWST transact
+
+#if MIN_VERSION_mtl(2, 1, 1)
+instance MonadSelda m => MonadSelda (ExceptT e m) where
+  type Backend (ExceptT e m) = Backend m
+  withConnection f = ExceptT $ withConnection (runExceptT . f)
+  transact = mapExceptT transact
+#endif
 
 -- | The simplest form of Selda computation; 'SeldaT' specialized to 'IO'.
 type SeldaM b = SeldaT b IO
@@ -308,3 +378,7 @@ runSeldaT m c =
       when closed $ do
         liftIO $ throwM $ DbError "runSeldaT called with a closed connection"
       runReaderT (unS m) c
+
+-- | Transform the computation inside a 'SeldaT'.
+mapSeldaT :: (m a -> n b) -> SeldaT b' m a -> SeldaT b' n b
+mapSeldaT f m = S $ mapReaderT f (unS m)
