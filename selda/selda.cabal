@@ -75,7 +75,7 @@ library
     , bytestring >=0.10 && <0.13
     , exceptions >=0.8  && <0.11
     , mtl        >=2.0  && <2.4
-    , text       >=1.0  && <2.1
+    , text       >=1.0  && <2.2
     , time       >=1.5  && <1.15
     , containers >=0.4  && <0.7
     , random     >=1.1  && <1.3
