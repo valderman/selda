@@ -67,7 +67,7 @@ withSQLite file m = bracket (sqliteOpen file) seldaClose (runSeldaT m)
 sqliteBackend :: Database -> SeldaBackend SQLite
 sqliteBackend db = SeldaBackend
   { runStmt          = \q ps -> snd <$> sqliteQueryRunner db q ps
-  , runStmtStreaming = \q ps -> sqliteQueryRunnerStreaming db q ps
+  , runStmtStreaming = \f q ps -> snd <$> sqliteQueryRunnerStreaming f db q ps
   , runStmtWithPK    = \q ps -> fst <$> sqliteQueryRunner db q ps
   , prepareStmt      = \_ _ -> sqlitePrepare db
   , runPrepared      = sqliteRunPrepared db
@@ -199,7 +199,7 @@ sqliteRunStmt db stm params = do
   cs <- changes db
   return (fromIntegral rid, (cs, [map fromSqlData r | r <- rows]))
 
-sqliteQueryRunnerStreaming :: MonadIO m, Monoid a => (st -> m a) -> Database -> QueryRunner (m [SqlValue])
+sqliteQueryRunnerStreaming :: MonadIO m, Monoid a => (SqlValue -> m a) -> Database -> QueryRunner (Int64, (Int, m [SqlValue]))
 sqliteQueryRunnerStreaming f db qry params = do
     eres <- try $ do
       stm <- prepare db qry
@@ -209,13 +209,13 @@ sqliteQueryRunnerStreaming f db qry params = do
       Left e@(SQLError{}) -> throwM (SqlError (show e))
       Right res           -> return res
 
-sqliteRunStmtStreaming :: MonadIO m, Monoid a => (st -> m a) -> Database -> Statement -> [Param] -> IO (m [SqlValue])
+sqliteRunStmtStreaming :: MonadIO m, Monoid a => (SqlValue -> m a) -> Database -> Statement -> [Param] -> IO (Int64, (Int, m [SqlValue]))
 sqliteRunStmtStreaming f db stm params = do
   bind stm [toSqlData p | Param p <- params]
   rows <- streamRows f stm []
-  _rid <- lastInsertRowId db
-  !cs <- changes db
-  return rows -- this should be roughly correct
+  rid <- lastInsertRowId db
+  cs <- changes db
+  return (fromIntegral rid, (cs, rows))
 
 getRows :: Statement -> [[SQLData]] -> IO [[SQLData]]
 getRows s acc = do
@@ -227,8 +227,7 @@ getRows s acc = do
     _ -> do
       return $ reverse acc
 
--- TODO: should return `Generator [SqlData]`
-streamRows :: MonadIO m, Monoid a => (st -> m a) -> Statement -> [[SQLData]] -> IO (m [SqlValue])
+streamRows :: MonadIO m, Monoid a => (SqlValue -> m a) -> Statement -> [[SQLData]] -> IO (m [SqlValue])
 streamRows f s acc = do
   res <- step s
   case res of

@@ -201,7 +201,7 @@ pgBackend :: Connection   -- ^ PostgreSQL connection object.
           -> SeldaBackend PG
 pgBackend c = SeldaBackend
   { runStmt          = \q ps -> right <$> pgQueryRunner c False q ps
-  , runStmtStreaming = undefined
+  , runStmtStreaming = \f q ps -> undefined
   , runStmtWithPK    = \q ps -> left <$> pgQueryRunner c True q ps
   , prepareStmt      = pgPrepare c
   , runPrepared      = pgRun c

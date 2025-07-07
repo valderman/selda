@@ -217,7 +217,7 @@ data SeldaBackend b st = SeldaBackend
     runStmt :: Text -> [Param] -> IO (Int, [[SqlValue]])
 
     -- | Stream the result.
-  , runStmtStreaming :: MonadIO m => Text -> [Param] -> IO (m [SqlValue])
+  , runStmtStreaming :: MonadIO m => (SqlValue -> m a) -> Text -> [Param] -> IO (m [SqlValue])
 
     -- | Execute an SQL statement and return the last inserted primary key,
     --   where the primary key is auto-incrementing.
