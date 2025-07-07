@@ -211,15 +211,13 @@ tableInfo t = TableInfo
         ]
       ]
 
-type Generator st = IO (st -> Maybe (st, [SqlValue]))
-
 -- | A collection of functions making up a Selda backend.
 data SeldaBackend b st = SeldaBackend
   { -- | Execute an SQL statement.
     runStmt :: Text -> [Param] -> IO (Int, [[SqlValue]])
 
     -- | Stream the result.
-  , runStmtStreaming :: Text -> [Param] -> Generator st
+  , runStmtStreaming :: MonadIO m => Text -> [Param] -> IO (m [SqlValue])
 
     -- | Execute an SQL statement and return the last inserted primary key,
     --   where the primary key is auto-incrementing.

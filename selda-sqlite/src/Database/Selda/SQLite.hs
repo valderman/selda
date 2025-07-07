@@ -67,7 +67,7 @@ withSQLite file m = bracket (sqliteOpen file) seldaClose (runSeldaT m)
 sqliteBackend :: Database -> SeldaBackend SQLite
 sqliteBackend db = SeldaBackend
   { runStmt          = \q ps -> snd <$> sqliteQueryRunner db q ps
-  , runStmtStreaming = \q ps -> snd <$> sqliteQueryRunnerStreaming db q ps
+  , runStmtStreaming = \q ps -> sqliteQueryRunnerStreaming db q ps
   , runStmtWithPK    = \q ps -> fst <$> sqliteQueryRunner db q ps
   , prepareStmt      = \_ _ -> sqlitePrepare db
   , runPrepared      = sqliteRunPrepared db
@@ -199,20 +199,20 @@ sqliteRunStmt db stm params = do
   cs <- changes db
   return (fromIntegral rid, (cs, [map fromSqlData r | r <- rows]))
 
-sqliteQueryRunnerStreaming :: Database -> QueryRunner (Generator st)
-sqliteQueryRunnerStreaming db qry params = do
+sqliteQueryRunnerStreaming :: MonadIO m, Monoid a => (st -> m a) -> Database -> QueryRunner (m [SqlValue])
+sqliteQueryRunnerStreaming f db qry params = do
     eres <- try $ do
       stm <- prepare db qry
-      sqliteRunStmtStreaming db stm params `finally` do
+      sqliteRunStmtStreaming f db stm params `finally` do
         finalize stm
     case eres of
       Left e@(SQLError{}) -> throwM (SqlError (show e))
       Right res           -> return res
 
-sqliteRunStmtStreaming :: Database -> Statement -> [Param] -> IO (Generator st)
-sqliteRunStmtStreaming db stm params = do
+sqliteRunStmtStreaming :: MonadIO m, Monoid a => (st -> m a) -> Database -> Statement -> [Param] -> IO (m [SqlValue])
+sqliteRunStmtStreaming f db stm params = do
   bind stm [toSqlData p | Param p <- params]
-  rows <- streamRows stm []
+  rows <- streamRows f stm []
   _rid <- lastInsertRowId db
   !cs <- changes db
   return rows -- this should be roughly correct
@@ -227,15 +227,16 @@ getRows s acc = do
     _ -> do
       return $ reverse acc
 
-streamRows :: Statement -> [[SQLData]] -> Generator st
-streamRows s acc = \st -> do
+-- TODO: should return `Generator [SqlData]`
+streamRows :: MonadIO m, Monoid a => (st -> m a) -> Statement -> [[SQLData]] -> IO (m [SqlValue])
+streamRows f s acc = do
   res <- step s
   case res of
     Row -> do
-      cs <- columns s
-      yield cs
-    -- _ -> 
-    -- what do we do instead of returning all accumulated values?
+      cs <- columns s -- :: IO [SQLData]
+      streamRows s `mappend` (f $ fromSqlData cs) `mappend` acc
+    Done -> do
+      return $ reverse acc
 
 toSqlData :: Lit a -> SQLData
 toSqlData (LInt32 i)    = SQLInteger $ fromIntegral i
