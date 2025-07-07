@@ -66,14 +66,15 @@ withSQLite file m = bracket (sqliteOpen file) seldaClose (runSeldaT m)
 --   Proceed with extreme caution.
 sqliteBackend :: Database -> SeldaBackend SQLite
 sqliteBackend db = SeldaBackend
-  { runStmt         = \q ps -> snd <$> sqliteQueryRunner db q ps
-  , runStmtWithPK   = \q ps -> fst <$> sqliteQueryRunner db q ps
-  , prepareStmt     = \_ _ -> sqlitePrepare db
-  , runPrepared     = sqliteRunPrepared db
-  , getTableInfo    = sqliteGetTableInfo db . fromTableName
-  , ppConfig        = defPPConfig {ppMaxInsertParams = Just 999}
-  , backendId       = SQLite
-  , closeConnection = \conn -> do
+  { runStmt          = \q ps -> snd <$> sqliteQueryRunner db q ps
+  , runStmtStreaming = \q ps -> snd <$> sqliteQueryRunnerStreaming db q ps
+  , runStmtWithPK    = \q ps -> fst <$> sqliteQueryRunner db q ps
+  , prepareStmt      = \_ _ -> sqlitePrepare db
+  , runPrepared      = sqliteRunPrepared db
+  , getTableInfo     = sqliteGetTableInfo db . fromTableName
+  , ppConfig         = defPPConfig {ppMaxInsertParams = Just 999}
+  , backendId        = SQLite
+  , closeConnection  = \conn -> do
       stmts <- allStmts conn
       flip mapM_ stmts $ \(_, stm) -> do
         finalize $ fromDyn stm (error "BUG: non-statement SQLite statement")
@@ -198,6 +199,24 @@ sqliteRunStmt db stm params = do
   cs <- changes db
   return (fromIntegral rid, (cs, [map fromSqlData r | r <- rows]))
 
+sqliteQueryRunnerStreaming :: Database -> QueryRunner (Generator st)
+sqliteQueryRunnerStreaming db qry params = do
+    eres <- try $ do
+      stm <- prepare db qry
+      sqliteRunStmtStreaming db stm params `finally` do
+        finalize stm
+    case eres of
+      Left e@(SQLError{}) -> throwM (SqlError (show e))
+      Right res           -> return res
+
+sqliteRunStmtStreaming :: Database -> Statement -> [Param] -> IO (Generator st)
+sqliteRunStmtStreaming db stm params = do
+  bind stm [toSqlData p | Param p <- params]
+  rows <- streamRows stm []
+  _rid <- lastInsertRowId db
+  !cs <- changes db
+  return rows -- this should be roughly correct
+
 getRows :: Statement -> [[SQLData]] -> IO [[SQLData]]
 getRows s acc = do
   res <- step s
@@ -207,6 +226,16 @@ getRows s acc = do
       getRows s (cs : acc)
     _ -> do
       return $ reverse acc
+
+streamRows :: Statement -> [[SQLData]] -> Generator st
+streamRows s acc = \st -> do
+  res <- step s
+  case res of
+    Row -> do
+      cs <- columns s
+      yield cs
+    -- _ -> 
+    -- what do we do instead of returning all accumulated values?
 
 toSqlData :: Lit a -> SQLData
 toSqlData (LInt32 i)    = SQLInteger $ fromIntegral i

@@ -15,7 +15,7 @@ import Database.Selda.Backend.Internal
       Param,
       SeldaT,
       MonadSelda(..),
-      SeldaBackend(runStmtWithPK, disableForeignKeys, ppConfig, runStmt),
+      SeldaBackend(runStmtWithPK, disableForeignKeys, ppConfig, runStmt, runStmtStreaming),
       QueryRunner,
       SeldaError(SqlError),
       withBackend )
@@ -57,6 +57,10 @@ import Control.Monad.IO.Class ( MonadIO(..) )
 --   such as 'withSQLite' from the SQLite backend.
 query :: (MonadSelda m, Result a) => Query (Backend m) a -> m [Res a]
 query q = withBackend (flip queryWith q . runStmt)
+
+-- | Run a query within a Selda monad like `query` and stream the results.
+queryStreaming :: (MonadSelda m, Result a) => Query (Backend m) a -> m (Generator st)
+queryStreaming withBackend (flip _ q . runStmtStreaming) -- TODO: roll own queryWith to use here
 
 -- | Perform the given query, and insert the result into the given table.
 --   Returns the number of inserted rows.

@@ -200,14 +200,15 @@ pgPPConfig = defPPConfig
 pgBackend :: Connection   -- ^ PostgreSQL connection object.
           -> SeldaBackend PG
 pgBackend c = SeldaBackend
-  { runStmt         = \q ps -> right <$> pgQueryRunner c False q ps
-  , runStmtWithPK   = \q ps -> left <$> pgQueryRunner c True q ps
-  , prepareStmt     = pgPrepare c
-  , runPrepared     = pgRun c
-  , getTableInfo    = pgGetTableInfo c . rawTableName
-  , backendId       = PostgreSQL
-  , ppConfig        = pgPPConfig
-  , closeConnection = \_ -> finish c
+  { runStmt          = \q ps -> right <$> pgQueryRunner c False q ps
+  , runStmtStreaming = undefined
+  , runStmtWithPK    = \q ps -> left <$> pgQueryRunner c True q ps
+  , prepareStmt      = pgPrepare c
+  , runPrepared      = pgRun c
+  , getTableInfo     = pgGetTableInfo c . rawTableName
+  , backendId        = PostgreSQL
+  , ppConfig         = pgPPConfig
+  , closeConnection  = \_ -> finish c
   , disableForeignKeys = disableFKs c
   }
   where
