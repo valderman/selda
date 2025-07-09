@@ -108,9 +108,9 @@ data SeldaStmt = SeldaStmt
  , stmtParams :: ![Either Int Param]
  }
 
-data SeldaConnection b = SeldaConnection
+data SeldaConnection b st = SeldaConnection
   { -- | The backend used by the current connection.
-    connBackend :: !(SeldaBackend b)
+    connBackend :: !(SeldaBackend b st)
 
     -- | A string uniquely identifying the database used by this connection.
     --   This could be, for instance, a PostgreSQL connection
@@ -130,7 +130,7 @@ data SeldaConnection b = SeldaConnection
 
 -- | Create a new Selda connection for the given backend and database
 --   identifier string.
-newConnection :: MonadIO m => SeldaBackend b -> Text -> m (SeldaConnection b)
+newConnection :: MonadIO m => SeldaBackend b st -> Text -> m (SeldaConnection b st)
 newConnection back dbid =
   liftIO $ SeldaConnection back dbid <$> newIORef M.empty
                                      <*> newIORef False
@@ -138,7 +138,7 @@ newConnection back dbid =
 
 -- | Get all statements and their corresponding identifiers for the current
 --   connection.
-allStmts :: SeldaConnection b -> IO [(StmtID, Dynamic)]
+allStmts :: SeldaConnection b st -> IO [(StmtID, Dynamic)]
 allStmts = fmap (map (\(k, v) -> (StmtID k, stmtHandle v)) . M.toList)
   . readIORef
   . connStmts
@@ -211,13 +211,15 @@ tableInfo t = TableInfo
         ]
       ]
 
+type Generator st = IO (st -> Maybe (st, [SqlValue]))
+
 -- | A collection of functions making up a Selda backend.
 data SeldaBackend b st = SeldaBackend
   { -- | Execute an SQL statement.
     runStmt :: Text -> [Param] -> IO (Int, [[SqlValue]])
 
     -- | Stream the result.
-  , runStmtStreaming :: MonadIO m => (SqlValue -> m a) -> Text -> [Param] -> IO (m [SqlValue])
+  , runStmtStreaming :: Text -> [Param] -> Generator st
 
     -- | Execute an SQL statement and return the last inserted primary key,
     --   where the primary key is auto-incrementing.
@@ -239,7 +241,7 @@ data SeldaBackend b st = SeldaBackend
   , ppConfig :: PPConfig
 
     -- | Close the currently open connection.
-  , closeConnection :: SeldaConnection b -> IO ()
+  , closeConnection :: SeldaConnection b st -> IO ()
 
     -- | Unique identifier for this backend.
   , backendId :: BackendID
@@ -267,7 +269,7 @@ class MonadIO m => MonadSelda m where
   --   Selda computation.
   --   Thus, the computation must take care never to return or otherwise
   --   access the connection after returning.
-  withConnection :: (SeldaConnection (Backend m) -> m a) -> m a
+  withConnection :: (SeldaConnection (Backend m) st -> m a) -> m a
 
   -- | Perform the given computation as a transaction.
   --   Implementations must ensure that subsequent calls to 'withConnection'
@@ -277,30 +279,30 @@ class MonadIO m => MonadSelda m where
   transact = id
 
 -- | Get the backend in use by the computation.
-withBackend :: MonadSelda m => (SeldaBackend (Backend m) -> m a) -> m a
+withBackend :: MonadSelda m => (SeldaBackend (Backend m) st -> m a) -> m a
 withBackend m = withConnection (m . connBackend)
 
 -- | Monad transformer adding Selda SQL capabilities.
-newtype SeldaT b m a = S {unS :: ReaderT (SeldaConnection b) m a}
+newtype SeldaT b st m a = S {unS :: ReaderT (SeldaConnection b st) m a}
   deriving ( Functor, Applicative, Monad, MonadIO
            , MonadThrow, MonadCatch, MonadMask , MonadFail
            )
 
-instance (MonadIO m, MonadMask m) => MonadSelda (SeldaT b m) where
-  type Backend (SeldaT b m) = b
+instance (MonadIO m, MonadMask m) => MonadSelda (SeldaT b st m) where
+  type Backend (SeldaT b st m) = b
   withConnection m = S ask >>= m
 
-instance MonadTrans (SeldaT b) where
+instance MonadTrans (SeldaT b st) where
   lift = S . lift
 
 -- | The simplest form of Selda computation; 'SeldaT' specialized to 'IO'.
-type SeldaM b = SeldaT b IO
+type SeldaM b st = SeldaT b st IO
 
 -- | Run a Selda transformer. Backends should use this to implement their
 --   @withX@ functions.
 runSeldaT :: (MonadIO m, MonadMask m)
-          => SeldaT b m a
-          -> SeldaConnection b
+          => SeldaT b st m a
+          -> SeldaConnection b st
           -> m a
 runSeldaT m c =
     bracket (liftIO $ takeMVar (connLock c))
