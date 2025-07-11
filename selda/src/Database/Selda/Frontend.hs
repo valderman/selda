@@ -18,6 +18,7 @@ import Database.Selda.Backend.Internal
       SeldaBackend(runStmtWithPK, disableForeignKeys, ppConfig, runStmt, runStmtStreaming),
       QueryRunner,
       SeldaError(SqlError),
+      Generator,
       withBackend )
 import Database.Selda.Column ( Row, Col )
 import Database.Selda.Compile
@@ -294,18 +295,18 @@ queryWith run q = withBackend $ \b -> do
   return $ mkResults (Proxy :: Proxy a) res
 
 -- | Build the final result from streaming result columns.
-queryStreamWith :: forall m a. (MonadSelda m, MonadIO m2,  Result a, Monoid a)
-          => (m2 b -> m2 a) -> QueryRunner (Int, m2 [SqlValue]) -> Query (Backend m) a -> m (m2 (Res a))
-queryStreamWith ms run q = withBackend $ \b -> do
+queryStreamWith :: forall m a. (MonadSelda m, Result a, Monoid a)
+          => QueryRunner (Int, Generator [SqlValue]) -> Query (Backend m) a -> m (Generator (Res a))
+queryStreamWith run q = withBackend $ \b -> do
   res <- fmap snd . liftIO . uncurry run $ compileWith (ppConfig b) q
-  return $ mkResultsStreaming ms (Proxy :: Proxy a) res -- FIXME: as res is the generator, we ought not just use ordinary map (which mkResults does)
+  return $ _ -- mkResultsStreaming ms (Proxy :: Proxy a) res -- FIXME: as res is the generator, we ought not just use ordinary map (which mkResults does)
 
 -- | Generate the final result of a query from a list of untyped result rows.
 mkResults :: Result a => Proxy a -> [[SqlValue]] -> [Res a]
 mkResults p = map (buildResult p)
 
-mkResultsStreaming :: (MonadIO m, Result a) => (m b -> m a) -> Proxy a -> m [SqlValue] -> m (Res a)
-mkResultsStreaming ms p = ms (buildResult p)
+mkResultsStreaming :: (MonadIO m, Result a) => Proxy a -> m [SqlValue] -> m (Generator (Res a))
+mkResultsStreaming p xs = return $ \ms -> ms (buildResult p) xs
 
 {-# INLINE exec #-}
 -- | Execute a statement without a result.

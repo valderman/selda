@@ -3,6 +3,7 @@
 module Database.Selda.Backend
   ( MonadSelda (..), SeldaT, SeldaM, SeldaError (..)
   , StmtID, BackendID (..), QueryRunner, SeldaBackend (..), SeldaConnection
+  , Generator
   , SqlValue (..)
   , IndexMethod (..)
   , Param (..), ColAttr (..), AutoIncType (..)
@@ -32,6 +33,7 @@ import Database.Selda.Backend.Internal
       SeldaT,
       MonadSelda(..),
       SeldaBackend(..),
+      Generator,
       ColumnInfo(..),
       TableInfo(..),
       SeldaConnection(connClosed, connBackend),

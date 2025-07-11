@@ -5,6 +5,7 @@
 module Database.Selda.Backend.Internal
   ( StmtID (..), BackendID (..)
   , QueryRunner, SeldaBackend (..), SeldaConnection (..), SeldaStmt (..)
+  , Generator
   , MonadSelda (..), SeldaT (..), SeldaM
   , SeldaError (..)
   , Param (..), Lit (..), ColAttr (..), AutoIncType (..)
@@ -130,7 +131,7 @@ data SeldaConnection b = SeldaConnection
 
 -- | Create a new Selda connection for the given backend and database
 --   identifier string.
-newConnection :: MonadIO m => SeldaBackend b -> Text -> m (SeldaConnection b s)
+newConnection :: MonadIO m => SeldaBackend b -> Text -> m (SeldaConnection b)
 newConnection back dbid =
   liftIO $ SeldaConnection back dbid <$> newIORef M.empty
                                      <*> newIORef False
@@ -211,7 +212,7 @@ tableInfo t = TableInfo
         ]
       ]
 
-type Generator b  = IO (b-> Maybe (b, [SqlValue]))
+type Generator b  = IO (b -> Maybe (b, [SqlValue]))
 
 -- | A collection of functions making up a Selda backend.
 data SeldaBackend b
@@ -262,10 +263,10 @@ class MonadIO m => MonadSelda m where
   {-# MINIMAL withConnection #-}
 
   -- FIXME: how to define functional dependency `| st -> b`
-  type StreamingState b
+  type StreamingState m
 
   -- | Type of database backend used by @m@.
-  type Backend m st
+  type Backend m
 
   -- | Pass a Selda connection to the given computation and execute it.
   --   After the computation finishes, @withConnection@ is free to do anything
@@ -273,7 +274,7 @@ class MonadIO m => MonadSelda m where
   --   Selda computation.
   --   Thus, the computation must take care never to return or otherwise
   --   access the connection after returning.
-  withConnection :: (SeldaConnection (Backend m st) -> m ()) -> m ()
+  withConnection :: (SeldaConnection (Backend m) -> m a) -> m a
 
   -- | Perform the given computation as a transaction.
   --   Implementations must ensure that subsequent calls to 'withConnection'
@@ -283,7 +284,7 @@ class MonadIO m => MonadSelda m where
   transact = id
 
 -- | Get the backend in use by the computation.
-withBackend :: MonadSelda m => (SeldaBackend (Backend m st) -> m ()) -> m ()
+withBackend :: MonadSelda m => (SeldaBackend (Backend m) -> m a) -> m a
 withBackend m = withConnection (m . connBackend)
 
 -- | Monad transformer adding Selda SQL capabilities.
@@ -293,9 +294,8 @@ newtype SeldaT b m a = S {unS :: ReaderT (SeldaConnection b) m a}
            )
 
 instance (MonadIO m, MonadMask m) => MonadSelda (SeldaT b m) where
-  type Backend (SeldaT b m) st = b
-  withConnection m = S ask >>= _
-  -- (SeldaConnection (Backend m) -> m ())
+  type Backend (SeldaT b m) = b
+  withConnection m = S ask >>= m
   
 instance MonadTrans (SeldaT b) where
   lift = S . lift
