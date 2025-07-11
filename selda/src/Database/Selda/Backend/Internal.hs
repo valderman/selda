@@ -1,4 +1,4 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving, CPP, TypeFamilies #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, CPP, TypeFamilies, ScopedTypeVariables #-}
 -- | Internal backend API.
 --   Using anything exported from this module may or may not invalidate any
 --   safety guarantees made by Selda; use at your own peril.
@@ -108,9 +108,9 @@ data SeldaStmt = SeldaStmt
  , stmtParams :: ![Either Int Param]
  }
 
-data SeldaConnection b st = SeldaConnection
+data SeldaConnection b = SeldaConnection
   { -- | The backend used by the current connection.
-    connBackend :: !(SeldaBackend b st)
+    connBackend :: !(SeldaBackend b)
 
     -- | A string uniquely identifying the database used by this connection.
     --   This could be, for instance, a PostgreSQL connection
@@ -130,7 +130,7 @@ data SeldaConnection b st = SeldaConnection
 
 -- | Create a new Selda connection for the given backend and database
 --   identifier string.
-newConnection :: MonadIO m => SeldaBackend b st -> Text -> m (SeldaConnection b st)
+newConnection :: MonadIO m => SeldaBackend b -> Text -> m (SeldaConnection b s)
 newConnection back dbid =
   liftIO $ SeldaConnection back dbid <$> newIORef M.empty
                                      <*> newIORef False
@@ -138,7 +138,7 @@ newConnection back dbid =
 
 -- | Get all statements and their corresponding identifiers for the current
 --   connection.
-allStmts :: SeldaConnection b st -> IO [(StmtID, Dynamic)]
+allStmts :: SeldaConnection b -> IO [(StmtID, Dynamic)]
 allStmts = fmap (map (\(k, v) -> (StmtID k, stmtHandle v)) . M.toList)
   . readIORef
   . connStmts
@@ -211,15 +211,16 @@ tableInfo t = TableInfo
         ]
       ]
 
-type Generator st = IO (st -> Maybe (st, [SqlValue]))
+type Generator b  = IO (b-> Maybe (b, [SqlValue]))
 
 -- | A collection of functions making up a Selda backend.
-data SeldaBackend b st = SeldaBackend
+data SeldaBackend b
+  = SeldaBackend
   { -- | Execute an SQL statement.
     runStmt :: Text -> [Param] -> IO (Int, [[SqlValue]])
 
     -- | Stream the result.
-  , runStmtStreaming :: Text -> [Param] -> Generator st
+  , runStmtStreaming :: Text -> [Param] -> Generator b
 
     -- | Execute an SQL statement and return the last inserted primary key,
     --   where the primary key is auto-incrementing.
@@ -241,7 +242,7 @@ data SeldaBackend b st = SeldaBackend
   , ppConfig :: PPConfig
 
     -- | Close the currently open connection.
-  , closeConnection :: SeldaConnection b st -> IO ()
+  , closeConnection :: SeldaConnection b -> IO ()
 
     -- | Unique identifier for this backend.
   , backendId :: BackendID
@@ -260,8 +261,11 @@ data SeldaBackend b st = SeldaBackend
 class MonadIO m => MonadSelda m where
   {-# MINIMAL withConnection #-}
 
+  -- FIXME: how to define functional dependency `| st -> b`
+  type StreamingState b
+
   -- | Type of database backend used by @m@.
-  type Backend m
+  type Backend m st
 
   -- | Pass a Selda connection to the given computation and execute it.
   --   After the computation finishes, @withConnection@ is free to do anything
@@ -269,7 +273,7 @@ class MonadIO m => MonadSelda m where
   --   Selda computation.
   --   Thus, the computation must take care never to return or otherwise
   --   access the connection after returning.
-  withConnection :: (SeldaConnection (Backend m) st -> m a) -> m a
+  withConnection :: (SeldaConnection (Backend m st) -> m ()) -> m ()
 
   -- | Perform the given computation as a transaction.
   --   Implementations must ensure that subsequent calls to 'withConnection'
@@ -279,30 +283,31 @@ class MonadIO m => MonadSelda m where
   transact = id
 
 -- | Get the backend in use by the computation.
-withBackend :: MonadSelda m => (SeldaBackend (Backend m) st -> m a) -> m a
+withBackend :: MonadSelda m => (SeldaBackend (Backend m st) -> m ()) -> m ()
 withBackend m = withConnection (m . connBackend)
 
 -- | Monad transformer adding Selda SQL capabilities.
-newtype SeldaT b st m a = S {unS :: ReaderT (SeldaConnection b st) m a}
+newtype SeldaT b m a = S {unS :: ReaderT (SeldaConnection b) m a}
   deriving ( Functor, Applicative, Monad, MonadIO
            , MonadThrow, MonadCatch, MonadMask , MonadFail
            )
 
-instance (MonadIO m, MonadMask m) => MonadSelda (SeldaT b st m) where
-  type Backend (SeldaT b st m) = b
-  withConnection m = S ask >>= m
-
-instance MonadTrans (SeldaT b st) where
+instance (MonadIO m, MonadMask m) => MonadSelda (SeldaT b m) where
+  type Backend (SeldaT b m) st = b
+  withConnection m = S ask >>= _
+  -- (SeldaConnection (Backend m) -> m ())
+  
+instance MonadTrans (SeldaT b) where
   lift = S . lift
 
 -- | The simplest form of Selda computation; 'SeldaT' specialized to 'IO'.
-type SeldaM b st = SeldaT b st IO
+type SeldaM b = SeldaT b IO
 
 -- | Run a Selda transformer. Backends should use this to implement their
 --   @withX@ functions.
 runSeldaT :: (MonadIO m, MonadMask m)
-          => SeldaT b st m a
-          -> SeldaConnection b st
+          => SeldaT b m a
+          -> SeldaConnection b
           -> m a
 runSeldaT m c =
     bracket (liftIO $ takeMVar (connLock c))
