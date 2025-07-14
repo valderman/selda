@@ -199,7 +199,15 @@ sqliteRunStmt db stm params = do
   cs <- changes db
   return (fromIntegral rid, (cs, [map fromSqlData r | r <- rows]))
 
-sqliteQueryRunnerStreaming :: MonadIO m, Monoid a => (SqlValue -> m a) -> Database -> QueryRunner (Int64, (Int, m [SqlValue]))
+sqliteRunStmtStreaming :: (Monad m, Monoid (m [SqlValue])) => ([SqlValue] -> m [SqlValue]) -> Database -> Statement -> [Param] -> IO (Int64, (Int, m [SqlValue]))
+sqliteRunStmtStreaming f db stm params = do
+  bind stm [toSqlData p | Param p <- params]
+  rows <- streamRows f stm mempty
+  rid <- lastInsertRowId db
+  cs <- changes db
+  return (fromIntegral rid, (cs, rows))
+
+sqliteQueryRunnerStreaming :: (Monad m, Monoid (m [SqlValue])) => ([SqlValue] -> m [SqlValue]) -> Database -> QueryRunner (Int64, (Int, m [SqlValue]))
 sqliteQueryRunnerStreaming f db qry params = do
     eres <- try $ do
       stm <- prepare db qry
@@ -208,14 +216,6 @@ sqliteQueryRunnerStreaming f db qry params = do
     case eres of
       Left e@(SQLError{}) -> throwM (SqlError (show e))
       Right res           -> return res
-
-sqliteRunStmtStreaming :: MonadIO m, Monoid a => (SqlValue -> m a) -> Database -> Statement -> [Param] -> IO (Int64, (Int, m [SqlValue]))
-sqliteRunStmtStreaming f db stm params = do
-  bind stm [toSqlData p | Param p <- params]
-  rows <- streamRows f stm []
-  rid <- lastInsertRowId db
-  cs <- changes db
-  return (fromIntegral rid, (cs, rows))
 
 getRows :: Statement -> [[SQLData]] -> IO [[SQLData]]
 getRows s acc = do
@@ -227,15 +227,14 @@ getRows s acc = do
     _ -> do
       return $ reverse acc
 
-streamRows :: MonadIO m, Monoid a => (SqlValue -> m a) -> Statement -> [[SQLData]] -> IO (m [SqlValue])
+streamRows :: (Monad m, Monoid (m [SqlValue])) => ([SqlValue]-> m [SqlValue]) -> Statement -> m [SqlValue]-> IO (m [SqlValue])
 streamRows f s acc = do
   res <- step s
   case res of
     Row -> do
-      cs <- columns s -- :: IO [SQLData]
-      streamRows s `mappend` (f $ fromSqlData cs) `mappend` acc
-    Done -> do
-      return $ reverse acc
+      cs <- map fromSqlData <$> liftIO (columns s :: IO [SQLData])
+      streamRows f s (acc `mappend` f cs)
+    _ -> return acc
 
 toSqlData :: Lit a -> SQLData
 toSqlData (LInt32 i)    = SQLInteger $ fromIntegral i

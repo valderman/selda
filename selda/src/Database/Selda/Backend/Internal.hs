@@ -1,11 +1,10 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving, CPP, TypeFamilies, ScopedTypeVariables #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, CPP, TypeFamilies, ScopedTypeVariables, RankNTypes #-}
 -- | Internal backend API.
 --   Using anything exported from this module may or may not invalidate any
 --   safety guarantees made by Selda; use at your own peril.
 module Database.Selda.Backend.Internal
   ( StmtID (..), BackendID (..)
   , QueryRunner, SeldaBackend (..), SeldaConnection (..), SeldaStmt (..)
-  , Generator
   , MonadSelda (..), SeldaT (..), SeldaM
   , SeldaError (..)
   , Param (..), Lit (..), ColAttr (..), AutoIncType (..)
@@ -19,6 +18,7 @@ module Database.Selda.Backend.Internal
   , runSeldaT, withBackend
   ) where
 import Data.List (nub)
+import Data.Proxy ( Proxy(..) )
 import Database.Selda.SQL (Param (..))
 import Database.Selda.SqlType
     ( SqlValue(..),
@@ -212,16 +212,13 @@ tableInfo t = TableInfo
         ]
       ]
 
-type Generator b  = IO (b -> Maybe (b, [SqlValue]))
-
 -- | A collection of functions making up a Selda backend.
 data SeldaBackend b
   = SeldaBackend
   { -- | Execute an SQL statement.
     runStmt :: Text -> [Param] -> IO (Int, [[SqlValue]])
 
-    -- | Stream the result.
-  , runStmtStreaming :: Text -> [Param] -> Generator b
+  , runStmtStreaming :: forall m. (Monad m, MonadIO m, Monoid (m [SqlValue])) => ([SqlValue] -> m [SqlValue]) -> Text -> [Param] -> IO (Int, m [SqlValue])
 
     -- | Execute an SQL statement and return the last inserted primary key,
     --   where the primary key is auto-incrementing.
@@ -261,9 +258,6 @@ data SeldaBackend b
 -- | Some monad with Selda SQL capabilitites.
 class MonadIO m => MonadSelda m where
   {-# MINIMAL withConnection #-}
-
-  -- FIXME: how to define functional dependency `| st -> b`
-  type StreamingState m
 
   -- | Type of database backend used by @m@.
   type Backend m
