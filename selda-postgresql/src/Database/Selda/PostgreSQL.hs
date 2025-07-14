@@ -201,7 +201,7 @@ pgBackend :: Connection   -- ^ PostgreSQL connection object.
           -> SeldaBackend PG
 pgBackend c = SeldaBackend
   { runStmt          = \q ps -> right <$> pgQueryRunner c False q ps
-  , runStmtStreaming = \f q ps -> undefined
+  , runStmtStreaming = \f q ps -> right <$> pgQueryRunnerStream f c False q ps
   , runStmtWithPK    = \q ps -> left <$> pgQueryRunner c True q ps
   , prepareStmt      = pgPrepare c
   , runPrepared      = pgRun c
@@ -374,11 +374,36 @@ pgQueryRunner c return_lastid q ps = do
 
     getLastId res = (maybe 0 id . fmap readInt64) <$> getvalue res 0 0
 
+pgQueryRunnerStream :: (Monad m, Monoid (m [SqlValue])) => ([SqlValue] -> m [SqlValue]) -> Connection -> Bool -> T.Text -> [Param] -> IO (Either Int64 (Int, m [SqlValue]))
+pgQueryRunnerStream f c return_lastid q ps = do
+    mres <- execParams c (encodeUtf8 q') [fromSqlValue p | Param p <- ps] Binary
+    unlessError c errmsg mres $ \res -> do
+      if return_lastid
+        then Left <$> getLastId res
+        else Right <$> streamRows f res
+  where
+    errmsg = "error executing query `" ++ T.unpack q' ++ "'"
+    q' | return_lastid = q <> " RETURNING LASTVAL();"
+       | otherwise     = q
+
+    getLastId res = (maybe 0 id . fmap readInt64) <$> getvalue res 0 0
+
 pgRun :: Connection -> Dynamic -> [Param] -> IO (Int, [[SqlValue]])
 pgRun c hdl ps = do
     let Just sid = fromDynamic hdl :: Maybe StmtID
     mres <- execPrepared c (BS.pack $ show sid) (map mkParam ps) Binary
     unlessError c errmsg mres $ getRows
+  where
+    errmsg = "error executing prepared statement"
+    mkParam (Param p) = case fromSqlValue p of
+      Just (_, val, fmt) -> Just (val, fmt)
+      Nothing            -> Nothing
+
+pgRunStream :: (Monad m, Monoid (m [SqlValue])) => ([SqlValue] -> m [SqlValue]) -> Connection -> Dynamic -> [Param] -> IO (Int, m [SqlValue])
+pgRunStream f c hdl ps = do
+    let Just sid = fromDynamic hdl :: Maybe StmtID
+    mres <- execPrepared c (BS.pack $ show sid) (map mkParam ps) Binary
+    unlessError c errmsg mres $ streamRows f
   where
     errmsg = "error executing prepared statement"
     mkParam (Param p) = case fromSqlValue p of
@@ -400,6 +425,19 @@ getRows res = do
   where
     bsToPositiveInt = BS.foldl' (\a x -> a*10+fromIntegral x-48) 0
 
+streamRows :: (Monad m, Monoid (m [SqlValue])) => ([SqlValue] -> m [SqlValue]) -> Result -> IO (Int, m [SqlValue])
+streamRows f res = do
+  rows <- ntuples res
+  cols <- nfields res
+  types <- ftype res [0..cols-1]
+  affected <- cmdTuples res
+  result <- mconcat $ traverse (getRow  res types cols) [0..rows-1]
+  pure $ case affected of
+    Just "" -> (0, result)
+    Just s  -> (bsToPositiveInt s, result)
+    _       -> (0, result)
+  where
+    bsToPositiveInt = BS.foldl' (\a x -> a*10+fromIntegral x-48) 0
 
 -- | Get all columns for the given row.
 getRow :: Result -> [Oid] -> Column -> Row -> IO [SqlValue]
