@@ -59,7 +59,7 @@ query :: (MonadSelda m, Result a) => Query (Backend m) a -> m [Res a]
 query q = withBackend (flip queryWith q . runStmt)
 
 -- | Run a query within a Selda monad like `query` and stream the results.
-queryStream :: (MonadSelda m, MonadIO m, Monad m, Foldable m, Result a, Monoid (m (Res a)), Monoid (m [SqlValue])) => ([SqlValue] -> m [SqlValue]) -> Query (Backend m) a -> m (Res a)
+queryStream :: (MonadSelda m, MonadIO m2, Monad m2, Foldable m2, Result a, Monoid (m2 (Res a)), Monoid (m2 [SqlValue])) => ([SqlValue] -> m2 [SqlValue]) -> Query (Backend m) a -> m (m2 (Res a))
 queryStream f q = withBackend $ \b -> queryWithStream f (runStmtStreaming b f) q
 
 -- | Perform the given query, and insert the result into the given table.
@@ -294,11 +294,11 @@ queryWith run q = withBackend $ \b -> do
   return $ mkResults (Proxy :: Proxy a) res
 
 -- | Build the final result from streaming result columns.
-queryWithStream :: forall m a. (MonadSelda m, Result a, Monad m, Foldable m, Monoid (m (Res a)))
-          => ([SqlValue] -> m [SqlValue]) -> QueryRunner (Int, m [SqlValue]) -> Query (Backend m) a -> m (Res a) -- m (m1 (Res a)) -- m1 is generator
+queryWithStream :: forall m a m1. (MonadSelda m, Result a, Monad m1, Foldable m1, Monoid (m1 (Res a)))
+          => ([SqlValue] -> m1 [SqlValue]) -> QueryRunner (Int, m1 [SqlValue]) -> Query (Backend m) a -> m (m1 (Res a)) -- m (m1 (Res a)) -- m1 is generator
 queryWithStream f run q = withBackend $ \b -> do
   res <- fmap snd . liftIO . uncurry run $ compileWith (ppConfig b) q
-  mkResultsStream f (Proxy :: Proxy a) res
+  return $ mkResultsStream f (Proxy :: Proxy a) res
 
 -- | Generate the final result of a query from a list of untyped result rows.
 mkResults :: Result a => Proxy a -> [[SqlValue]] -> [Res a]
