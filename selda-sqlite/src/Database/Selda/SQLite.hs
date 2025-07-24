@@ -3,6 +3,7 @@
 module Database.Selda.SQLite
   ( SQLite
   , withSQLite
+  , withSQLiteStreaming
   , sqliteOpen, seldaClose
   , sqliteBackend
   ) where
@@ -55,6 +56,11 @@ sqliteBackend :: a -> SeldaBackend
 sqliteBackend _ = error "sqliteBackend called in JS context"
 #else
 withSQLite file m = bracket (sqliteOpen file) seldaClose (runSeldaT m)
+
+--withSQLiteStreaming ::
+withSQLiteStreaming :: (MonadMask m, MonadIO m, Monoid (m b)) => FilePath -> SeldaT SQLite m b -> m b
+withSQLiteStreaming file m = bracket (sqliteOpen file) seldaClose (runSeldaT m)
+-- S.yield :: Monad m => a -> S.Stream (S.Of a) m ()
 
 -- | Create a Selda backend using an already open database handle.
 --   This is useful for situations where you want to use some SQLite-specific
