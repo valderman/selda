@@ -446,6 +446,8 @@ streamRows ::
   -> m r
 streamRows c k r = do
   mres <- liftIO $ getResult c
+  --TODO: how does one actually catch errors here?
+  --(see caution note at https://www.postgresql.org/docs/17/libpq-single-row-mode.html )
   case mres of
     Just res -> do
       result <-
@@ -456,6 +458,7 @@ streamRows c k r = do
           mapM (getRow res types cols) [0 .. rows - 1]
       k result >>= streamRows c k . mappend r
     Nothing -> pure r
+
 -- | Get all columns for the given row.
 getRow :: Result -> [Oid] -> Column -> Row -> IO [SqlValue]
 getRow res types cols row = do
