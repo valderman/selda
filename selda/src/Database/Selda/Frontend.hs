@@ -59,7 +59,7 @@ query :: (MonadSelda m, Result a) => Query (Backend m) a -> m [Res a]
 query q = withBackend (flip queryWith q . runStmt)
 
 -- | Run a query within a Selda monad like `query` and stream the results.
-forQuery :: forall m a r . (MonadSelda m, Result a, Monoid r) => Query (Backend m) a -> (Res a -> m r) -> m r
+forQuery :: forall m a r . (MonadSelda m, MonadMask m, Result a, Monoid r) => Query (Backend m) a -> (Res a -> m r) -> m r
 forQuery q k = withBackend $ \b ->
   uncurry (runStmtStreaming b) (ppConfig b `compileWith` q) $ fmap mconcat . traverse k . mkResults (Proxy :: Proxy a)
 

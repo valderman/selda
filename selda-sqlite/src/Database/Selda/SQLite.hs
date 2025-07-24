@@ -67,7 +67,7 @@ withSQLite file m = bracket (sqliteOpen file) seldaClose (runSeldaT m)
 sqliteBackend :: Database -> SeldaBackend SQLite
 sqliteBackend db = SeldaBackend
   { runStmt          = \q ps -> snd <$> sqliteQueryRunner db q ps
-  , runStmtStreaming = \f q ps -> snd <$> sqliteQueryRunnerStreaming f db q ps
+  , runStmtStreaming = sqliteQueryRunnerStreaming db
   , runStmtWithPK    = \q ps -> fst <$> sqliteQueryRunner db q ps
   , prepareStmt      = \_ _ -> sqlitePrepare db
   , runPrepared      = sqliteRunPrepared db
@@ -199,20 +199,17 @@ sqliteRunStmt db stm params = do
   cs <- changes db
   return (fromIntegral rid, (cs, [map fromSqlData r | r <- rows]))
 
-sqliteRunStmtStreaming :: (Monad m, Monoid (m [SqlValue])) => ([SqlValue] -> m [SqlValue]) -> Database -> Statement -> [Param] -> IO (Int64, (Int, m [SqlValue]))
-sqliteRunStmtStreaming f db stm params = do
-  bind stm [toSqlData p | Param p <- params]
-  rows <- streamRows f stm mempty
-  rid <- lastInsertRowId db
-  cs <- changes db
-  return (fromIntegral rid, (cs, rows))
+sqliteRunStmtStreaming :: (MonadIO m, MonadMask m, MonadIO m, Monoid r) => Database -> Statement -> [Param] -> ([[SqlValue]] -> m r) -> m r
+sqliteRunStmtStreaming db stm params k = do
+  liftIO $ bind stm [toSqlData p | Param p <- params]
+  liftIO (getRows stm []) >>= k . map (map fromSqlData)
 
-sqliteQueryRunnerStreaming :: (Monad m, Monoid (m [SqlValue])) => ([SqlValue] -> m [SqlValue]) -> Database -> QueryRunner (Int64, (Int, m [SqlValue]))
-sqliteQueryRunnerStreaming f db qry params = do
+sqliteQueryRunnerStreaming :: (MonadIO m, MonadMask m, MonadIO m, Monoid r) => Database -> Text -> [Param] -> ([[SqlValue]] -> m r) -> m r
+sqliteQueryRunnerStreaming db qry params k = do
     eres <- try $ do
-      stm <- prepare db qry
-      sqliteRunStmtStreaming f db stm params `finally` do
-        finalize stm
+      stm <- liftIO $ prepare db qry
+      sqliteRunStmtStreaming db stm params k `finally` do
+        liftIO $ finalize stm
     case eres of
       Left e@(SQLError{}) -> throwM (SqlError (show e))
       Right res           -> return res
