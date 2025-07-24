@@ -27,7 +27,7 @@ module Database.Selda
   , SeldaT, SeldaM
   , Relational, Only (..), The (..)
   , Table (tableName), Query, Row, Col, Res, Result
-  , query, queryInto
+  , query, queryInto, forQuery
   , transaction, withoutForeignKeyEnforcement
   , newUuid
 
@@ -157,6 +157,7 @@ import Database.Selda.Frontend
     ( MonadIO(..),
       query,
       queryInto,
+      forQuery,
       insert,
       tryInsert,
       upsert,
