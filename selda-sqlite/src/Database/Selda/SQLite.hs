@@ -248,7 +248,7 @@ streamRows s n k = cont mempty
           Row -> do
             cs <- liftIO $ columns s
             go r (cs : acc) (succ i)
-          _ -> mappend r <$> send acc >>= cont
+          _ -> mappend r <$> send acc
       | otherwise = mappend r <$> send acc >>= cont
     send = k . reverse
 
