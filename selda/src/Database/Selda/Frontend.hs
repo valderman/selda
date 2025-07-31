@@ -2,7 +2,7 @@
 -- | API for running Selda operations over databases.
 module Database.Selda.Frontend
   ( Result, Res, MonadIO (..), MonadSelda (..), SeldaT, OnError (..)
-  , query, queryInto, queryStream
+  , query, queryInto, forQuery
   , insert, insert_, insertWithPK, tryInsert, insertWhen, insertUnless
   , update, update_, upsert
   , deleteFrom, deleteFrom_
@@ -59,8 +59,9 @@ query :: (MonadSelda m, Result a) => Query (Backend m) a -> m [Res a]
 query q = withBackend (flip queryWith q . runStmt)
 
 -- | Run a query within a Selda monad like `query` and stream the results.
-queryStream :: (MonadSelda m, MonadIO m2, Monad m2, Foldable m2, Result a, Monoid (m2 (Res a)), Monoid (m2 [SqlValue])) => ([SqlValue] -> m2 [SqlValue]) -> Query (Backend m) a -> m (m2 (Res a))
-queryStream f q = withBackend $ \b -> queryWithStream f (runStmtStreaming b f) q
+forQuery :: forall m a r . (MonadSelda m, MonadMask m, Result a, Monoid r) => Query (Backend m) a -> (Res a -> m r) -> m r
+forQuery q k = withBackend $ \b ->
+  uncurry (runStmtStreaming b) (ppConfig b `compileWith` q) $ fmap mconcat . traverse k . mkResults (Proxy :: Proxy a)
 
 -- | Perform the given query, and insert the result into the given table.
 --   Returns the number of inserted rows.
@@ -293,19 +294,9 @@ queryWith run q = withBackend $ \b -> do
   res <- fmap snd . liftIO . uncurry run $ compileWith (ppConfig b) q
   return $ mkResults (Proxy :: Proxy a) res
 
--- | Build the final result from streaming result columns.
-queryWithStream :: forall m a m1. (MonadSelda m, Result a, Monad m1, Foldable m1, Monoid (m1 (Res a)))
-          => ([SqlValue] -> m1 [SqlValue]) -> QueryRunner (Int, m1 [SqlValue]) -> Query (Backend m) a -> m (m1 (Res a)) -- m (m1 (Res a)) -- m1 is generator
-queryWithStream f run q = withBackend $ \b -> do
-  res <- fmap snd . liftIO . uncurry run $ compileWith (ppConfig b) q
-  return $ mkResultsStream f (Proxy :: Proxy a) res
-
 -- | Generate the final result of a query from a list of untyped result rows.
 mkResults :: Result a => Proxy a -> [[SqlValue]] -> [Res a]
 mkResults p = map (buildResult p)
-
-mkResultsStream :: (Monad m, Monoid (m (Res a)), Result a, Foldable m) => ([SqlValue] -> m [SqlValue]) -> Proxy a -> m [SqlValue] -> m (Res a)
-mkResultsStream f p = foldl (\acc x -> acc `mappend` (buildResult p <$> f x)) mempty
 
 {-# INLINE exec #-}
 -- | Execute a statement without a result.

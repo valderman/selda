@@ -72,7 +72,7 @@ withSQLiteStreaming file m = bracket (sqliteOpen file) seldaClose (runSeldaT m)
 sqliteBackend :: Database -> SeldaBackend SQLite
 sqliteBackend db = SeldaBackend
   { runStmt          = \q ps -> snd <$> sqliteQueryRunner db q ps
-  , runStmtStreaming = \f q ps -> snd <$> sqliteQueryRunnerStreaming f db q ps
+  , runStmtStreaming = sqliteQueryRunnerStreaming db
   , runStmtWithPK    = \q ps -> fst <$> sqliteQueryRunner db q ps
   , prepareStmt      = \_ _ -> sqlitePrepare db
   , runPrepared      = sqliteRunPrepared db
@@ -204,24 +204,6 @@ sqliteRunStmt db stm params = do
   cs <- changes db
   return (fromIntegral rid, (cs, [map fromSqlData r | r <- rows]))
 
-sqliteRunStmtStreaming :: (Monad m, Monoid (m [SqlValue])) => ([SqlValue] -> m [SqlValue]) -> Database -> Statement -> [Param] -> IO (Int64, (Int, m [SqlValue]))
-sqliteRunStmtStreaming f db stm params = do
-  bind stm [toSqlData p | Param p <- params]
-  rows <- streamRows f stm mempty
-  rid <- lastInsertRowId db
-  cs <- changes db
-  return (fromIntegral rid, (cs, rows))
-
-sqliteQueryRunnerStreaming :: (Monad m, Monoid (m [SqlValue])) => ([SqlValue] -> m [SqlValue]) -> Database -> QueryRunner (Int64, (Int, m [SqlValue]))
-sqliteQueryRunnerStreaming f db qry params = do
-    eres <- try $ do
-      stm <- prepare db qry
-      sqliteRunStmtStreaming f db stm params `finally` do
-        finalize stm
-    case eres of
-      Left e@(SQLError{}) -> throwM (SqlError (show e))
-      Right res           -> return res
-
 getRows :: Statement -> [[SQLData]] -> IO [[SQLData]]
 getRows s acc = do
   res <- step s
@@ -231,15 +213,49 @@ getRows s acc = do
       getRows s (cs : acc)
     _ -> do
       return $ reverse acc
+sqliteQueryRunnerStreaming ::
+     (MonadIO m, MonadMask m, MonadIO m, Monoid r)
+  => Database
+  -> Text
+  -> [Param]
+  -> ([[SqlValue]] -> m r)
+  -> m r
+sqliteQueryRunnerStreaming db qry params k = do
+  eres <-
+    try $ do
+      stm <- liftIO $ prepare db qry
+      sqliteRunStmtStreaming db stm params k `finally` do
+        liftIO $ finalize stm
+  case eres of
+    Left e@(SQLError {}) -> throwM (SqlError (show e))
+    Right res -> return res
 
-streamRows :: (Monad m, Monoid (m [SqlValue])) => ([SqlValue]-> m [SqlValue]) -> Statement -> m [SqlValue]-> IO (m [SqlValue])
-streamRows f s acc = do
-  res <- step s
-  case res of
-    Row -> do
-      cs <- map fromSqlData <$> liftIO (columns s :: IO [SQLData])
-      streamRows f s (acc `mappend` f cs)
-    _ -> return acc
+sqliteRunStmtStreaming ::
+     (MonadIO m, MonadMask m, MonadIO m, Monoid r)
+  => Database
+  -> Statement
+  -> [Param]
+  -> ([[SqlValue]] -> m r)
+  -> m r
+sqliteRunStmtStreaming db stm params k = do
+  liftIO $ bind stm [toSqlData p | Param p <- params]
+  streamRows stm 1024 $ k . map (map fromSqlData)
+
+streamRows ::
+     (MonadIO m, Monoid r) => Statement -> Int -> ([[SQLData]] -> m r) -> m r
+streamRows s n k = cont mempty
+  where
+    cont r = go r [] 0
+    go r acc i
+      | i < n = do
+        res <- liftIO $ step s
+        case res of
+          Row -> do
+            cs <- liftIO $ columns s
+            go r (cs : acc) (succ i)
+          _ -> mappend r <$> send acc
+      | otherwise = mappend r <$> send acc >>= cont
+    send = k . reverse
 
 toSqlData :: Lit a -> SQLData
 toSqlData (LInt32 i)    = SQLInteger $ fromIntegral i
