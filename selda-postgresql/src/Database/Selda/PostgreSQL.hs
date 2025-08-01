@@ -412,11 +412,11 @@ pgQueryRunnerStream c q ps k = do
     liftIO
       $ sendQueryParams c (encodeUtf8 q) [fromSqlValue p | Param p <- ps] Binary
   unless qsent . throwM $ DbError "sendQueryParams failed"
-  msent <- liftIO $ setSingleRowMode c -- TODO: chunked mode, but the library doesn't wrap setChunkedRowsMode
+  msent <- liftIO $ setSingleRowMode c -- TODO: chunked mode, but the library doesn't wrap setChunkedRowsMode. See https://github.com/haskellari/postgresql-libpq/pull/79 for progress.
   unless msent . throwM $ DbError "setSingleRowMode failed"
   streamRows c k mempty
 
--- TODO connect this to the frontend
+-- TODO this is prepared for streaming of prepared statements (not in frontend yet)
 pgRunStream ::
      (MonadIO m, MonadMask m, Monoid r)
   => Connection
@@ -446,8 +446,6 @@ streamRows ::
   -> m r
 streamRows c k r = do
   mres <- liftIO $ getResult c
-  --TODO: how does one actually catch errors here?
-  --(see caution note at https://www.postgresql.org/docs/17/libpq-single-row-mode.html )
   case mres of
     Just res -> do
       result <-
@@ -456,8 +454,10 @@ streamRows c k r = do
           cols <- nfields res
           types <- mapM (ftype res) [0 .. cols - 1]
           mapM (getRow res types cols) [0 .. rows - 1]
-      k result >>= streamRows c k . mappend r
-    Nothing -> pure r
+      if null result
+        then pure r
+        else k result >>= streamRows c k . mappend r
+    Nothing -> throwM $ DbError "streaming getResult failed"
 
 -- | Get all columns for the given row.
 getRow :: Result -> [Oid] -> Column -> Row -> IO [SqlValue]
