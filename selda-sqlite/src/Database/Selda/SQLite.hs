@@ -72,7 +72,7 @@ withSQLiteStreaming file m = bracket (sqliteOpen file) seldaClose (runSeldaT m)
 sqliteBackend :: Database -> SeldaBackend SQLite
 sqliteBackend db = SeldaBackend
   { runStmt          = \q ps -> snd <$> sqliteQueryRunner db q ps
-  , runStmtStreaming = sqliteQueryRunnerStreaming db
+  , runStmtStreaming = \q ps -> sqliteQueryRunnerStreaming db q ps
   , runStmtWithPK    = \q ps -> fst <$> sqliteQueryRunner db q ps
   , prepareStmt      = \_ _ -> sqlitePrepare db
   , runPrepared      = sqliteRunPrepared db
