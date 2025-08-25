@@ -67,6 +67,7 @@ queryTests run = test
   , "nonNull" ~: run nonNullYieldsEmptyResult
   , "rawQuery1" ~: run rawQuery1Works
   , "rawQuery" ~: run rawQueryWorks
+  , "rawQueryStreaming" ~: run rawQueryStreamingWorks
   , "union" ~: run unionWorks
   , "union discards dupes" ~: run unionDiscardsDupes
   , "union works for whole rows" ~: run unionWorksForWholeRows
@@ -617,6 +618,13 @@ rawQueryWorks = do
     p <- rawQuery ["name", "age", "pet", "cash"]
                   ("SELECT * FROM people WHERE name = " <> injLit ("Link"::Text))
     return p
+  let correct = [p | p <- peopleItems, name p == "Link"]
+  assEq "wrong name list returned" correct ppl
+
+rawQueryStreamingWorks = do
+  let q = rawQuery ["name", "age", "pet", "cash"]
+                  ("SELECT * FROM people WHERE name = " <> injLit ("Link"::Text))
+  ppl <- forQuery q $ pure . (:[])
   let correct = [p | p <- peopleItems, name p == "Link"]
   assEq "wrong name list returned" correct ppl
 

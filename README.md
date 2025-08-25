@@ -80,7 +80,7 @@ If you want to contribute code, please consult the following checklist before
 sending a pull request:
 
 * Does the code build with a recent version of GHC?
-* Do all the tests pass?
+* Do all the tests pass? Run `make test` in the root of the repo.
 * Have you added any tests covering your code?
 
 If you want to contribute code but don't really know where to begin,
