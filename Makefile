@@ -50,7 +50,7 @@ pgtest: selda postgres
 	cd ./selda-tests && ${CABAL} v2-test $(CABAL_BUILDFLAGS)
 
 pgtest-docker: selda postgres .has_postgres_docker_image
-	docker run --rm --name selda-postgres -p 5432:5432 -e POSTGRES_PASSWORD=password -d docker.io/postgres
+	docker run --privileged --rm --name selda-postgres -p 5432:5432 -e POSTGRES_PASSWORD=password -d docker.io/postgres:16
 	cd ./selda-tests && ${CABAL} v2-configure --enable-tests -fpostgres $(CABAL_BUILDFLAGS)
 	cd ./selda-tests && ${CABAL} v2-test $(CABAL_BUILDFLAGS)
 	docker stop selda-postgres
