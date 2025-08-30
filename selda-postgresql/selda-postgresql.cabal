@@ -24,14 +24,14 @@ library
     CPP
   build-depends:
       base              >=4.9  && <5
-    , bytestring        >=0.9  && <0.12
+    , bytestring        >=0.9  && <0.13
     , exceptions        >=0.8  && <0.11
     , selda             >=0.5  && <0.6
     , selda-json        >=0.1  && <0.2
-    , text              >=1.0  && <2.1
-    , postgresql-binary >=0.12 && <0.13
-    , postgresql-libpq  >=0.9  && <0.10
-    , time              >=1.5  && <1.13
+    , text              >=1.0  && <2.2
+    , postgresql-binary >=0.12 && <0.15
+    , postgresql-libpq  >=0.9  && <0.12
+    , time              >=1.5  && <1.16
     , uuid-types        >=1.0  && <1.1
   hs-source-dirs:
     src
