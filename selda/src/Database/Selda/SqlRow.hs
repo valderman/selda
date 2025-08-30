@@ -8,11 +8,11 @@ module Database.Selda.SqlRow
   , runResultReader, next
   ) where
 import Control.Monad.State.Strict
-    ( liftM2,
-      StateT(StateT),
+    ( StateT(StateT),
       MonadState(state, get),
       State,
       evalState )
+import Control.Monad (liftM2)
 import Database.Selda.SqlType
     ( SqlValue(SqlNull), SqlType(fromSql) )
 import Data.Typeable ( Typeable, Proxy(..) )

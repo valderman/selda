@@ -59,6 +59,7 @@ import qualified Control.Monad.State.Strict as Strict ( StateT(..), mapStateT )
 import Control.Monad.Writer.Class ( MonadWriter )
 import qualified Control.Monad.Writer.Lazy as Lazy ( WriterT(..), mapWriterT )
 import qualified Control.Monad.Writer.Strict as Strict ( WriterT(..), mapWriterT )
+import Control.Monad (when)
 import Data.Dynamic ( Typeable, Dynamic )
 import qualified Data.IntMap as M
 import Data.IORef
@@ -196,7 +197,7 @@ fromColInfo ci = ColumnInfo
     , colFKs = map fk (Table.colFKs ci)
     }
   where
-    fk (Table tbl _ _ _, col) = (tbl, col)
+    fk (Table tbl _ _ _, col, _) = (tbl, col)
 
 -- | Get the column information for each column in the given table.
 tableInfo :: Table a -> TableInfo

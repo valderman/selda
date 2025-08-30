@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# LANGUAGE TypeFamilies, TypeOperators, FlexibleInstances #-}
-{-# LANGUAGE UndecidableInstances, MultiParamTypeClasses, OverloadedStrings #-}
+{-# LANGUAGE UndecidableInstances, MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleContexts, ScopedTypeVariables, ConstraintKinds #-}
 {-# LANGUAGE GADTs, CPP, DataKinds #-}
 {-# LANGUAGE TypeApplications #-}
@@ -16,9 +16,10 @@ module Database.Selda.Table
   , tableExpr
   , isAutoPrimary, isPrimary, isUnique
   ) where
+import Data.Kind (Type)
 import Data.Text (Text)
 import Data.Typeable ( Proxy(..) )
-import Database.Selda.Types ( type (:*:), TableName, ColName )
+import Database.Selda.Types ( type (:*:), TableName )
 import Database.Selda.Selectors ( Selector(..) )
 import Database.Selda.SqlType ( ID, RowID )
 import Database.Selda.Column (Row (..))
@@ -27,6 +28,7 @@ import Database.Selda.Table.Type
     ( IndexMethod(..),
       ColAttr(..),
       AutoIncType(..),
+      ColForeignKey,
       ColInfo(..),
       Table(..),
       isAutoPrimary,
@@ -163,9 +165,9 @@ tidy ci = ci {colAttrs = snub $ colAttrs ci}
 
 -- | Some attribute that may be set on a column of type @c@, in a table of
 --   type @t@.
-data Attribute (g :: * -> * -> *) t c
+data Attribute (g :: Type -> Type -> Type) t c
   = Attribute [ColAttr]
-  | ForeignKey (Table (), ColName)
+  | ForeignKey ColForeignKey
 
 -- | A primary key which does not auto-increment.
 primary :: Attribute Group t a
@@ -206,20 +208,31 @@ weakUntypedAutoPrimary = Attribute [AutoPrimary Weak, Required]
 unique :: Attribute Group t a
 unique = Attribute [Unique]
 
-mkFK :: Table t -> Selector a b -> Attribute Selector c d
-mkFK (Table tn tcs tapk tas) sel =
-  ForeignKey (Table tn tcs tapk tas, colName (tcs !! selectorIndex sel))
+mkFK :: Bool -> Table t -> Selector a b -> Attribute Selector c d
+mkFK isCascading (Table tn tcs tapk tas) sel =
+  ForeignKey (Table tn tcs tapk tas, colName (tcs !! selectorIndex sel), isCascading)
 
 class ForeignKey a b where
   -- | A foreign key constraint referencing the given table and column.
   foreignKey :: Table t -> Selector t a -> Attribute Selector self b
 
 instance ForeignKey a a where
-  foreignKey = mkFK
+  foreignKey = mkFK False
 instance ForeignKey (Maybe a) a where
-  foreignKey = mkFK
+  foreignKey = mkFK False
 instance ForeignKey a (Maybe a) where
-  foreignKey = mkFK
+  foreignKey = mkFK False
+
+class ForeignKeyCascading a b where
+  -- | A foreign key constraint with referential integrity referencing the given table and column.
+  foreignKeyCascading :: Table t -> Selector t a -> Attribute Selector self b
+
+instance ForeignKeyCascading a a where
+  foreignKeyCascading = mkFK True
+instance ForeignKeyCascading (Maybe a) a where
+  foreignKeyCascading = mkFK True
+instance ForeignKeyCascading a (Maybe a) where
+  foreignKeyCascading = mkFK True
 
 -- | An expression representing the given table.
 tableExpr :: Table a -> Row s a
