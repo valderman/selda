@@ -19,7 +19,7 @@ jobs:
           cat > BaseUrl.hs << EOHS
           {-# LANGUAGE OverloadedStrings #-}
           {-# LANGUAGE NoMonomorphismRestriction #-}
-          module BaseUrl where baseUrl = "/selda"
+          module BaseUrl where baseUrl = "https://valderman.github.io/selda/"
           EOHS
           cabal run
       - uses: JamesIves/github-pages-deploy-action@v4
