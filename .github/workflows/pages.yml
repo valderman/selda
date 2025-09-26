@@ -1,0 +1,27 @@
+
+name: pages
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: haskell-actions/setup@v2
+        with:
+          ghc-version: '9.4'
+      - run: |
+          cd website
+          cat > BaseUrl.hs << EOHS
+          {-# LANGUAGE OverloadedStrings #-}
+          {-# LANGUAGE NoMonomorphismRestriction #-}
+          module BaseUrl where baseUrl = "/selda"
+          EOHS
+          cabal run
+      - uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: website/_site
