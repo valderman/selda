@@ -18,7 +18,7 @@
 --   This includes database connection errors, uniqueness constraint errors,
 --   etc.
 --
---   See <https://selda.link/tutorial> for a tutorial covering the language
+--   See <https://valderman.github.io/selda/tutorial> for a tutorial covering the language
 --   basics.
 module Database.Selda
   ( -- * Running queries

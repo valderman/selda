@@ -4,7 +4,7 @@ version:             0.1.1.1
 synopsis:            JSON support for the Selda database library.
 description:         Types and classes to support storing and querying
                      JSON values using Selda via Aeson.
-homepage:            https://selda.link
+homepage:            https://valderman.github.io/selda
 -- bug-reports:
 license:             MIT
 author:              Anton Ekblad

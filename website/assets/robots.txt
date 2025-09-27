@@ -1,4 +1,4 @@
 User-agent: *
 Disallow:
 
-SITEMAP: https://selda.link/sitemap.txt
+SITEMAP: https://valderman.github.io/selda/sitemap.txt

@@ -11,7 +11,7 @@ Selda
 
 What is Selda?
 ==============
-[Selda](https://selda.link) is a Haskell library for interacting with SQL-based relational databases.
+[Selda](https://valderman.github.io/selda) is a Haskell library for interacting with SQL-based relational databases.
 It was inspired by [LINQ](https://en.wikipedia.org/wiki/Language_Integrated_Query) and
 [Opaleye](http://hackage.haskell.org/package/opaleye).
 
@@ -42,7 +42,7 @@ backends:
     $ cabal update
     $ cabal install selda selda-sqlite selda-postgresql
 
-Then, read [the tutorial](https://selda.link/tutorial).
+Then, read [the tutorial](https://valderman.github.io/selda/tutorial).
 The [API documentation](http://hackage.haskell.org/package/selda) will probably
 also come in handy.
 
