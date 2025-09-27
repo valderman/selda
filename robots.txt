@@ -1,0 +1,4 @@
+User-agent: *
+Disallow:
+
+SITEMAP: https://selda.link/sitemap.txt

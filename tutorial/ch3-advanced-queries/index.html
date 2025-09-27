@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <base href="https://valderman.github.io/selda/">
+        <link rel="stylesheet" type="text/css" href="style.css">
+        <link rel="stylesheet" type="text/css" href="prism.css">
+        <meta name="description" content="Master database queries using Selda.">
+        <meta name="author" content="Anton Ekblad">
+        <script async src="prism.js"></script>
+        <title>Chapter 3: Advanced Queries | The Tutorial of Selda | A Haskell SQL Library</title>
+    </head>
+    <body class="tinylogo">
+        <h1><a href="">Selda: A Haskell SQL Library</a></h1>
+        <a href=""><img src="selda.png" alt="The Selda logo" id="logo"></a>
+        <ul class="menu">
+            <li><a href="tutorial">Tutorial</a></li>
+            <li><a href="https://hackage.haskell.org/package/selda">API Docs</a></li>
+            <li><a href="https://github.com/valderman/selda">Source Code</a></li>
+        </ul>
+        <div id="content">
+            <div class="pane" id="left"><h2>Chapter 3: Advanced Queries</h2><p>While fetching rows from a single table is all well and good, most applications
+require a bit more interesting queries.
+This chapter will teach you how to correlate data between multiple tables, and
+to conjure up table rows from thin air.</p><h3>Product Queries</h3><p>Perhaps the most basic capability of a relational database is to correlate
+data between different tables, hence the <i>relational</i> part.
+In Selda, the monadic bind operator performs this function.
+In less theoretical terms, to combine data from multiple tables, simply use
+the <code>select</code> operation on each desired table.
+This mechanism should be familiar to you if you've ever used list comprehensions.</p><p>To illustrate the concept, this query returns a list of pairs of all people
+in our database and any homes they happen to own.</p><pre><code class="language-haskell">peopleWithHomes :: Query s (Row s Person :*: Row s Home)
+peopleWithHomes = do
+  person &lt;- select people
+  home &lt;- select homes
+  restrict (person ! #name .== home ! #ownerName)
+  return (person :*: home)</code></pre><p>The type signature of this query merits some explanation, as this is the first
+time we've seen one explicitly spelled out.
+As mentioned in <a href="tutorial/ch1-example-explained">chapter 1</a>, all Selda queries
+are executed in the <code>Query</code> monad, which is parameterised over
+a <i>scope type</i> <code>s</code>.</p><p>All rows and columns originating from any given scope <code>s</code> are tagged with that
+<code>s</code>. This prevents queries in <i>another</i> scope from accessing those values, as
+all Selda operations ensure that the <code>s</code> of the current query and the <code>s</code> of the
+data being operated on are identical.</p><p>So far, we haven't encountered any queries that are convoluted enough for this
+to matter. Once we get to
+<a href="tutorial/ch4-joins-and-aggregates">joins and aggregates</a> however, the necessity
+of the scope parameter will become apparent.</p><h3>Set Membership</h3><p>The <code>peopleWithHomes</code> query does not include any persons who <i>don't</i> have
+a home. Not wanting to marginalize homeless people further, let's write a
+function that finds all such persons.</p><p>The set of homeless people can be defined as the set of people who do
+<i>not</i> appear in the set of home owners.
+This means that we can check whether any particular person is homeless
+using the <code>isIn</code> function, which determines whether some
+particular value is contained in some other result set.</p><pre><code class="language-haskell">homelessPeople :: Query s (Row s Person)
+homelessPeople = do
+  person &lt;- select people
+  restrict (not_ $ (person ! #name) `isIn` (#ownerName `from` select homes))
+  return person</code></pre><p>The set of home owners is produced by the query
+<code>#ownerName `from` select homes</code>.
+The <code>from</code> function is a convenient shorthand for extracting a single column
+from a query, and is defined as <code>from s q = fmap (!s) q</code>.</p><h3>Ad Hoc Rows</h3><p>Sometimes, it can be handy to conjure up database rows &quot;from thin air&quot;.
+Let's say, for instance, that we want to create a <code>Person</code> row with only
+the information present in the <code>homes</code> table.
+We can accomplish this by using the <code>new</code> function.</p><pre><code class="language-haskell">personsFromHomes :: Query s (Row s Person)
+personsFromHomes = do
+  home &lt;- select homes
+  return $ new [#name := home ! #ownerName]</code></pre><p><code>new</code> takes a list of updates — as seen
+in <a href="tutorial/ch2-destructive-operations">chapter 2</a> — which are applied
+to a row where each value initially has its type's default value.
+Thus, the <code>personsFromHomes</code> function will return a list of <code>Person</code> values
+with their names set to something sensible, and the other fields set to
+<code>0</code> or <code>Nothing</code>.</p><h3>Querying into Another Table</h3><p>This ability to create entirely new rows can be convenient when you want to
+return some particular type from a query, but you don't want to get it straight
+from a table.
+One prime example of this is the <code>queryInto</code> function — corresponding to
+the <code>SELECT INTO</code> SQL statement — which inserts the result set of a query
+straight into another table and returns the number of inserted rows.</p><p>Using this function, we can remedy the homelessness situation by simply granting
+a cheap home in Tokyo to any homeless persons in the <code>people</code> table.</p><pre><code class="language-haskell">homesForEveryone :: SeldaM s Int
+homesForEveryone = queryInto homes $ do
+  person &lt;- select people
+  restrict (not_ $ (person ! #name) `isIn` (#ownerName `from` select homes))
+
+  return $ new
+    [ #ownerName := person ! #names
+    , #city := &quot;Tokyo&quot;
+    , #rent := 50000
+    ]</code></pre><p>Using the <code>TypeApplications</code> language extension, we can make the <code>new</code> expression
+even clearer, explicitly telling the compiler just what type of row
+we want to conjure up:</p><pre><code class="language-haskell">return $ new @Home [ ... ]</code></pre><p>This is often useful — essential, even — when, for instance,
+creating an row entirely made up of default values, with no updates given
+to fix the type of the row.</p></div><div class="pane fixed" id="right"><h3>The Tables</h3><pre><code class="language-haskell">data Pet = Dog | Horse | Dragon
+  deriving (Show, Read, Bounded, Enum)
+instance SqlType Pet
+
+data Person = Person
+  { pid  :: ID Person
+  , name :: Text
+  , age  :: Int
+  , pet  :: Maybe Pet
+  } deriving (Generic, Show)
+instance SqlRow Person
+
+data Home = Home
+  { ownerName :: Text
+  , city      :: Text
+  , rent      :: Int
+  } deriving (Generic, Show)
+instance SqlRow Home
+
+people :: Table Person
+people = table &quot;people&quot; [#pid :- autoPrimary]
+
+homes :: Table Home
+homes = table &quot;homes&quot; []</code></pre><!-- **Next:** [Chapter 4: Joins and Aggregates](tutorial/ch4-joins-and-aggregates)<br> --><p><b>Previous:</b> <a href="tutorial/ch2-destructive-operations">Chapter 2: Destructive Operations</a></p></div>
+        </div>
+    </body>
+</html>

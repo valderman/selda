@@ -1,0 +1,192 @@
+body {
+    line-height: 1.5em;
+    font-family: sans-serif;
+}
+
+.biglink {
+    display: inline-block;
+    width: 100%;
+    text-align: center;
+    margin-top: 2em;
+}
+
+.biglink a {
+    background-color: black;
+    padding: 0.8em;
+    color: white;
+    font-size: large;
+    font-weight: bold;
+    border-radius: 0.3em;
+    text-decoration: none;
+}
+
+.biglink a:hover {
+    background-color: #202020;
+}
+
+/* Logo and headings */
+h1 {
+    text-align: center;
+    padding: 0.5em;
+    margin: 0;
+    line-height: 1.2em;
+}
+
+:not(.tinylogo) > a > #logo {
+    position: absolute;
+    width: 20em;
+    left: 0;
+    right: 0;
+    max-width: 90%;
+    margin: auto;
+}
+
+.tinylogo > a > #logo {
+    position: fixed;
+    z-index: 1000;
+    filter: invert(100%);
+    -webkit-filter: invert(100%);
+    height: 2.5rem;
+    right: 2rem;
+}
+
+.tinylogo > h1 {
+    position: fixed;
+    color: white;
+    z-index: 1000;
+    font-size: 0.6rem;
+    display: inline-block;
+    padding-top: 0.7rem;
+    width: 6rem;
+}
+
+.tinylogo > h1 > a {
+    color: white;
+    text-decoration: none;
+}
+
+:not(.tinylogo) > h1 > a {
+    color: black;
+    text-decoration: none;
+}
+
+@media (max-width: 510px) {
+    .tinylogo > h1 {
+        display: none;
+    }
+    .tinylogo > #logo {
+        display: none;
+    }
+}
+
+/* The menu (non-mobile) */
+ul.menu {
+    left: 0;
+    padding: 0;
+    margin: 0;
+    width: 100%;
+    list-style-type: none;
+    background-color: black;
+    text-align: center;
+}
+
+:not(.tinylogo) > ul.menu {
+    position: absolute;
+    top: 20em;
+}
+
+.tinylogo > .menu {
+    top: 0;
+    position: fixed;
+}
+
+.menu li {
+    display: inline-block;
+    padding: 0;
+    font-size: large;
+}
+
+.menu li a {
+    color: white;
+    display: block;
+    padding: 1em;
+    text-decoration: none;
+    font-weight: bold;
+    font-family: sans-serif;
+}
+
+.menu li a:hover {
+    background-color: #202020;
+}
+
+/* Lower half of page */
+#content {
+    position: absolute;
+    left: 0;
+    right: 0;
+    margin: auto;
+    z-index: -10;
+}
+
+.tinylogo > #content {
+    top: 4em;
+}
+
+:not(.tinylogo) > #content {
+    top: 25em;
+}
+
+.pane {
+    display: inline;
+    width: 45%;
+    padding: 1em;
+}
+
+pre code {
+    font-size: 0.8rem;
+    padding-top: 1em;
+    padding-bottom: 1em;
+    display: block;
+}
+
+@media (min-width: 950px) {
+    code.narrowcode {display: none;}
+    #content {
+        width: 80%;
+        min-width: 60em;
+    }
+    #left {
+        float: left;
+    }
+    #right:not(.fixed) {
+        right: 0;
+        position: absolute;
+    }
+    #right.fixed {
+        position: fixed;
+        width: 36%;
+        right: 10%;
+    }
+}
+
+@media (max-width: 949px) {
+    code.widecode {display: none;}
+    .menu li a {
+        padding-left: 0.5em;
+        padding-right: 0.5em;
+        font-size: 0.8em;
+    }
+
+    h1 {
+        font-size: 1.5em;
+    }
+
+    #content {
+        top: 23em;
+        width: 80%;
+    }
+
+    .tinylogo > h1 {
+        padding-top: 0.5rem;
+    }
+}

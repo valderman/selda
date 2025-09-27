@@ -1,0 +1,5 @@
+https://valderman.github.io/selda/
+https://valderman.github.io/selda/tutorial
+https://valderman.github.io/selda/tutorial/ch1-example-explained
+https://valderman.github.io/selda/tutorial/ch2-destructive-operations
+https://valderman.github.io/selda/tutorial/ch3-advanced-queries

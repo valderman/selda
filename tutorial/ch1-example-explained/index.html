@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <base href="https://valderman.github.io/selda/">
+        <link rel="stylesheet" type="text/css" href="style.css">
+        <link rel="stylesheet" type="text/css" href="prism.css">
+        <meta name="description" content="Learn how to create a simple database application with Selda.">
+        <meta name="author" content="Anton Ekblad">
+        <script async src="prism.js"></script>
+        <title>Chapter 1: An Example, Explained | The Tutorial of Selda | A Haskell SQL Library</title>
+    </head>
+    <body class="tinylogo">
+        <h1><a href="">Selda: A Haskell SQL Library</a></h1>
+        <a href=""><img src="selda.png" alt="The Selda logo" id="logo"></a>
+        <ul class="menu">
+            <li><a href="tutorial">Tutorial</a></li>
+            <li><a href="https://hackage.haskell.org/package/selda">API Docs</a></li>
+            <li><a href="https://github.com/valderman/selda">Source Code</a></li>
+        </ul>
+        <div id="content">
+            <div class="pane" id="left"><h2>Chapter 1: An Example, Explained</h2><p>To start learning the basics of Selda, let's dissect the example from
+the front page of the website, and use it to illustrate the core concepts
+of the Selda library.</p><p>After reading this chapter, you will be able to define and create tables,
+insert new rows, and perform simple queries against those tables.</p><pre><code class="language-haskell">{-# LANGUAGE DeriveGeneric, OverloadedStrings, OverloadedLabels #-}
+import Database.Selda
+import Database.Selda.SQLite</code></pre><p>We start off by declaring the language extensions we'll need to use, and
+importing the core Selda library and the SQLite backend.
+<code>Database.Selda</code> houses the Selda DSL itself, whereas
+<code>Database.Selda.SQLite</code> allows us to run Selda programs over SQLite databases.</p><p>The <code>DeriveGeneric</code> extension lets us derive the <code>Generic</code> type class, which
+is important since Selda uses generics heavily to map Haskell types to database
+tables. <code>OverloadedStrings</code> is not strictly required, but highly recommended
+to reduce boilerplate when working with <code>Text</code> fields.
+<code>OverloadedLabels</code> is used to specify <i>field selectors</i>, which
+will be explained in greater detail <a href="tutorial/ch1-example-explained#selectors">a few paragraphs down</a>.</p><pre><code class="language-haskell">data Pet = Dog | Horse | Dragon
+  deriving (Show, Read, Bounded, Enum)
+instance SqlType Pet</code></pre><p>Here, we declare a <code>Pet</code> <i>enumeration type</i>, to represent the various types
+of pets one might have. Selda is able to map enumeration types — any type
+implementing <code>Enum</code> and <code>Bounded</code> — if we just add an <code>SqlType</code> instance
+for it. In this case, we also derive <code>Show</code> and <code>Read</code> which automatically
+gives us the appropriate conversions between our <code>Pet</code> type and its database
+representation.</p><p>The <code>SqlType</code> type class denotes types which are representable as a single
+database column. These types include various numeric types, <code>Text</code>,
+date and time types, etc.</p><pre><code class="language-haskell">data Person = Person
+  { name :: Text
+  , age :: Int
+  , pet :: Maybe Pet
+  } deriving Generic
+instance SqlRow Person</code></pre><p>Now it's time to create a data type to describe our table.
+Any product type — a type with a single data constructor — where all fields
+are instances of <code>SqlType</code> can be used for tables and as results from queries
+if they implement the <code>SqlRow</code> type class.
+By deriving <code>Generic</code> for our type, we can use the default <code>SqlRow</code> instance.
+In fact, you should never need to implement <code>SqlRow</code> yourself.</p><a id="selectors"></a><pre><code class="language-haskell">people :: Table Person
+people = table &quot;people&quot; [#name :- primary]</code></pre><p>Once we have the <code>Person</code> type and its <code>SqlRow</code> instance, building a table
+from it is easy.
+The <code>table</code> function accepts a table name, and a list of column attributes where
+things like indexes, foreign keys and other constraints can be declared.
+Such attributes are specified by linking <i>selectors</i> of the table
+— such as <code>#name</code> in this example — to various attribute
+definitions.
+In our example, we want to specify the <code>name</code> field as the primary key of our
+table.</p><p>Field selectors work by passing the <i>name</i> of a plain Haskell record selector,
+using the <code>OverloadedLabels</code> extension, to the <code>field</code> function <i>as a type</i>,
+which then performs some type-level magic to
+ensure that the selector is valid for the row we want to use it on.
+If this makes your head spin, don't worry; the only thing you need to remember
+about field selectors is <code>#-sign + record selector = field selector</code>.</p><p>There also exists a handy function <code>selectors</code>, which generates
+all selectors for some table in one go.
+In fact, since the <code>#...</code> syntax requires the presence of an actual
+record selector, using <code>selectors</code> is the <i>only</i> way to define selectors for
+non-record types, such as <code>(Int, Int)</code> or <code>data Foo = Foo Text Bool Double</code>.</p><pre><code class="language-haskell">main = withSQLite &quot;people.sqlite&quot; $ do
+  ...</code></pre><p>To run a Selda program, we need to specify a database to run it over.
+In our example, we use the SQLite database and specify <code>people.sqlite</code> as the
+file in which our database will be stored.</p><p>Selda computations are written in some monad which implements the
+<code>MonadSelda</code> type class. For most Selda programs — including our example — the
+built-in <code>SeldaM</code> monad is just fine.
+Unless you really want to, you'll never need to bother with implementing
+a Selda monad of your own.</p><pre><code class="language-haskell">createTable people
+insert_ people
+  [ Person &quot;Velvet&quot;    19 (Just Dog)
+  , Person &quot;Kobayashi&quot; 23 (Just Dragon)
+  , Person &quot;Miyu&quot;      10 Nothing
+  ]</code></pre><p>Before we can store any data in a table, we need to create it.
+The <code>createTable</code> function will attempt to create its given table, and throw
+a <code>SeldaError</code> if the table already exists.</p><p>Once we've created our table, we use <code>insert_</code> to insert three rows into
+our newly created table. Each row is represented by a plain Haskell value of
+the table's type.</p><pre><code class="language-haskell">adultsAndTheirPets &lt;- query $ do
+  ...</code></pre><p>The main meat of the Selda library is, of course, queries.
+Within a Selda computation the database can be queried using the <code>query</code>
+function, which takes a query computation as its input.</p><p>Queries are written in the <code>Query</code> monad, which is parameterised over a
+<i>scope parameter</i> <code>s</code>.
+This parameter ensures that queries are always well-scoped (i.e. do not access
+columns which are not in scope).
+While this parameter makes type errors more complicated, it is a necessary evil
+as it lets us reconcile the differences in scoping between SQL and Haskell
+in a safe and (more or less) elegant way.</p><pre><code class="language-haskell">person &lt;- select people</code></pre><p>The <code>select</code> function is used to draw data rows from a table.
+In this example <code>person</code> has the type <code>Row s Person</code>, and represents a single
+row from the <code>people</code> table.</p><pre><code class="language-haskell">restrict (person ! #age .&gt;= 18)</code></pre><p>The columns of a row can be accessed using the table's selectors.
+The syntax for this is <code>row ! selector</code>. The column thus obtained can then be
+arbitrarily used in expressions.</p><p>In this example, we use the <code>restrict</code> function (roughly equivalent
+to SQL <code>WHERE</code>) to filter out all persons who have an <code>age</code> lower than 18.</p><pre><code class="language-haskell">return (person ! #name :*: person ! #pet)</code></pre><p>Once we're done fetching rows and filtering, we can return any number of rows
+or columns, grouped together as an <i>inductive tuple</i> —
+one or more values separated by the <code>:*:</code> data constructor.</p><p>Whatever we return from a query will, upon execution, be converted to
+the corresponding Haskell type and returned from the <code>query</code> call we just
+returned from.</p><p>The rows from a query are returned as a list, which each element corresponding
+to a single result row. For instance, a query of type <code>Query s (Row s Person)</code>
+will return <code>[Person]</code> when executed, and a query of
+type <code>Query s (Row s Person :*: Col s Int)</code> will return <code>[Person :*: Int]</code>.</p><p>In this particular example, the <code>name</code> field of the person table has type
+<code>Text</code> and the <code>pet</code> field has type <code>Maybe Text</code>.
+From this we can deduce that the query has type
+<code>Query s (Col s Text :*: Col s (Maybe Text))</code>, meaning that the type returned
+back to Haskell land will be <code>[Text :*: Maybe Text]</code>.</p><pre><code class="language-haskell">liftIO $ print adultsAndTheirPets</code></pre><p>To verify that this whole example works as advertised, we print out the entire
+result set of the query.
+As <code>SeldaM</code> implements <code>MonadIO</code> we can just lift the standard <code>print</code> function
+into the computation.</p><p>Since Miyu is the only person in the table who is under the age of 18,
+the result set, when printed, should look like this:</p><pre><code class="language-haskell">[&quot;Velvet&quot; :*: Just Dog,&quot;Kobayashi&quot; :*: Just Dragon]</code></pre></div><div class="pane fixed" id="right"><h3>The example</h3><pre><code class="language-haskell">{-# LANGUAGE DeriveGeneric, OverloadedStrings, OverloadedLabels #-}
+import Database.Selda
+import Database.Selda.SQLite
+
+data Pet = Dog | Horse | Dragon
+  deriving (Show, Read, Bounded, Enum)
+instance SqlType Pet
+
+data Person = Person
+  { name :: Text
+  , age  :: Int
+  , pet  :: Maybe Pet
+  } deriving Generic
+instance SqlRow Person
+
+people :: Table Person
+people = table &quot;people&quot; [#name :- primary]
+
+main = withSQLite &quot;people.sqlite&quot; $ do
+  createTable people
+  insert_ people
+    [ Person &quot;Velvet&quot;    19 (Just Dog)
+    , Person &quot;Kobayashi&quot; 23 (Just Dragon)
+    , Person &quot;Miyu&quot;      10 Nothing
+    ]
+
+  adultsAndTheirPets &lt;- query $ do
+    person &lt;- select people
+    restrict (person ! #age .&gt;= 18)
+    return (person ! #name :*: person ! #pet)
+  liftIO $ print adultsAndTheirPets</code></pre><p><b>Next:</b> <a href="tutorial/ch2-destructive-operations">Chapter 2: Destructive Operations</a></p></div>
+        </div>
+    </body>
+</html>

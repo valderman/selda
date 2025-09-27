@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <base href="https://valderman.github.io/selda/">
+        <link rel="stylesheet" type="text/css" href="style.css">
+        <link rel="stylesheet" type="text/css" href="prism.css">
+        <meta name="description" content="Learn how to update, delete and modify table rows with Selda.">
+        <meta name="author" content="Anton Ekblad">
+        <script async src="prism.js"></script>
+        <title>Chapter 1: Destructive Operations | The Tutorial of Selda | A Haskell SQL Library</title>
+    </head>
+    <body class="tinylogo">
+        <h1><a href="">Selda: A Haskell SQL Library</a></h1>
+        <a href=""><img src="selda.png" alt="The Selda logo" id="logo"></a>
+        <ul class="menu">
+            <li><a href="tutorial">Tutorial</a></li>
+            <li><a href="https://hackage.haskell.org/package/selda">API Docs</a></li>
+            <li><a href="https://github.com/valderman/selda">Source Code</a></li>
+        </ul>
+        <div id="content">
+            <div class="pane" id="left"><h2>Chapter 2: Destructive Operations</h2><p>A database we can't modify in any meaningful way is no good, so let's
+have a closer look at how to make our database reflect changes to the real world.
+Throughout this chapter, we're going to work with the table and data presented
+to the right of the text.</p><p>After reading this chapter, you will be able to add, update and delete
+table rows. You will also gain a better understanding of the types involved,
+as all examples from this chapter on include full type signatures.</p><h3>All About Inserts</h3><p>As we saw in the previous chapter, inserting data into a table is easy.
+However, the table from the first chapter is often a bit too simplistic.
+Recall that we used the name of a person as the table's primary key.
+What if the user changes their name, or if there are multiple persons with
+the same name?</p><p>For reasons like this, we often want the database to keep track of primary
+keys for us, so for this chapter we've added the <code>pid</code> column to the table,
+which will at all times contain the unique identifier of each row.</p><pre><code class="language-haskell">data Person = Person
+  { pid  :: ID Person
+  ...</code></pre><p>Since we want the database to manage the identifier for us, we have to add a
+column attribute, specifying that <code>pid</code> is an <i>auto-incrementing</i> primary key.</p><pre><code class="language-haskell">people :: Table Person
+people = table &quot;people&quot; [#pid :- autoPrimary]</code></pre><p>With these simple changes, we can now use the somewhat magical <code>def</code> value when
+inserting data, to tell the database that we want to use the <i>default</i> value
+for the <code>pid</code> column.</p><p>It is worth noting that <code>def</code> can be used for <i>any</i> column to which we want to
+assign a default value. However, it is only when used as an auto-incrementing
+primary key that <code>def</code> ensures the uniqueness of the value; in all other cases
+it is simply the &quot;least&quot; value of the type, such as <code>False</code>, <code>&quot;&quot;</code> or <code>Nothing</code>.</p><pre><code class="language-haskell">insertSara :: SeldaM b ()
+insertSara = insert_ people [Person def &quot;Sara&quot; 14 Nothing]</code></pre><p>If we perform the insert and then select all table rows, we'll find that Sara
+was added to the table with a unique identifier.</p><pre><code class="language-haskell">insertThenInspect :: SeldaM b [Person]
+insertThenInspect = do
+  insertSara
+  query (select people)</code></pre><pre><code class="language-haskell">pid | name      | age | pet
+---------------------------
+  1 | Velvet    | 19  | Just Dog
+  2 | Kobayashi | 23  | Just Dragon
+  3 | Miyu      | 10  | Nothing
+  4 | Sara      | 14  | Nothing</code></pre><p>When using auto-incrementing primary keys, we often want to know what ID
+a particular row got when we inserted it.
+The <code>insertWithPK</code> function is handy for this.</p><pre><code class="language-haskell">insertAndPrintPk :: SeldaM b ()
+insertAndPrintPk = do
+  pk &lt;- insertWithPK people [Person def Sara 14 Nothing]
+  liftIO (print pk)</code></pre><pre><code class="language-haskell">&gt; withSQLite &quot;database.sqlite&quot; insertAndPrintPk
+4</code></pre><h3>Updates</h3><p>As time goes by, people age, their pets die, and thus our <code>people</code> table
+will need to be regulary updated to stay in sync with reality.
+Fortunately, Selda's got your back:</p><pre><code class="language-haskell">update :: (MonadSelda m, Relational a)
+       =&gt; Table a
+       -&gt; (Row s a -&gt; Col s Bool)
+       -&gt; (Row s a -&gt; Row s a)
+       -&gt; m Int</code></pre><p>The <code>update</code> function takes a table, a predicate, and an update function as its
+inputs, and returns the number of rows affected by the update.
+For each row that matches the given predicate — where the predicate
+returns <code>true</code> — Selda applies the given update function.</p><p>Let's assume, for instance, that we're feeling sorry for anyone who hasn't got
+a pet, and decide to give every pet-less person a dog:</p><pre><code class="language-haskell">petsForEveryone :: SeldaM b Int
+petsForEveryone = do
+  update people
+         (\person -&gt; isNull (person ! #pet))
+         (\person -&gt; person `with` [#pet := just (literal Dog)])</code></pre><p>Here we see the use of <code>with</code> for the first time.
+The <code>with</code> function takes a table row and a list of updates — expressed
+as selector-expression pairs — and applies the updates,
+from left to right, to the table row.</p><p>The most basic update is <code>:=</code>, which simply overwrites the column
+indicated by its given selector with its given expression, but there are also
+convenient shortcuts for common operations such as incrementing or decrementing
+values:</p><pre><code class="language-haskell">ageEveryone :: SeldaM b Int
+ageEveryone = do
+  update people (const true) (\person -&gt; person `with` [#age += 1])</code></pre><p>As expected, this function will increment everyone's age by one.</p><h3>Conditional Updates</h3><p>Sometimes it can be useful to update a table row <i>or</i> add it to the table if
+it doesn't exist. This is sometimes referred to as an <i>upsert</i>.
+In Selda, this is handled by the <code>upsert</code> function.</p><pre><code class="language-haskell">upsert :: ( MonadSelda m
+          , Relational a
+          )
+       =&gt; Table a
+       -&gt; (Row s a -&gt; Col s Bool)
+       -&gt; (Row s a -&gt; Row s a)
+       -&gt; [a]
+       -&gt; m (Maybe (ID a))</code></pre><p>This function works much like <code>update</code>, but takes an additional list of elements,
+to be inserted into the table iff <i>no rows currently in the given table match
+the given predicate</i>.</p><p>To grant a horse to any person named Miyu, and to create a horse owner by that
+name if none exists, we would do the following:</p><pre><code class="language-haskell">horseForMiyu :: SeldaM b ()
+horseForMiyu = do
+  result &lt;- upsert people
+                   (\person -&gt; person ! #name .== &quot;Miyu&quot;)
+                   (\person -&gt; person `with` [#pet := just (literal Horse)])
+                   [Person def Miyu 10 Nothing]
+  case result of
+    Just id -&gt; liftIO $ putStrLn (&quot;person inserted with id &quot; ++ show id)
+    Nothing -&gt; liftIO $ putStrLn &quot;update performed; no person inserted&quot;</code></pre><pre><code class="language-haskell">&gt; withSQLite &quot;database.sqlite&quot; horseForMiyu
+update performed; no person inserted</code></pre><p>Apart from <code>upsert</code>, there are several less general conditional inserts, which
+often result in clearer code.
+Checking out the <a href="https://hackage.haskell.org/package/selda">API documentation</a>
+is highly recommended.</p><h3>Deleting Rows</h3><p>Compared to inserts and updates, there is really not much to say about delete
+operations.</p><pre><code class="language-haskell">deleteFrom :: (MonadSelda m, Relational a)
+           =&gt; Table a
+           -&gt; (Row s a -&gt; Col s Bool)
+           -&gt; m Int</code></pre><p>The delete operation takes a table to delete stuff from, and a predicate
+determining which rows to delete.
+Every row that matches the predicate is deleted, and <code>deleteFrom</code> returns
+the number of deleted rows.</p><p>Let's say, for instance, that we want to delete all dragon owners from the
+table (they've probably gotten eaten already anyway):</p><pre><code class="language-haskell">deleteDragonOwners :: SeldaM b Int
+deleteDragonOwners = do
+  deleteFrom persons (\person -&gt; person ! #pet .== just (literal Dragon))</code></pre><pre><code class="language-haskell">&gt; withSQLite &quot;database.sqlite&quot; deleteDragonOwners
+1
+&gt; withSQLite &quot;database.sqlite&quot; (query $ select persons)
+pid | name   | age | pet
+------------------------
+  1 | Velvet | 19  | Just Dog
+  3 | Miyu   | 10  | Nothing</code></pre></div><div class="pane fixed" id="right"><h3>The Table</h3><pre><code class="language-haskell">data Pet = Dog | Horse | Dragon
+  deriving (Show, Read, Bounded, Enum)
+instance SqlType Pet
+
+data Person = Person
+  { pid  :: ID Person
+  , name :: Text
+  , age  :: Int
+  , pet  :: Maybe Pet
+  } deriving (Generic, Show)
+instance SqlRow Person
+
+people :: Table Person
+people = table &quot;people&quot; [#id :- autoPrimary]</code></pre><h3>The Data</h3><pre><code class="language-haskell">pid | name      | age | pet
+---------------------------
+  1 | Velvet    | 19  | Just Dog
+  2 | Kobayashi | 23  | Just Dragon
+  3 | Miyu      | 10  | Nothing</code></pre><p><b>Next:</b> <a href="tutorial/ch3-advanced-queries">Chapter 3: Advanced Queries</a><br>
+<b>Previous:</b> <a href="tutorial/ch1-example-explained">Chapter 1: An Example, Explained</a></p></div>
+        </div>
+    </body>
+</html>

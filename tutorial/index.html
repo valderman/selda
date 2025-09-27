@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <base href="https://valderman.github.io/selda/">
+        <link rel="stylesheet" type="text/css" href="style.css">
+        <link rel="stylesheet" type="text/css" href="prism.css">
+        <meta name="description" content="Learn how to build database applications with Selda, starting from basics and gradually progressing towards advanced concepts.">
+        <meta name="author" content="Anton Ekblad">
+        <script async src="prism.js"></script>
+        <title>The Tutorial of Selda | A Haskell SQL Library</title>
+    </head>
+    <body class="tinylogo">
+        <h1><a href="">Selda: A Haskell SQL Library</a></h1>
+        <a href=""><img src="selda.png" alt="The Selda logo" id="logo"></a>
+        <ul class="menu">
+            <li><a href="tutorial">Tutorial</a></li>
+            <li><a href="https://hackage.haskell.org/package/selda">API Docs</a></li>
+            <li><a href="https://github.com/valderman/selda">Source Code</a></li>
+        </ul>
+        <div id="content">
+            <div class="pane" id="left"><h2>The Tutorial of Selda</h2><p>As Selda uses a lot of fancy type magic to achieve a safe yet flexible
+programming model, figuring out how to use it from type signatures alone
+can be hard. While the types keep queries nice and safe, Haskell's type errors
+can be a bit daunting even under the best circumstances.</p><p>This tutorial aims to give the reader a thorough intuition of how Selda works
+and why, to make those type errors more manageable and to help the reader avoid
+making them in the first place.</p><p>Selda uses GHC's custom type error mechanism to make type errors more helpful,
+so if you encounter an error that confuses you even after reading this tutorial,
+please <a href="https://github.com/valderman/selda/issues/new">file a bug</a> and we'll see
+what we can do about it.</p><p>This tutorial assumes that the reader is already familiar with
+relational databases and can write and understand simple SQL queries.
+It is structured around a series of progressively more advanced Selda examples,
+which are dissected and discussed in depth, concept by concept.</p><span class="biglink">
+<a title="Squadala, we're off!" href="tutorial/ch1-example-explained">Get started!</a>
+</span></div><div class="pane" id="right"><h3>Chapters</h3><ol><li><a href="tutorial/ch1-example-explained">An Example, Explained</a>.
+Covers the definition and creation of tables, inserting values,
+and performing simple queries.</li><li><a href="tutorial/ch2-destructive-operations">Destructive Operations</a>.
+Covers deletes, updates, and more advanced flavours of insert.</li><li><a href="tutorial/ch3-advanced-queries">Advanced Queries</a>.
+Covers ad hoc creation of rows from within queries, and other misc.
+neat query tricks.</li><li><b>Joins and Aggregates</b> (<i>TBD</i>).
+Covers the various types of joins and aggregate queries supported by Selda.</li><li><b>Constraints and Indexes</b> (<i>TBD</i>).
+Covers more advanced schema definitions, including foreign keys, indexes,
+and other constraints.</li><li><b>Migrations and Prepared Statements</b> (<i>TBD</i>).
+Covers how to migrate database tables from one schema to another, and how to improve
+performance through prepared statements.</li></ol></div>
+        </div>
+    </body>
+</html>
