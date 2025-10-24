@@ -19,7 +19,7 @@ import Database.Selda
       Table(..),
       MonadSelda )
 import Database.Selda.Backend.Internal
-    ( SqlTypeRep(TInt64, TRowID),
+    ( SqlTypeRep(TInt64, TRowID, TBlob, TUUID),
       SeldaBackend(getTableInfo),
       ColumnInfo(colType, colIsAutoPrimary, colIsNullable, colHasIndex,
                  colFKs, colName),
@@ -34,6 +34,8 @@ import Database.Selda.Table.Validation (ValidationError (..), validateOrThrow)
 isCompatibleWith :: SqlTypeRep -> SqlTypeRep -> Bool
 isCompatibleWith TRowID TInt64 = True
 isCompatibleWith TInt64 TRowID = True
+isCompatibleWith TBlob  TUUID  = True
+isCompatibleWith TUUID  TBlob  = True
 isCompatibleWith a b         = a == b
 
 -- | Validate a table schema, and check it for consistency against the current
