@@ -205,6 +205,8 @@ pgBackend c = SeldaBackend
   , runStmtWithPK    = \q ps -> left <$> pgQueryRunner c True q ps
   , prepareStmt      = pgPrepare c
   , runPrepared      = pgRun c
+  , runPreparedStreaming
+                     = pgRunStream c
   , getTableInfo     = pgGetTableInfo c . rawTableName
   , backendId        = PostgreSQL
   , ppConfig         = pgPPConfig
