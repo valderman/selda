@@ -10,13 +10,21 @@ import Text.Read
 
 changeLog :: ChangeLog
 changeLog =
-  [ Version "0.5.2.0" "2022-09-18"
+  [ Version "0.5.3.0" "2025-10-24"
+    "Streaming support and maintenance"
+    [ "Add support streaming of large results (#200)"
+    , "Publish the website via GitHub pages (#201)"
+    , "Properly use cascading deletes with foreign keys (#191)"
+    , "Schema query validation fix for PostgreSQL (#183)"
+    , "Many small version compatibility fixes"
+    ]
+  , Version "0.5.2.0" "2022-09-18"
     "Quality of life improvements"
     [ "Add support for GHC versions 8.10-9.2"
     , "Add typed UUIDs"
     , "Allow literal rows in update queries. (#139)"
     , "Add support for UNION/UNION ALL. (#140)"
-    , "Suppor raw PostgreSQL connetion strings. (#136)"
+    , "Support raw PostgreSQL connetion strings. (#136)"
     , "Move to Docker and GitHub actions for testing."
     , "Drop support for GHC versions <8.8."
     , "Various bugfixes."
