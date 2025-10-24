@@ -44,7 +44,8 @@ import Control.Monad.Catch
     ( Exception, bracket, MonadCatch, MonadMask, MonadThrow(..) )
 import Control.Monad.IO.Class ( MonadIO(..) )
 import Control.Monad.Reader
-    ( MonadTrans(..), when, ReaderT(..), MonadReader(ask) )
+    ( MonadTrans(..), ReaderT(..), MonadReader(ask) )
+import Control.Monad (when)
 import Data.Dynamic ( Typeable, Dynamic )
 import qualified Data.IntMap as M
 import Data.IORef
@@ -182,7 +183,7 @@ fromColInfo ci = ColumnInfo
     , colFKs = map fk (Table.colFKs ci)
     }
   where
-    fk (Table tbl _ _ _, col) = (tbl, col)
+    fk (Table tbl _ _ _, col, _) = (tbl, col)
 
 -- | Get the column information for each column in the given table.
 tableInfo :: Table a -> TableInfo

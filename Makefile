@@ -1,22 +1,23 @@
 PACKAGES=selda selda-sqlite selda-postgresql selda-json
-.PHONY: help build license haddock check test selda json pgtest sqlite postgres repl upload-selda upload
+.PHONY: help build license haddock check test selda json pgtest pgtest-docker sqlite postgres repl upload-selda upload
 CABAL_BUILDFLAGS ?=
 CABAL ?= cabal
 
 help:
 	@echo "Available targets:"
-	@echo "build        - build packages"
-	@echo "test         - build packages and run tests with SQLite"
-	@echo "pgtest       - build packages and run tests with PostgreSQL"
-	@echo "repl         - start ghci"
-	@echo "check        - build package, run tests, do a cabal sanity check"
-	@echo "selda        - build core Selda package"
-	@echo "sqlite       - build sqlite backend"
-	@echo "json         - build json extensions"
-	@echo "postgres     - build postgres backend"
-	@echo "upload       - upload packages to Hackage"
-	@echo "upload-selda - upload only the main selda package"
-	@echo "haddock      - build Haddock docs"
+	@echo "build         - build packages"
+	@echo "test          - build packages and run tests with SQLite"
+	@echo "pgtest        - build packages and run tests with PostgreSQL"
+	@echo "pgtest-docker - build packages and run tests with a Docker PostgreSQL image"
+	@echo "repl          - start ghci"
+	@echo "check         - build package, run tests, do a cabal sanity check"
+	@echo "selda         - build core Selda package"
+	@echo "sqlite        - build sqlite backend"
+	@echo "json          - build json extensions"
+	@echo "postgres      - build postgres backend"
+	@echo "upload        - upload packages to Hackage"
+	@echo "upload-selda  - upload only the main selda package"
+	@echo "haddock       - build Haddock docs"
 
 build: selda sqlite postgres json
 
@@ -47,6 +48,16 @@ test: selda sqlite
 pgtest: selda postgres
 	cd ./selda-tests && ${CABAL} v2-configure --enable-tests -fpostgres $(CABAL_BUILDFLAGS)
 	cd ./selda-tests && ${CABAL} v2-test $(CABAL_BUILDFLAGS)
+
+pgtest-docker: selda postgres .has_postgres_docker_image
+	docker run --privileged --rm --name selda-postgres -p 5432:5432 -e POSTGRES_PASSWORD=password -d docker.io/postgres:16
+	cd ./selda-tests && ${CABAL} v2-configure --enable-tests -fpostgres $(CABAL_BUILDFLAGS)
+	cd ./selda-tests && ${CABAL} v2-test $(CABAL_BUILDFLAGS)
+	docker stop selda-postgres
+
+.has_postgres_docker_image:
+	docker pull docker.io/postgres
+	touch .has_postgres_docker_image
 
 selda: license
 	cp -f README.md ./selda/README.md

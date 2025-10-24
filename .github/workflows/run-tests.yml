@@ -10,23 +10,23 @@ jobs:
   build:
     strategy:
       matrix:
-        ghc: ['8.8.2', '8.10.1', '9.0.2', '9.2.3']
+        ghc: ['8.8.4', '8.10.7', '9.2.8', '9.4.8', '9.6.7', '9.12.1']
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - uses: actions/setup-haskell@v1
+    - uses: haskell-actions/setup@v2
       with:
         ghc-version: ${{ matrix.ghc }}
-        cabal-version: '3.2'
+        cabal-version: '3.12'
     - uses: harmon758/postgresql-action@v1
       with:
-        postgresql version: '11'
+        postgresql version: '16'
         postgresql db: 'test'
         postgresql user: 'postgres'
         postgresql password: 'password'
 
     - name: Cache
-      uses: actions/cache@v1
+      uses: actions/cache@v4
       env:
         cache-name: cache-cabal
       with:
