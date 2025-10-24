@@ -11,24 +11,34 @@ module Database.Selda.Compile
   where
 import Control.Monad (liftM2)
 import Database.Selda.Column
-import Database.Selda.Generic
+    ( UntypedCol(Untyped),
+      SomeCol(Some),
+      Row(..),
+      Col(..),
+      Columns(toTup) )
+import Database.Selda.Generic ( Relational, params )
 import Database.Selda.Query.Type
-import Database.Selda.SQL
-import Database.Selda.SQL.Print
+    ( GenState(nameSupply), Query, Scope, runQueryM )
+import Database.Selda.SQL ( Param, SQL(SQL), SqlSource(Product) )
+import Database.Selda.SQL.Print ( compSql, compUpdate, compDelete )
 import Database.Selda.SQL.Print.Config
+    ( PPConfig(ppMaxInsertParams), defPPConfig )
 import Database.Selda.SqlRow
-import Database.Selda.SqlType
+    ( SqlRow(nextResult), ResultReader, runResultReader, next )
+import Database.Selda.SqlType ( SqlValue, SqlType(fromSql) )
 import Database.Selda.Table
-import Database.Selda.Table.Compile
+    ( ColInfo(colName), Table(tableCols, tableName), tableExpr )
+import Database.Selda.Table.Compile ( compInsert )
 import Database.Selda.Transform
-import Database.Selda.Types
-import Data.Proxy
+    ( removeDeadCols, implicitlyLiveCols, colNames, state2sql )
+import Database.Selda.Types ( type (:*:)(..) )
+import Data.Proxy ( Proxy(..) )
 import Data.Text (Text, empty)
 import Data.Typeable (Typeable)
 
 -- For scope supply
-import Data.IORef
-import System.IO.Unsafe
+import Data.IORef ( IORef, atomicModifyIORef', newIORef )
+import System.IO.Unsafe ( unsafePerformIO )
 
 -- | Compile a query into a parameterised SQL statement.
 --

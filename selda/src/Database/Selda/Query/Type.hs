@@ -1,12 +1,11 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving, OverloadedStrings, CPP #-}
 module Database.Selda.Query.Type where
 import Control.Monad.State.Strict
-#if !MIN_VERSION_base(4, 11, 0)
-import Data.Monoid
-#endif
+    ( StateT(StateT), MonadState(put, get), State, runState )
 import Data.Text (pack)
-import Database.Selda.SQL
-import Database.Selda.Column
+import Database.Selda.SQL ( SQL )
+import Database.Selda.Exp
+    ( Exp(Col), UntypedCol(..), SomeCol(Named) )
 import Database.Selda.Types (ColName, mkColName, addColSuffix)
 
 type Scope = Int

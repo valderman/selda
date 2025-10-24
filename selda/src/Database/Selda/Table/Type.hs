@@ -1,8 +1,8 @@
 module Database.Selda.Table.Type where
 import Database.Selda.SqlType (SqlTypeRep)
 import Database.Selda.SQL (SQL)
-import Database.Selda.Types
-import Database.Selda.Exp
+import Database.Selda.Types ( TableName, ColName )
+import Database.Selda.Exp ( UntypedCol )
 
 -- | A database table, based on some Haskell data type.
 --   Any single constructor type can form the basis of a table, as long as
@@ -23,12 +23,14 @@ data Table a = Table
   , tableAttrs :: [([Int], ColAttr)]
   }
 
+type ColForeignKey = (Table (), ColName, Bool)
+
 -- | A complete description of a database column.
 data ColInfo = ColInfo
   { colName  :: ColName
   , colType  :: SqlTypeRep
   , colAttrs :: [ColAttr]
-  , colFKs   :: [(Table (), ColName)]
+  , colFKs   :: [ColForeignKey]
   , colExpr  :: UntypedCol SQL
   }
 

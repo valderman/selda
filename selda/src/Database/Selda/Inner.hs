@@ -4,12 +4,13 @@
 -- | Helpers for working with inner queries.
 module Database.Selda.Inner where
 import Database.Selda.Column
+    ( Exp(AggrEx), UntypedCol(..), Row, Col(..) )
 import Database.Selda.SQL (SQL)
 import Database.Selda.SqlType (SqlType)
-import Database.Selda.Types
+import Database.Selda.Types ( type (:*:)(..) )
 import Data.Text (Text)
-import Data.Typeable
-import GHC.TypeLits as TL
+import Data.Typeable ( Typeable )
+import GHC.TypeLits as TL ( TypeError, ErrorMessage(Text, (:$$:)) )
 
 -- | A single aggregate column.
 --   Aggregate columns may not be used to restrict queries.

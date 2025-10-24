@@ -1,4 +1,4 @@
-{-# LANGUAGE DataKinds, KindSignatures, TypeOperators, PolyKinds #-}
+{-# LANGUAGE DataKinds, TypeOperators, PolyKinds #-}
 {-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables, AllowAmbiguousTypes, TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances, ConstraintKinds, UndecidableSuperClasses #-}
@@ -10,12 +10,14 @@ module Database.Selda.FieldSelectors
   (FieldType, HasField, IsLabel
   ) where
 import Database.Selda.Generic (Relational)
-import Database.Selda.Selectors as S
+import Database.Selda.Selectors as S ( Selector, unsafeSelector )
 import Database.Selda.SqlType (SqlType)
 import Data.Kind (Constraint)
 import GHC.Generics
+    ( Generic(Rep), K1, M1, type (:*:), S, Meta(MetaSel) )
 import GHC.TypeLits
-import GHC.OverloadedLabels
+    ( Symbol, TypeError, ErrorMessage(Text, (:<>:), ShowType) )
+import GHC.OverloadedLabels ( IsLabel(..) )
 
 -- | Get the next nested type.
 type family GetFieldType (f :: * -> *) :: * where
@@ -58,11 +60,11 @@ instance ( Relational t
 
 instance (Relational t, HasField name t, FieldType name t ~ a) =>
          IsLabel name (S.Selector t a) where
-#if MIN_VERSION_base(4, 10, 0)
+
   fromLabel = field @name @t
-#else
-  fromLabel _ = field @name @t
-#endif
+
+
+
 
 -- | Create a selector from a record selector and a type application.
 --

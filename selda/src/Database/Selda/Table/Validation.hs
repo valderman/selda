@@ -1,14 +1,17 @@
 {-# LANGUAGE OverloadedStrings, CPP #-}
 module Database.Selda.Table.Validation where
-import Control.Exception
+import Control.Exception ( Exception, throw )
 import Data.List (group, sort)
 import Data.Text (Text, any, intercalate, unpack)
-import Data.Typeable
+import Data.Typeable ( Typeable )
 import Database.Selda.Table.Type
+    ( ColAttr(Required, Optional),
+      ColInfo(colFKs, colName, colAttrs),
+      Table(Table),
+      isPrimary,
+      isUnique )
 import Database.Selda.Types
-#if !MIN_VERSION_base(4, 11, 0)
-import Data.Monoid
-#endif
+    ( TableName, fromColName, fromTableName )
 
 -- | An error occurred when validating a database table.
 --   If this error is thrown, there is a bug in your database schema, and the
@@ -18,7 +21,7 @@ import Data.Monoid
 --
 --   Therefore, it is not meaningful to handle this exception in any way,
 --   just fix your bug instead.
-data ValidationError = ValidationError String
+newtype ValidationError = ValidationError String
   deriving (Show, Eq, Typeable)
 instance Exception ValidationError
 
@@ -42,7 +45,7 @@ validate name cis = errs
       | fromTableName name == "\"\"" = ["table name is empty"]
       | otherwise                    = []
     emptyIdents
-      | Prelude.any (== "\"\"") colIdents =
+      | "\"\"" `elem` colIdents =
         ["table has columns with empty names"]
       | otherwise =
         []
@@ -54,12 +57,12 @@ validate name cis = errs
     dupes =
       ["duplicate column: " <> fromColName x | (x:_:_) <- soup $ map colName cis]
     pkDupes =
-      if moreThanOne pkAttrs then ["multiple primary keys"] else []
+      ["multiple primary keys" | moreThanOne pkAttrs]
     nonPkFks =
       [ "column is used as a foreign key, but is not primary or unique: "
           <> fromTableName ftn <> "." <> fromColName fcn
       | ci <- cis
-      , (Table ftn fcs _ _, fcn) <- colFKs ci
+      , (Table ftn fcs _ _, fcn, _) <- colFKs ci
       , fc <- fcs
       , colName fc == fcn
       , not $ Prelude.any isUnique (colAttrs fc)

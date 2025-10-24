@@ -1,11 +1,9 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# LANGUAGE TypeFamilies, TypeOperators, FlexibleInstances #-}
-{-# LANGUAGE UndecidableInstances, MultiParamTypeClasses, OverloadedStrings #-}
+{-# LANGUAGE UndecidableInstances, MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleContexts, ScopedTypeVariables, ConstraintKinds #-}
-{-# LANGUAGE GADTs, CPP, DeriveGeneric, DataKinds, MagicHash #-}
-#if MIN_VERSION_base(4, 10, 0)
+{-# LANGUAGE GADTs, CPP, DataKinds #-}
 {-# LANGUAGE TypeApplications #-}
-#endif
 module Database.Selda.Table
   ( SelectorLike, Group (..), Attr (..), Table (..), Attribute
   , ColInfo (..), AutoIncType (..), ColAttr (..), IndexMethod (..)
@@ -18,28 +16,29 @@ module Database.Selda.Table
   , tableExpr
   , isAutoPrimary, isPrimary, isUnique
   ) where
+import Data.Kind (Type)
 import Data.Text (Text)
-#if MIN_VERSION_base(4, 10, 0)
-import Data.Typeable
-#else
-import Data.Proxy
-import GHC.Prim
-#endif
-import Database.Selda.Types
-import Database.Selda.Selectors
-import Database.Selda.SqlType
+import Data.Typeable ( Proxy(..) )
+import Database.Selda.Types ( type (:*:), TableName )
+import Database.Selda.Selectors ( Selector(..) )
+import Database.Selda.SqlType ( ID, RowID )
 import Database.Selda.Column (Row (..))
-import Database.Selda.Generic
+import Database.Selda.Generic ( Relational, tblCols )
 import Database.Selda.Table.Type
+    ( IndexMethod(..),
+      ColAttr(..),
+      AutoIncType(..),
+      ColForeignKey,
+      ColInfo(..),
+      Table(..),
+      isAutoPrimary,
+      isPrimary,
+      isUnique )
 import Database.Selda.Table.Validation (snub)
-import GHC.OverloadedLabels
+import GHC.OverloadedLabels ( IsLabel(..) )
 
 instance forall x t a. IsLabel x (Selector t a) => IsLabel x (Group t a) where
-#if MIN_VERSION_base(4, 10, 0)
   fromLabel = Single (fromLabel @x)
-#else
-  fromLabel _ = Single (fromLabel (proxy# :: Proxy# x))
-#endif
 
 -- | A non-empty list of selectors, where the element selectors need not have
 --   the same type. Used to specify constraints, such as uniqueness or primary
@@ -100,7 +99,7 @@ table tn attrs = tableFieldMod tn attrs id
 -- >
 -- > people :: Table Person
 -- > people = tableFieldMod "people"
--- >   [#personName :- autoPrimaryGen]
+-- >   [#personName :- autoPrimary]
 -- >   (fromJust . stripPrefix "person")
 --
 --   This will create a table with the columns named
@@ -166,9 +165,9 @@ tidy ci = ci {colAttrs = snub $ colAttrs ci}
 
 -- | Some attribute that may be set on a column of type @c@, in a table of
 --   type @t@.
-data Attribute (g :: * -> * -> *) t c
+data Attribute (g :: Type -> Type -> Type) t c
   = Attribute [ColAttr]
-  | ForeignKey (Table (), ColName)
+  | ForeignKey ColForeignKey
 
 -- | A primary key which does not auto-increment.
 primary :: Attribute Group t a
@@ -209,20 +208,31 @@ weakUntypedAutoPrimary = Attribute [AutoPrimary Weak, Required]
 unique :: Attribute Group t a
 unique = Attribute [Unique]
 
-mkFK :: Table t -> Selector a b -> Attribute Selector c d
-mkFK (Table tn tcs tapk tas) sel =
-  ForeignKey (Table tn tcs tapk tas, colName (tcs !! selectorIndex sel))
+mkFK :: Bool -> Table t -> Selector a b -> Attribute Selector c d
+mkFK isCascading (Table tn tcs tapk tas) sel =
+  ForeignKey (Table tn tcs tapk tas, colName (tcs !! selectorIndex sel), isCascading)
 
 class ForeignKey a b where
   -- | A foreign key constraint referencing the given table and column.
   foreignKey :: Table t -> Selector t a -> Attribute Selector self b
 
 instance ForeignKey a a where
-  foreignKey = mkFK
+  foreignKey = mkFK False
 instance ForeignKey (Maybe a) a where
-  foreignKey = mkFK
+  foreignKey = mkFK False
 instance ForeignKey a (Maybe a) where
-  foreignKey = mkFK
+  foreignKey = mkFK False
+
+class ForeignKeyCascading a b where
+  -- | A foreign key constraint with referential integrity referencing the given table and column.
+  foreignKeyCascading :: Table t -> Selector t a -> Attribute Selector self b
+
+instance ForeignKeyCascading a a where
+  foreignKeyCascading = mkFK True
+instance ForeignKeyCascading (Maybe a) a where
+  foreignKeyCascading = mkFK True
+instance ForeignKeyCascading a (Maybe a) where
+  foreignKeyCascading = mkFK True
 
 -- | An expression representing the given table.
 tableExpr :: Table a -> Row s a

@@ -11,8 +11,8 @@ module Database.Selda.Types
   , modColName, mkColName, mkTableName, addColSuffix, addColPrefix
   , fromColName, fromTableName, rawTableName, intercalateColNames
   ) where
-import Data.Dynamic
-import Data.String
+import Data.Dynamic ( Typeable )
+import Data.String ( IsString )
 import Data.Text (Text, replace, append, intercalate)
 import GHC.Generics (Generic)
 

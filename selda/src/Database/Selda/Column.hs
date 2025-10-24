@@ -12,14 +12,22 @@ module Database.Selda.Column
   , literal
   ) where
 import Database.Selda.Exp
-import Database.Selda.SQL
-import Database.Selda.SqlType
-import Database.Selda.SqlRow
-import Database.Selda.Types
-import Data.Proxy
-import Data.String
+    ( Names(allNamesIn),
+      BinOp(..),
+      UnOp(..),
+      NulOp(..),
+      Exp(..),
+      UntypedCol(..),
+      SomeCol(..),
+      hideRenaming )
+import Database.Selda.SQL ( SQL )
+import Database.Selda.SqlType ( SqlType(mkLit) )
+import Database.Selda.SqlRow ( SqlRow(nestedCols) )
+import Database.Selda.Types ( type (:*:)(..), ColName )
+import Data.Proxy ( Proxy(..) )
+import Data.String ( IsString(..) )
 import Data.Text (Text)
-import GHC.TypeLits as TL
+import GHC.TypeLits as TL ( TypeError, ErrorMessage(Text) )
 
 -- | Any column tuple.
 class Columns a where

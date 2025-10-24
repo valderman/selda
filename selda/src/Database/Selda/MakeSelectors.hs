@@ -1,4 +1,4 @@
-{-# LANGUAGE ScopedTypeVariables, TypeOperators, KindSignatures #-}
+{-# LANGUAGE ScopedTypeVariables, TypeOperators #-}
 {-# LANGUAGE TypeFamilies, FlexibleInstances, MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleContexts, UndecidableInstances #-}
 -- | Utilities for creating selectors for non-record types.
@@ -10,15 +10,16 @@ module Database.Selda.MakeSelectors
  , selectors, tableWithSelectors
  ) where
 import Control.Monad.State.Strict
-import Data.Proxy
-import GHC.Generics hiding (Selector, (:*:))
+    ( MonadState(state), State, evalState )
+import Data.Proxy ( Proxy(..) )
+import GHC.Generics ( Generic(Rep), K1, M1 )
 import qualified GHC.Generics as G
 import Database.Selda.Generic (Relational)
-import Database.Selda.Selectors
-import Database.Selda.SqlRow
-import Database.Selda.SqlType
-import Database.Selda.Table
-import Database.Selda.Types
+import Database.Selda.Selectors ( Selector, unsafeSelector )
+import Database.Selda.SqlRow ( SqlRow )
+import Database.Selda.SqlType ( SqlType )
+import Database.Selda.Table ( Table, Attr, table )
+import Database.Selda.Types ( type (:*:)(..), TableName )
 
 -- | Generate selector functions for the given table.
 --   Selectors can be used to access the fields of a query result tuple, avoiding

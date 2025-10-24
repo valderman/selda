@@ -1,17 +1,25 @@
 {-# LANGUAGE GADTs, OverloadedStrings, CPP #-}
 -- | Pretty-printing for SQL queries. For some values of pretty.
 module Database.Selda.SQL.Print where
-import Database.Selda.Column
+import Database.Selda.Exp
+    ( BinOp(..), UnOp(..), NulOp(..), Exp(..), SomeCol(..) )
 import Database.Selda.SQL
+    ( Param(..),
+      Order(Desc, Asc),
+      SQL(SQL),
+      JoinType(InnerJoin, LeftJoin),
+      SqlSource(Union, EmptyTable, RawSql, TableName, Product, Values,
+                Join),
+      QueryFragment(..) )
 import Database.Selda.SQL.Print.Config (PPConfig)
 import qualified Database.Selda.SQL.Print.Config as Cfg
-import Database.Selda.SqlType
+import Database.Selda.SqlType ( Lit(LJust, LNull), SqlTypeRep )
 import Database.Selda.Types
+    ( TableName, ColName, fromColName, fromTableName )
 import Control.Monad.State
-import Data.List hiding (union)
-#if !MIN_VERSION_base(4, 11, 0)
-import Data.Monoid hiding (Product)
-#endif
+    ( MonadState(get, put), runState, State )
+import Control.Monad (liftM2)
+import Data.List ( group, sort )
 import Data.Text (Text)
 import qualified Data.Text as Text
 

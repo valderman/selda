@@ -1,9 +1,9 @@
 {-# LANGUAGE GADTs, FlexibleContexts, FlexibleInstances #-}
-{-# LANGUAGE TypeOperators, CPP, DataKinds #-}
+{-# LANGUAGE CPP, DataKinds #-}
 -- | The expression type underlying 'Col'.
 module Database.Selda.Exp where
-import Database.Selda.SqlType
-import Database.Selda.Types
+import Database.Selda.SqlType ( Lit, SqlTypeRep )
+import Database.Selda.Types ( ColName )
 import Data.Text (Text)
 
 -- | A type-erased column, which may also be renamed.

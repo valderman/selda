@@ -10,7 +10,18 @@ import Text.Read
 
 changeLog :: ChangeLog
 changeLog =
-  [ Version "0.5.1.0" "2020-01-20"
+  [ Version "0.5.2.0" "2022-09-18"
+    "Quality of life improvements"
+    [ "Add support for GHC versions 8.10-9.2"
+    , "Add typed UUIDs"
+    , "Allow literal rows in update queries. (#139)"
+    , "Add support for UNION/UNION ALL. (#140)"
+    , "Suppor raw PostgreSQL connetion strings. (#136)"
+    , "Move to Docker and GitHub actions for testing."
+    , "Drop support for GHC versions <8.8."
+    , "Various bugfixes."
+    ]
+  , Version "0.5.1.0" "2020-01-20"
     "Raw SQL support"
     [ "Support for raw SQL fragments. (#134)"
     , "Expose tableName."

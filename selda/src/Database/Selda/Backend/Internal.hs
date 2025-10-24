@@ -1,4 +1,4 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving, DefaultSignatures, CPP, TypeFamilies #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, CPP, TypeFamilies #-}
 -- | Internal backend API.
 --   Using anything exported from this module may or may not invalidate any
 --   safety guarantees made by Selda; use at your own peril.
@@ -20,23 +20,41 @@ module Database.Selda.Backend.Internal
 import Data.List (nub)
 import Database.Selda.SQL (Param (..))
 import Database.Selda.SqlType
-import Database.Selda.Table hiding (colName, colType, colFKs)
-import qualified Database.Selda.Table as Table (ColInfo (..))
+    ( SqlValue(..),
+      Lit(..),
+      SqlType(..),
+      SqlTypeRep(..),
+      sqlDateTimeFormat,
+      sqlDateFormat,
+      sqlTimeFormat )
+import Database.Selda.Table.Type
+    ( ColAttr(..),
+      AutoIncType(..),
+      Table(Table, tableAttrs, tableName, tableCols),
+      isAutoPrimary,
+      isPrimary,
+      isUnique )
+import qualified Database.Selda.Table.Type as Table ( ColInfo(..) )
 import Database.Selda.SQL.Print.Config
+    ( PPConfig(..), defPPConfig )
 import Database.Selda.Types (TableName, ColName)
 import Data.Int (Int64)
-import Control.Concurrent
+import Control.Concurrent ( newMVar, putMVar, takeMVar, MVar )
 import Control.Monad.Catch
-import Control.Monad.IO.Class
+    ( Exception, bracket, MonadCatch, MonadMask, MonadThrow(..) )
+import Control.Monad.IO.Class ( MonadIO(..) )
 import Control.Monad.Reader
-import Data.Dynamic
+    ( MonadTrans(..), ReaderT(..), MonadReader(ask) )
+import Control.Monad (when)
+import Data.Dynamic ( Typeable, Dynamic )
 import qualified Data.IntMap as M
 import Data.IORef
+    ( IORef, atomicModifyIORef', newIORef, readIORef )
 import Data.Text (Text)
 import System.IO.Unsafe (unsafePerformIO)
-#if !MIN_VERSION_base(4, 13, 0)
-import Control.Monad.Fail (MonadFail)
-#endif
+
+
+
 
 -- | Uniquely identifies some particular backend.
 --
@@ -165,7 +183,7 @@ fromColInfo ci = ColumnInfo
     , colFKs = map fk (Table.colFKs ci)
     }
   where
-    fk (Table tbl _ _ _, col) = (tbl, col)
+    fk (Table tbl _ _ _, col, _) = (tbl, col)
 
 -- | Get the column information for each column in the given table.
 tableInfo :: Table a -> TableInfo

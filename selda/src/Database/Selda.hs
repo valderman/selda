@@ -103,38 +103,137 @@ module Database.Selda
   , Text, Day, TimeOfDay, UTCTime, UUID
   ) where
 import Control.Monad.Catch (MonadMask)
-#if !MIN_VERSION_base(4, 11, 0)
-import Data.Monoid (Monoid (..))
-import Data.Semigroup (Semigroup (..))
-#endif
-import Data.Typeable (Typeable)
-import Database.Selda.Backend
-import Database.Selda.Column
-import Database.Selda.Compile
-import Database.Selda.FieldSelectors
-import Database.Selda.Frontend
-import Database.Selda.Generic
-import Database.Selda.Inner
-import Database.Selda.Prepared
-import Database.Selda.Query
-import Database.Selda.Query.Type
-import Database.Selda.Selectors
-import Database.Selda.SQL hiding (distinct)
-import Database.Selda.SqlRow
-import Database.Selda.Table
-import Database.Selda.Table.Validation
+import Data.Typeable ( Typeable, eqT, (:~:)(..) )
+import Database.Selda.Backend.Internal
+    ( SqlType(..),
+      SeldaM,
+      SeldaT,
+      MonadSelda(Backend),
+      SeldaError(..) )
+import Database.Selda.SqlType
+    ( UUID,
+      UUID'(..),
+      ID(..),
+      RowID,
+      SqlEnum(..),
+      invalidRowId,
+      isInvalidRowId,
+      toRowId,
+      fromRowId,
+      typedUuid,
+      toId,
+      fromId,
+      invalidId,
+      isInvalidId )
+import Database.Selda.Table.Type ( IndexMethod(..) )
 import Database.Selda.Types
-import Database.Selda.Unsafe
-import Data.Proxy
+    ( TableName,
+      ColName,
+      Tup,
+      Head,
+      type (:*:)(..),
+      first,
+      second,
+      third,
+      fourth,
+      fifth )
+import Database.Selda.Column
+    ( BinOp(Like, Eq, Neq, Gt, Lt, Gte, Lte, And, Or),
+      UnOp(Not, IsNull),
+      Exp(If, InQuery, InList, BinOp, UnOp),
+      UntypedCol(Untyped),
+      Same(..),
+      Row(..),
+      Col(..),
+      Columns,
+      literal,
+      liftC3,
+      liftC )
+import Database.Selda.Compile
+    ( Result, Res, compQueryWithFreshScope )
+import Database.Selda.FieldSelectors
+    ( IsLabel, HasField, FieldType )
+import Database.Selda.Frontend
+    ( MonadIO(..),
+      query,
+      queryInto,
+      insert,
+      tryInsert,
+      upsert,
+      insertUnless,
+      insertWhen,
+      insert_,
+      insertWithPK,
+      update,
+      update_,
+      deleteFrom,
+      deleteFrom_,
+      createTable,
+      tryCreateTable,
+      dropTable,
+      tryDropTable,
+      transaction,
+      withoutForeignKeyEnforcement )
+import Database.Selda.Generic
+    ( Generic, gRow, gNew, Relational, def )
+import Database.Selda.Inner
+    ( Aggregates,
+      LeftCols,
+      AggrCols,
+      OuterCols,
+      Inner,
+      Aggr,
+      liftAggr,
+      aggr )
+import Database.Selda.Prepared ( Prepare, Preparable, prepared )
+import Database.Selda.Query
+    ( select,
+      selectValues,
+      union,
+      unionAll,
+      restrict,
+      aggregate,
+      leftJoin,
+      innerJoin,
+      groupBy,
+      limit,
+      order,
+      orderRandom,
+      distinct )
+import Database.Selda.Query.Type ( Query )
+import Database.Selda.Selectors
+    ( Selector, Assignment(..), Coalesce, (!), (?), ($=), with )
+import Database.Selda.SQL ( Order(..) )
+import Database.Selda.SqlRow ( GSqlRow, SqlRow(..) )
+import Database.Selda.Table
+    ( Table(tableName),
+      ForeignKey(..),
+      Attribute,
+      SelectorLike,
+      Attr(..),
+      Group(..),
+      table,
+      tableFieldMod,
+      primary,
+      index,
+      indexUsing,
+      autoPrimary,
+      weakAutoPrimary,
+      untypedAutoPrimary,
+      weakUntypedAutoPrimary,
+      unique )
+import Database.Selda.Table.Validation ( ValidationError )
+import Database.Selda.Unsafe ( cast, fun, fun2, operator )
+import Data.Proxy ( Proxy(..) )
 import Data.String (IsString)
 import Data.Text (Text)
 import Data.Time (Day, TimeOfDay, UTCTime)
-import Data.Typeable (eqT, (:~:)(..))
 import GHC.Generics (Rep)
 import qualified GHC.Generics as G (from)
-import Unsafe.Coerce
+import Unsafe.Coerce ( unsafeCoerce )
 import System.Random (randomIO)
 import GHC.TypeLits as TL
+    ( TypeError, ErrorMessage(Text, (:<>:), ShowType, (:$$:)) )
 
 -- | Any column type that can be used with the 'min_' and 'max_' functions.
 class SqlType a => SqlOrd a
@@ -493,9 +592,9 @@ instance Semigroup (Col s Text) where
   (<>) = operator "||"
 instance Monoid (Col s Text) where
   mempty = ""
-#if !MIN_VERSION_base(4, 11, 0)
-  mappend = (<>)
-#endif
+
+
+
 
 -- | Perform a conditional on a column
 ifThenElse :: (Same s t, Same t u, SqlType a) => Col s Bool -> Col t a -> Col u a -> Col s a

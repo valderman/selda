@@ -7,10 +7,28 @@ module Database.Selda.Nullable
   , (?==), (?/=), (?>), (?<), (?>=), (?<=), (?+), (?-), (?*), (?/)
   ) where
 import Database.Selda
+    ( SqlType,
+      Same,
+      Row,
+      Col,
+      Selector,
+      Coalesce,
+      Query,
+      restrict,
+      SqlOrd,
+      (.==),
+      (./=),
+      (.>),
+      (.<),
+      (.>=),
+      (.<=),
+      isNull,
+      not_ )
 import Database.Selda.Unsafe (cast)
-import Database.Selda.Selectors
+import Database.Selda.Selectors ( Selector(selectorIndex) )
 import Database.Selda.Column
-import Unsafe.Coerce
+    ( UntypedCol(Untyped), Row(Many), Col(One) )
+import Unsafe.Coerce ( unsafeCoerce )
 
 -- | Two SQL types which are identical modulo nullability.
 type a :?~ b =

@@ -5,10 +5,11 @@ module Database.Selda.Selectors
   , selectorIndex, unsafeSelector
   ) where
 import Database.Selda.SqlRow (SqlRow)
-import Database.Selda.SqlType
+import Database.Selda.SqlType ( SqlType )
 import Database.Selda.Column
+    ( UntypedCol(Untyped), Row(..), Col(..) )
 import Data.List (foldl')
-import Unsafe.Coerce
+import Unsafe.Coerce ( unsafeCoerce )
 
 -- | Coalesce nested nullable column into a single level of nesting.
 type family Coalesce a where
