@@ -219,7 +219,12 @@ data SeldaBackend b
   { -- | Execute an SQL statement.
     runStmt :: Text -> [Param] -> IO (Int, [[SqlValue]])
 
-  , runStmtStreaming :: forall m r . (MonadIO m, MonadMask m, Monoid r) => Text -> [Param] -> ([[SqlValue]] -> m r) -> m r
+    -- | Like `runStmt` but instead of collecting all results at once in a
+    --   list, collects chunks of results and passes them one by one to a given
+    --   "callback" action. The callbacks may collect and return any `Monoid`.
+  , runStmtStreaming
+     :: forall m r . (MonadIO m, MonadMask m, Monoid r)
+     => Text -> [Param] -> ([[SqlValue]] -> m r) -> m r
 
     -- | Execute an SQL statement and return the last inserted primary key,
     --   where the primary key is auto-incrementing.
@@ -231,6 +236,12 @@ data SeldaBackend b
 
     -- | Execute a prepared statement.
   , runPrepared :: Dynamic -> [Param] -> IO (Int, [[SqlValue]])
+
+    -- | Like `runPrepared` but with streaming support, analogously to
+    --   `runStmt` and `runStmtStreaming`.
+  , runPreparedStreaming
+    :: forall m r . (MonadIO m, MonadMask m, Monoid r)
+    =>  Dynamic -> [Param] -> ([[SqlValue]] -> m r) -> m r
 
     -- | Get a list of all columns in the given table, with the type and any
     --   modifiers for each column.
