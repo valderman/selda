@@ -58,10 +58,18 @@ import Control.Monad.IO.Class ( MonadIO(..) )
 query :: (MonadSelda m, Result a) => Query (Backend m) a -> m [Res a]
 query q = withBackend (flip queryWith q . runStmt)
 
--- | Run a query within a Selda monad like `query` and stream the results.
-forQuery :: forall m a r . (MonadSelda m, MonadMask m, Result a, Monoid r) => Query (Backend m) a -> (Res a -> m r) -> m r
-forQuery q k = withBackend $ \b ->
-  uncurry (runStmtStreaming b) (ppConfig b `compileWith` q) $ fmap mconcat . traverse k . mkResults (Proxy :: Proxy a)
+-- | Run a query within a Selda monad like `query` and stream the results to a
+--   callback function. The callbacks may produce a Monoid which will be
+--   concatenated into the final result.
+forQuery ::
+     forall m a r. (MonadSelda m, MonadMask m, Result a, Monoid r)
+  => Query (Backend m) a
+  -> (Res a -> m r)
+  -> m r
+forQuery q k =
+  withBackend $ \b ->
+    uncurry (runStmtStreaming b) (ppConfig b `compileWith` q)
+      $ fmap mconcat . traverse k . mkResults (Proxy :: Proxy a)
 
 -- | Perform the given query, and insert the result into the given table.
 --   Returns the number of inserted rows.
