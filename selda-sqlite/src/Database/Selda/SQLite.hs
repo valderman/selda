@@ -76,6 +76,8 @@ sqliteBackend db = SeldaBackend
   , runStmtWithPK    = \q ps -> fst <$> sqliteQueryRunner db q ps
   , prepareStmt      = \_ _ -> sqlitePrepare db
   , runPrepared      = sqliteRunPrepared db
+  , runPreparedStreaming
+                     = sqliteRunPreparedStreaming db
   , getTableInfo     = sqliteGetTableInfo db . fromTableName
   , ppConfig         = defPPConfig {ppMaxInsertParams = Just 999}
   , backendId        = SQLite
@@ -186,6 +188,24 @@ sqliteRunPrepared db hdl params = do
     Left e@(SQLError{}) -> throwM (SqlError (show e))
     Right res           -> return (snd res)
 
+sqliteRunPreparedStreaming ::
+     (MonadIO m, MonadMask m, Monoid r)
+  => Database
+  -> Dynamic
+  -> [Param]
+  -> ([[SqlValue]] -> m r)
+  -> m r
+sqliteRunPreparedStreaming _ hdl params k = do
+  -- note for self: this does not need the `db` handle because it does not
+  -- return the last-inserted row ID.
+  eres <- try $ do
+    let Just stm = fromDynamic hdl
+    sqliteRunStmtStreaming stm params k `finally` do
+      liftIO $ clearBindings stm >> reset stm
+  case eres of
+    Left e@(SQLError{}) -> throwM (SqlError (show e))
+    Right res           -> return res
+
 sqliteQueryRunner :: Database -> QueryRunner (Int64, (Int, [[SqlValue]]))
 sqliteQueryRunner db qry params = do
     eres <- try $ do
@@ -224,20 +244,19 @@ sqliteQueryRunnerStreaming db qry params k = do
   eres <-
     try $ do
       stm <- liftIO $ prepare db qry
-      sqliteRunStmtStreaming db stm params k `finally` do
+      sqliteRunStmtStreaming stm params k `finally` do
         liftIO $ finalize stm
   case eres of
     Left e@(SQLError {}) -> throwM (SqlError (show e))
     Right res -> return res
 
 sqliteRunStmtStreaming ::
-     (MonadIO m, MonadMask m, MonadIO m, Monoid r)
-  => Database
-  -> Statement
+     (MonadIO m, MonadMask m, Monoid r)
+  => Statement
   -> [Param]
   -> ([[SqlValue]] -> m r)
   -> m r
-sqliteRunStmtStreaming db stm params k = do
+sqliteRunStmtStreaming stm params k = do
   liftIO $ bind stm [toSqlData p | Param p <- params]
   streamRows stm 1024 $ k . map (map fromSqlData)
 
