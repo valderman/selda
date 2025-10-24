@@ -19,6 +19,7 @@ import Database.Selda.Types
 import Control.Monad (liftM2)
 import Control.Monad.State
     ( MonadState(get, put), runState, State )
+import Control.Monad (liftM2)
 import Data.List ( group, sort )
 import Data.Text (Text)
 import qualified Data.Text as Text

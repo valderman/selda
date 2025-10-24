@@ -11,10 +11,6 @@ category:            Database
 build-type:          Simple
 cabal-version:       >=1.10
 
-flag haste
-  default: False
-  description: Package is being installed for Haste.
-
 library
   exposed-modules:
     Database.Selda.SQLite
@@ -27,14 +23,12 @@ library
       base          >=4.9 && <5
     , selda         >=0.5 && <0.6
     , text          >=1.0 && <2.2
-  if !flag(haste)
-    build-depends:
-        bytestring    >=0.10  && <0.13
-      , direct-sqlite >=2.2   && <2.4
-      , directory     >=1.2.2 && <1.4
-      , exceptions    >=0.8   && <0.11
-      , time          >=1.5   && <1.15
-      , uuid-types    >=1.0   && <1.1
+    , bytestring    >=0.10  && <0.13
+    , direct-sqlite >=2.2   && <2.4
+    , directory     >=1.2.2 && <1.4
+    , exceptions    >=0.8   && <0.11
+    , time          >=1.5   && <1.15
+    , uuid-types    >=1.0   && <1.1
   hs-source-dirs:
     src
   default-language:

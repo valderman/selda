@@ -11,6 +11,7 @@ module Database.Selda.Generic
 import Control.Monad (liftM2)
 import Control.Monad.State
     ( MonadState(put, get), evalState, State )
+import Control.Monad (liftM2)
 import Data.Dynamic ( Typeable )
 import Data.Text as Text (Text, pack)
 

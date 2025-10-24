@@ -275,13 +275,12 @@ pgGetTableInfo c tbl = do
         Right (_, fks) <- pgQueryRunner c False fkquery []
         Right (_, ixs) <- pgQueryRunner c False ixquery []
         colInfos <- mapM (describe fks (map toText ixs)) vals
-        x <- pure $ TableInfo
+        pure $ TableInfo
           { tableInfoName = mkTableName tbl
           , tableColumnInfos = colInfos
           , tableUniqueGroups = map (map mkColName) uniques
           , tablePrimaryKey = [mkColName pk | [SqlString pk] <- pkInfo]
           }
-        pure x
   where
     splitNames = breakNames . toText
     -- TODO: this is super ugly; should really be fixed

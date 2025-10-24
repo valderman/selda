@@ -12,6 +12,7 @@ import Control.Exception (throw)
 import Control.Monad (void)
 import Control.Monad.State.Strict
     ( MonadIO(liftIO), MonadState(put, get) )
+import Control.Monad (void)
 import Database.Selda.Backend.Internal
     ( SqlType(mkLit, sqlType),
       MonadSelda,
