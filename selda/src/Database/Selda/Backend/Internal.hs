@@ -49,7 +49,7 @@ import Control.Monad.Except ( ExceptT(..), mapExceptT, runExceptT )
 #endif
 import Control.Monad.IO.Class ( MonadIO(..) )
 import Control.Monad.Reader
-    ( MonadTrans(..), when, ReaderT(..), MonadReader(ask, local, reader), mapReaderT )
+    ( MonadTrans(..), ReaderT(..), MonadReader(ask, local, reader), mapReaderT )
 import Control.Monad.RWS.Class ( MonadRWS )
 import qualified Control.Monad.RWS.Lazy as Lazy ( RWST(..), mapRWST )
 import qualified Control.Monad.RWS.Strict as Strict ( RWST(..), mapRWST )
