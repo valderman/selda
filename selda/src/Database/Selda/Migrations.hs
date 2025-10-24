@@ -15,6 +15,7 @@ import Database.Selda.Frontend
       transaction,
       withoutForeignKeyEnforcement,
       OnError(..),
+      createTable,
       createTableWithoutIndexes,
       createTableIndexes )
 import Database.Selda.Generic ( Relational )
