@@ -291,7 +291,7 @@ newtype SeldaT b m a = S {unS :: ReaderT (SeldaConnection b) m a}
 instance (MonadIO m, MonadMask m) => MonadSelda (SeldaT b m) where
   type Backend (SeldaT b m) = b
   withConnection m = S ask >>= m
-  
+
 instance MonadTrans (SeldaT b) where
   lift = S . lift
 
