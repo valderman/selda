@@ -122,7 +122,7 @@ autoMigrate fks steps = wrap fks $ do
       where
         go [] _ = []
         go (step:ss) ns = ms ++ go ss ns'
-          where 
+          where
             ms = [ m | m@(Migration _ t _) <- step, name t `notElem` ns]
             ns' = nub $ map (\(Migration f _ _) -> name f) ms ++ ns
 
@@ -166,4 +166,3 @@ migrateInternal (Migration t1 t2 upg) = withBackend $ \b -> do
 migrateInternal (MigrationCreateTable t) = withBackend $ \b -> do
     validateSchema t
     createTable t
-
