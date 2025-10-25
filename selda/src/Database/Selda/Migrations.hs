@@ -138,14 +138,6 @@ autoMigrate fks steps = wrap fks $ do
           Just m' -> m'
           Nothing -> m
 
-    calculateSteps (step:ss) = do
-      diffs <- mapM (\(Migration from _ _) -> diffTable from) step
-      if all (== TableOK) diffs
-        then return [step]
-        else (step:) <$> calculateSteps ss
-    calculateSteps [] = do
-      throwM $ ValidationError "no starting state matches the current state of the database"
-
     performStep = mapM_ migrateInternal
 
 -- | Workhorse for migration.
