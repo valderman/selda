@@ -128,15 +128,16 @@ autoMigrate fks steps = wrap fks $ do
 
     cs [] _ = throwM $ ValidationError "no starting state matches the current state of the database"
     cs (step:ss) ms = do
-      diffs <- mapM (\(Migration from _ _) ->  diffTable from) ms'
+      diffs <- mapM (\(Migration from _ _) -> diffTable from) ms'
       if all (== TableOK) diffs
         then return [step]
-        else (step:) <$> cs ss ms'
+        else (step :) <$> cs ss ms'
       where
-        ms' = map replaceIfSameTo ms 
-        replaceIfSameTo m@(Migration _ to _)  = case find (\(Migration _ to' _) -> name to' == name to) step of
-          Just m' -> m'
-          Nothing -> m
+        ms' = map replaceIfSameTo ms
+        replaceIfSameTo m@(Migration _ to _) =
+          case find (\(Migration _ to' _) -> name to' == name to) step of
+            Just m' -> m'
+            Nothing -> m
 
     performStep = mapM_ migrateInternal
 
