@@ -9,6 +9,7 @@ module Database.Selda.Unsafe
   , QueryFragment, inj, injLit, rawName, rawExp, rawStm, rawQuery, rawQuery1
   ) where
 import Control.Exception (throw)
+import Control.Monad (void)
 import Control.Monad.State.Strict
     ( MonadIO(liftIO), MonadState(put, get) )
 import Control.Monad (void)

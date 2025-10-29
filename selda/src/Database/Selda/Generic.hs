@@ -8,6 +8,7 @@ module Database.Selda.Generic
   ( Relational, Generic
   , tblCols, params, def, gNew, gRow
   ) where
+import Control.Monad (liftM2)
 import Control.Monad.State
     ( MonadState(put, get), evalState, State )
 import Control.Monad (liftM2)

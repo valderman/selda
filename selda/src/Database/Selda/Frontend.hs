@@ -2,7 +2,7 @@
 -- | API for running Selda operations over databases.
 module Database.Selda.Frontend
   ( Result, Res, MonadIO (..), MonadSelda (..), SeldaT, OnError (..)
-  , query, queryInto
+  , query, queryInto, forQuery
   , insert, insert_, insertWithPK, tryInsert, insertWhen, insertUnless
   , update, update_, upsert
   , deleteFrom, deleteFrom_
@@ -15,7 +15,7 @@ import Database.Selda.Backend.Internal
       Param,
       SeldaT,
       MonadSelda(..),
-      SeldaBackend(runStmtWithPK, disableForeignKeys, ppConfig, runStmt),
+      SeldaBackend(runStmtWithPK, disableForeignKeys, ppConfig, runStmt, runStmtStreaming),
       QueryRunner,
       SeldaError(SqlError),
       withBackend )
@@ -57,6 +57,19 @@ import Control.Monad.IO.Class ( MonadIO(..) )
 --   such as 'withSQLite' from the SQLite backend.
 query :: (MonadSelda m, Result a) => Query (Backend m) a -> m [Res a]
 query q = withBackend (flip queryWith q . runStmt)
+
+-- | Run a query within a Selda monad like `query` and stream the results to a
+--   callback function. The callbacks may produce a Monoid which will be
+--   concatenated into the final result.
+forQuery ::
+     forall m a r. (MonadSelda m, MonadMask m, Result a, Monoid r)
+  => Query (Backend m) a
+  -> (Res a -> m r)
+  -> m r
+forQuery q k =
+  withBackend $ \b ->
+    uncurry (runStmtStreaming b) (ppConfig b `compileWith` q)
+      $ fmap mconcat . traverse k . mkResults (Proxy :: Proxy a)
 
 -- | Perform the given query, and insert the result into the given table.
 --   Returns the number of inserted rows.

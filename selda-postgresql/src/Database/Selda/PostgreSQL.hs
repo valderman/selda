@@ -19,7 +19,7 @@ import Control.Monad.Catch
 import Control.Monad.IO.Class
 
 #ifndef __HASTE__
-import Control.Monad (void)
+import Control.Monad (void, unless)
 import qualified Data.ByteString as BS (foldl')
 import qualified Data.ByteString.Char8 as BS (pack, unpack)
 import Data.Dynamic
@@ -200,14 +200,17 @@ pgPPConfig = defPPConfig
 pgBackend :: Connection   -- ^ PostgreSQL connection object.
           -> SeldaBackend PG
 pgBackend c = SeldaBackend
-  { runStmt         = \q ps -> right <$> pgQueryRunner c False q ps
-  , runStmtWithPK   = \q ps -> left <$> pgQueryRunner c True q ps
-  , prepareStmt     = pgPrepare c
-  , runPrepared     = pgRun c
-  , getTableInfo    = pgGetTableInfo c . rawTableName
-  , backendId       = PostgreSQL
-  , ppConfig        = pgPPConfig
-  , closeConnection = \_ -> finish c
+  { runStmt          = \q ps -> right <$> pgQueryRunner c False q ps
+  , runStmtStreaming = \q ps k -> pgQueryRunnerStream c q ps k
+  , runStmtWithPK    = \q ps -> left <$> pgQueryRunner c True q ps
+  , prepareStmt      = pgPrepare c
+  , runPrepared      = pgRun c
+  , runPreparedStreaming
+                     = pgRunStream c
+  , getTableInfo     = pgGetTableInfo c . rawTableName
+  , backendId        = PostgreSQL
+  , ppConfig         = pgPPConfig
+  , closeConnection  = \_ -> finish c
   , disableForeignKeys = disableFKs c
   }
   where
@@ -398,6 +401,64 @@ getRows res = do
   where
     bsToPositiveInt = BS.foldl' (\a x -> a*10+fromIntegral x-48) 0
 
+pgQueryRunnerStream ::
+     (MonadIO m, MonadMask m, Monoid r)
+  => Connection
+  -> T.Text
+  -> [Param]
+  -> ([[SqlValue]] -> m r)
+  -> m r
+pgQueryRunnerStream c q ps k = do
+  qsent <-
+    liftIO
+      $ sendQueryParams c (encodeUtf8 q) [fromSqlValue p | Param p <- ps] Binary
+  unless qsent . throwM $ DbError "sendQueryParams failed"
+  msent <- liftIO $ setSingleRowMode c -- TODO: chunked mode, but the library doesn't wrap setChunkedRowsMode. See https://github.com/haskellari/postgresql-libpq/pull/79 for progress.
+  unless msent . throwM $ DbError "setSingleRowMode failed"
+  streamRows c k mempty
+
+-- TODO this is prepared for streaming of prepared statements (not in frontend yet)
+pgRunStream ::
+     (MonadIO m, MonadMask m, Monoid r)
+  => Connection
+  -> Dynamic
+  -> [Param]
+  -> ([[SqlValue]] -> m r)
+  -> m r
+pgRunStream c hdl ps k = do
+  let Just sid = fromDynamic hdl :: Maybe StmtID
+  qsent <-
+    liftIO $ sendQueryPrepared c (BS.pack $ show sid) (map mkParam ps) Binary
+  unless qsent . throwM $ DbError "sendQueryParams failed"
+  msent <- liftIO $ setSingleRowMode c
+  unless msent . throwM $ DbError "setSingleRowMode failed"
+  streamRows c k mempty
+  where
+    mkParam (Param p) =
+      case fromSqlValue p of
+        Just (_, val, fmt) -> Just (val, fmt)
+        Nothing -> Nothing
+
+streamRows ::
+     (MonadIO m, MonadMask m, Monoid r)
+  => Connection
+  -> ([[SqlValue]] -> m r)
+  -> r
+  -> m r
+streamRows c k r = do
+  mres <- liftIO $ getResult c
+  case mres of
+    Just res -> do
+      result <-
+        liftIO $ do
+          rows <- ntuples res
+          cols <- nfields res
+          types <- mapM (ftype res) [0 .. cols - 1]
+          mapM (getRow res types cols) [0 .. rows - 1]
+      if null result
+        then pure r
+        else k result >>= streamRows c k . mappend r
+    Nothing -> throwM $ DbError "streaming getResult failed"
 
 -- | Get all columns for the given row.
 getRow :: Result -> [Oid] -> Column -> Row -> IO [SqlValue]

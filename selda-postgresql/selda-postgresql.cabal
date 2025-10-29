@@ -1,5 +1,5 @@
 name:                selda-postgresql
-version:             0.1.8.2
+version:             0.1.9.0
 synopsis:            PostgreSQL backend for the Selda database EDSL.
 description:         PostgreSQL backend for the Selda database EDSL.
                      Requires the PostgreSQL @libpq@ development libraries to be
@@ -23,16 +23,16 @@ library
     OverloadedStrings
     CPP
   build-depends:
-      base              >=4.9  && <5
-    , bytestring        >=0.9  && <0.13
-    , exceptions        >=0.8  && <0.11
-    , selda             >=0.5  && <0.6
-    , selda-json        >=0.1  && <0.2
-    , text              >=1.0  && <2.2
-    , postgresql-binary >=0.12 && <0.15
-    , postgresql-libpq  >=0.9  && <0.12
-    , time              >=1.5  && <1.16
-    , uuid-types        >=1.0  && <1.1
+      base              >=4.9   && <5
+    , bytestring        >=0.9   && <0.13
+    , exceptions        >=0.8   && <0.11
+    , selda             >=0.5.3 && <0.6
+    , selda-json        >=0.1   && <0.2
+    , text              >=1.0   && <2.2
+    , postgresql-binary >=0.12  && <0.15
+    , postgresql-libpq  >=0.9   && <0.12
+    , time              >=1.5   && <1.16
+    , uuid-types        >=1.0   && <1.1
   hs-source-dirs:
     src
   default-language:

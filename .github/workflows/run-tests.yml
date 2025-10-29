@@ -10,7 +10,7 @@ jobs:
   build:
     strategy:
       matrix:
-        ghc: ['8.8.4', '8.10.7', '9.2.8', '9.4.8', '9.6.7', '9.12.1']
+        ghc: ['8.8.4', '8.10.7', '9.2.8', '9.4.8', '9.6.7', '9.12.2']
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2

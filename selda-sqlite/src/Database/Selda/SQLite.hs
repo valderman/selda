@@ -3,6 +3,7 @@
 module Database.Selda.SQLite
   ( SQLite
   , withSQLite
+  , withSQLiteStreaming
   , sqliteOpen, seldaClose
   , sqliteBackend
   ) where
@@ -56,6 +57,10 @@ sqliteBackend _ = error "sqliteBackend called in JS context"
 #else
 withSQLite file m = bracket (sqliteOpen file) seldaClose (runSeldaT m)
 
+-- S.yield :: Monad m => a -> S.Stream (S.Of a) m ()
+withSQLiteStreaming :: (MonadMask m, MonadIO m, Monad m, Monoid (m b)) => FilePath -> SeldaT SQLite m b -> m b
+withSQLiteStreaming file m = bracket (sqliteOpen file) seldaClose (runSeldaT m)
+
 -- | Create a Selda backend using an already open database handle.
 --   This is useful for situations where you want to use some SQLite-specific
 --   functionality alongside Selda.
@@ -66,14 +71,17 @@ withSQLite file m = bracket (sqliteOpen file) seldaClose (runSeldaT m)
 --   Proceed with extreme caution.
 sqliteBackend :: Database -> SeldaBackend SQLite
 sqliteBackend db = SeldaBackend
-  { runStmt         = \q ps -> snd <$> sqliteQueryRunner db q ps
-  , runStmtWithPK   = \q ps -> fst <$> sqliteQueryRunner db q ps
-  , prepareStmt     = \_ _ -> sqlitePrepare db
-  , runPrepared     = sqliteRunPrepared db
-  , getTableInfo    = sqliteGetTableInfo db . fromTableName
-  , ppConfig        = defPPConfig {ppMaxInsertParams = Just 999}
-  , backendId       = SQLite
-  , closeConnection = \conn -> do
+  { runStmt          = \q ps -> snd <$> sqliteQueryRunner db q ps
+  , runStmtStreaming = \q ps -> sqliteQueryRunnerStreaming db q ps
+  , runStmtWithPK    = \q ps -> fst <$> sqliteQueryRunner db q ps
+  , prepareStmt      = \_ _ -> sqlitePrepare db
+  , runPrepared      = sqliteRunPrepared db
+  , runPreparedStreaming
+                     = sqliteRunPreparedStreaming db
+  , getTableInfo     = sqliteGetTableInfo db . fromTableName
+  , ppConfig         = defPPConfig {ppMaxInsertParams = Just 999}
+  , backendId        = SQLite
+  , closeConnection  = \conn -> do
       stmts <- allStmts conn
       flip mapM_ stmts $ \(_, stm) -> do
         finalize $ fromDyn stm (error "BUG: non-statement SQLite statement")
@@ -180,6 +188,24 @@ sqliteRunPrepared db hdl params = do
     Left e@(SQLError{}) -> throwM (SqlError (show e))
     Right res           -> return (snd res)
 
+sqliteRunPreparedStreaming ::
+     (MonadIO m, MonadMask m, Monoid r)
+  => Database
+  -> Dynamic
+  -> [Param]
+  -> ([[SqlValue]] -> m r)
+  -> m r
+sqliteRunPreparedStreaming _ hdl params k = do
+  -- note for self: this does not need the `db` handle because it does not
+  -- return the last-inserted row ID.
+  eres <- try $ do
+    let Just stm = fromDynamic hdl
+    sqliteRunStmtStreaming stm params k `finally` do
+      liftIO $ clearBindings stm >> reset stm
+  case eres of
+    Left e@(SQLError{}) -> throwM (SqlError (show e))
+    Right res           -> return res
+
 sqliteQueryRunner :: Database -> QueryRunner (Int64, (Int, [[SqlValue]]))
 sqliteQueryRunner db qry params = do
     eres <- try $ do
@@ -207,6 +233,48 @@ getRows s acc = do
       getRows s (cs : acc)
     _ -> do
       return $ reverse acc
+sqliteQueryRunnerStreaming ::
+     (MonadIO m, MonadMask m, MonadIO m, Monoid r)
+  => Database
+  -> Text
+  -> [Param]
+  -> ([[SqlValue]] -> m r)
+  -> m r
+sqliteQueryRunnerStreaming db qry params k = do
+  eres <-
+    try $ do
+      stm <- liftIO $ prepare db qry
+      sqliteRunStmtStreaming stm params k `finally` do
+        liftIO $ finalize stm
+  case eres of
+    Left e@(SQLError {}) -> throwM (SqlError (show e))
+    Right res -> return res
+
+sqliteRunStmtStreaming ::
+     (MonadIO m, MonadMask m, Monoid r)
+  => Statement
+  -> [Param]
+  -> ([[SqlValue]] -> m r)
+  -> m r
+sqliteRunStmtStreaming stm params k = do
+  liftIO $ bind stm [toSqlData p | Param p <- params]
+  streamRows stm 1024 $ k . map (map fromSqlData)
+
+streamRows ::
+     (MonadIO m, Monoid r) => Statement -> Int -> ([[SQLData]] -> m r) -> m r
+streamRows s n k = cont mempty
+  where
+    cont r = go r [] 0
+    go r acc i
+      | i < n = do
+        res <- liftIO $ step s
+        case res of
+          Row -> do
+            cs <- liftIO $ columns s
+            go r (cs : acc) (succ i)
+          _ -> mappend r <$> send acc
+      | otherwise = mappend r <$> send acc >>= cont
+    send = k . reverse
 
 toSqlData :: Lit a -> SQLData
 toSqlData (LInt32 i)    = SQLInteger $ fromIntegral i

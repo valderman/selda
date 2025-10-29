@@ -148,7 +148,7 @@ addToSiteMap Page{..} = do
       | pageSubdirectory == "." = ""
       | otherwise               = pageSubdirectory
     pageUrl = base </> subdir </> pageFileName
-      
+
 
 sitemapFile :: FilePath
 sitemapFile = siteDirectory </> "sitemap.txt"

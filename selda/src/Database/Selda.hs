@@ -27,7 +27,7 @@ module Database.Selda
   , SeldaT, SeldaM
   , Relational, Only (..), The (..)
   , Table (tableName), Query, Row, Col, Res, Result
-  , query, queryInto
+  , query, queryInto, forQuery
   , transaction, withoutForeignKeyEnforcement
   , newUuid
 
@@ -157,6 +157,7 @@ import Database.Selda.Frontend
     ( MonadIO(..),
       query,
       queryInto,
+      forQuery,
       insert,
       tryInsert,
       upsert,
@@ -592,9 +593,6 @@ instance Semigroup (Col s Text) where
   (<>) = operator "||"
 instance Monoid (Col s Text) where
   mempty = ""
-
-
-
 
 -- | Perform a conditional on a column
 ifThenElse :: (Same s t, Same t u, SqlType a) => Col s Bool -> Col t a -> Col u a -> Col s a

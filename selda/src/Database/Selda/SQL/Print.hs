@@ -16,6 +16,7 @@ import qualified Database.Selda.SQL.Print.Config as Cfg
 import Database.Selda.SqlType ( Lit(LJust, LNull), SqlTypeRep )
 import Database.Selda.Types
     ( TableName, ColName, fromColName, fromTableName )
+import Control.Monad (liftM2)
 import Control.Monad.State
     ( MonadState(get, put), runState, State )
 import Control.Monad (liftM2)

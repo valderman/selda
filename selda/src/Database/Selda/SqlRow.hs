@@ -7,6 +7,7 @@ module Database.Selda.SqlRow
   , GSqlRow
   , runResultReader, next
   ) where
+import Control.Monad (liftM2)
 import Control.Monad.State.Strict
     ( StateT(StateT),
       MonadState(state, get),
