@@ -7,7 +7,7 @@ mkDerivation {
   libraryHaskellDepends = [
     base bytestring exceptions mtl text time containers random uuid-types
   ];
-  homepage = "https://selda.link";
+  homepage = "https://valderman.github.io/selda";
   description = "Type-safe, high-level EDSL for interacting with relational databases";
   license = stdenv.lib.licenses.mit;
 }

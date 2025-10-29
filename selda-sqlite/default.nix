@@ -8,7 +8,7 @@ mkDerivation {
   libraryHaskellDepends = [
     base direct-sqlite exceptions selda text
   ];
-  homepage = "https://selda.link";
+  homepage = "https://valderman.github.io/selda";
   description = "SQLite backend for the Selda database EDSL";
   license = stdenv.lib.licenses.mit;
 }
