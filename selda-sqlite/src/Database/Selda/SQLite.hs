@@ -32,17 +32,18 @@ sqliteOpen :: (MonadIO m, MonadMask m) => FilePath -> m (SeldaConnection SQLite)
 #ifdef __HASTE__
 sqliteOpen _ = error "sqliteOpen called in JS context"
 #else
-sqliteOpen file = do
-  mask $ \restore -> do
-    edb <- try $ liftIO $ open (pack file)
-    case edb of
-      Left e@(SQLError{}) -> do
-        throwM (DbError (show e))
-      Right db -> flip onException (liftIO (close db)) . restore $ do
-        absFile <- liftIO $ pack <$> makeAbsolute file
-        let backend = sqliteBackend db
-        void . liftIO $ runStmt backend "PRAGMA foreign_keys = ON;" []
-        newConnection backend absFile
+sqliteOpen file =
+    bracketOnError acquire (liftIO . close) $ \db -> do
+      absFile <- liftIO $ pack <$> makeAbsolute file
+      let backend = sqliteBackend db
+      void . liftIO $ runStmt backend "PRAGMA foreign_keys = ON;" []
+      newConnection backend absFile
+  where
+    acquire = do
+      edb <- try $ liftIO $ open (pack file)
+      case edb of
+        Left e@(SQLError{}) -> throwM (DbError (show e))
+        Right db -> pure db
 #endif
 
 -- | Perform the given computation over an SQLite database.
