@@ -33,7 +33,7 @@ test-suite selda-testsuite
     Tests.Validation
   build-depends:
       aeson
-    , base       >=4.8  && <5
+    , base       >=4.10  && <5
     , bytestring >=0.10 && <0.13
     , directory  >=1.2  && <1.4
     , exceptions >=0.8  && <0.11
