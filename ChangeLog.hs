@@ -23,7 +23,7 @@ changeLog =
     , "Add typed UUIDs"
     , "Allow literal rows in update queries. (#139)"
     , "Add support for UNION/UNION ALL. (#140)"
-    , "Support raw PostgreSQL connetion strings. (#136)"
+    , "Support raw PostgreSQL connection strings. (#136)"
     , "Move to Docker and GitHub actions for testing."
     , "Drop support for GHC versions <8.8."
     , "Various bugfixes."
