@@ -10,7 +10,7 @@ import Text.Read
 
 changeLog :: ChangeLog
 changeLog =
-  [ Version "0.5.2.1" "2025-11-13"
+  [ Version "0.5.2.1" "2026-01-08"
     "Maintenance and dependency version bumps"
     [ "Publish the website via GitHub pages (#201)"
     , "Properly use cascading deletes with foreign keys (#191)"
