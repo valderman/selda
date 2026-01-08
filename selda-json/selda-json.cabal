@@ -7,6 +7,7 @@ description:         Types and classes to support storing and querying
 homepage:            https://valderman.github.io/selda
 -- bug-reports:
 license:             MIT
+license-file:        LICENSE
 author:              Anton Ekblad
 maintainer:          anton@ekblad.cc
 -- copyright:
