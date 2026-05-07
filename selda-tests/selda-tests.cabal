@@ -41,7 +41,7 @@ test-suite selda-testsuite
     , selda
     , selda-json
     , text       >=1.1  && <2.2
-    , time       >=1.4  && <1.16
+    , time       >=1.4  && <1.17
     , random     >=1.1  && <1.4
     , uuid-types >=1.0  && <1.1
   if flag(postgres)
