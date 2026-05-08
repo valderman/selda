@@ -44,11 +44,10 @@ import Data.Text (Text)
 import Control.Monad ( void )
 import Control.Monad.Catch
     ( bracket_,
-      onException,
       try,
       MonadCatch,
-      MonadMask(mask),
-      MonadThrow(throwM) )
+      MonadMask(generalBracket),
+      MonadThrow(throwM), ExitCase (..) )
 import Control.Monad.IO.Class ( MonadIO(..) )
 
 -- | Run a query within a Selda monad. In practice, this is often a 'SeldaT'
@@ -259,11 +258,11 @@ tryDropTable = void . flip exec [] . compileDropTable Ignore
 --   will be rolled back and the exception re-thrown, even if the exception
 --   is caught and handled within the transaction.
 transaction :: (MonadSelda m, MonadMask m) => m a -> m a
-transaction m = mask $ \restore -> transact $ do
-  void $ exec "BEGIN TRANSACTION" []
-  x <- restore m `onException` void (exec "ROLLBACK" [])
-  void $ exec "COMMIT" []
-  return x
+transaction m =
+    fst <$> generalBracket (exec "BEGIN TRANSACTION" []) (const finish) (const m)
+  where
+    finish (ExitCaseSuccess _) = exec "COMMIT" []
+    finish _ = exec "ROLLBACK" []
 
 -- | Run the given computation as a transaction without enforcing foreign key
 --   constraints.

@@ -5,6 +5,9 @@
 module Tests.Mutable (mutableTests) where
 import Control.Concurrent
 import Control.Monad.Catch
+#if MIN_VERSION_mtl(2, 1, 1)
+import Control.Monad.Except (runExceptT, throwError)
+#endif
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Lazy as Lazy (ByteString)
 import Data.List hiding (groupBy, insert)
@@ -36,6 +39,9 @@ mutableTests freshEnv = test
   , "insert time values"             ~: freshEnv insertTime
   , "transaction completes"          ~: freshEnv transactionCompletes
   , "transaction rolls back"         ~: freshEnv transactionRollsBack
+#if MIN_VERSION_mtl(2, 1, 1)
+  , "transaction rolls back (ExceptT)"~: freshEnv transactionRollsBackExceptT
+#endif
   , "queries are consistent"         ~: freshEnv consistentQueries
   , "delete deletes"                 ~: freshEnv deleteDeletes
   , "delete everything"              ~: freshEnv deleteEverything
@@ -191,6 +197,31 @@ transactionRollsBack = do
   where
     c1 = "チョロゴン"
     c2 = "メイド最高！"
+
+#if MIN_VERSION_mtl(2, 1, 1)
+transactionRollsBackExceptT :: SeldaM b ()
+transactionRollsBackExceptT = do
+  setup
+  res <- runExceptT $ transaction $ do
+    insert_ comments [(def, Just "Kobayashi", c1)]
+    insert_ comments
+      [ (def, Nothing, "more anonymous spam")
+      , (def, Just "Kobayashi", c2)
+      ]
+    throwError "nope"
+  case res of
+    Right _ ->
+      liftIO $ assertFailure "error didn't propagate"
+    Left (_ :: String) -> do
+      cs <- query $ do
+        t <- select comments
+        restrict (t!cName .== just "Kobayashi")
+        return (t!cComment)
+      assEq "commit was not rolled back" [] cs
+  where
+    c1 = "チョロゴン"
+    c2 = "メイド最高！"
+#endif
 
 consistentQueries = do
   setup
